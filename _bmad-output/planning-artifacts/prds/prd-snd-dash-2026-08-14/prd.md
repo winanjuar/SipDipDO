@@ -258,11 +258,12 @@ COO dapat mengelola harga beli & jual (nilai baru efektif per tanggal, tertaut p
 - Harga berjalan dan seluruh riwayat harga dapat dilihat oleh semua owner — termasuk owner tanpa saham (patokan sebelum pembelian perdana).
 
 #### FR-7: Pencatatan MoM MRO/RUPS
-COO dapat menyimpan notulen (MoM) MRO/RUPS di sistem, termasuk draft untuk MRO berikutnya.
+COO dapat menyimpan notulen (MoM) MRO/RUPS di sistem melalui dua modus — menulis langsung di sistem (termasuk draft untuk MRO berikutnya) atau mengunggah dokumen matang dalam PDF yang disusun di editor mana pun — dan MoM yang diunggah dapat dipreview di web.
 
 **Consequences (testable):**
 - MoM tersimpan dengan tanggal dan dapat ditautkan ke keputusan (harga, jenis Contribution, cut-off).
 - Draft MoM dapat diedit hingga final.
+- Unggah PDF MoM hanya dapat dilakukan COO; dokumen dipreview di web sesuai keterbukaan MoM (owner pemegang saham — matriks §4.8).
 
 ### 4.4 Contribution & Insentif
 **Description:** Jenis Contribution didefinisikan di MRO; COO mencatat dan mengevaluasi realisasi per owner sepanjang Contribution Period; cut-off terjadi pada tanggal tertentu (tidak harus saat RUPS). Realisasi UJ-2, UJ-4.
@@ -360,12 +361,13 @@ Calon owner dapat mendaftar secara mandiri dengan akun Google, melengkapi Profil
 - Autentikasi seluruh akun (owner eksisting & COO) memakai akun Google; dicocokkan lewat email saat migrasi.
 
 #### FR-14: Migrasi data historis
-Seluruh riwayat transaksi dari awal (termasuk yang tercatat di sheet Evidence), rekap kepemilikan dari Google Sheets, serta data pendaftaran historis dari Google Form, dimigrasikan sehingga dashboard dapat go-live dengan saldo dan riwayat utuh 22 owner eksisting (rekap Grand Total saat ini: Quantity 3.622, Shares 5.187, Ceil 14.980).
+Seluruh riwayat transaksi dari awal (termasuk yang tercatat di sheet Evidence), rekap kepemilikan dari Google Sheets, data pendaftaran historis dari Google Form, serta poin Contribution historis yang belum ditunaikan, dimigrasikan sehingga dashboard dapat go-live dengan saldo dan riwayat utuh 22 owner eksisting (rekap Grand Total saat ini: Quantity 3.622, Shares 5.187, Ceil 14.980).
 
 **Consequences (testable):**
 - Grand Total hasil migrasi cocok dengan rekap spreadsheet sumber.
 - Data pendaftar dari Google Form ikut dimigrasikan sebagai Profile owner/calon owner.
 - Setiap owner eksisting dapat melihat riwayat transaksinya pasca-migrasi.
+- Poin Contribution historis yang belum ditunaikan ikut dimigrasikan sebagai basis Insentif RUPS pertama pasca go-live (FR-16); total poin per owner cocok dengan sumbernya (folder Kontribusi di Google Drive saat ini).
 
 ### 4.8 Akses & Keamanan
 **Description:** Tiga tingkat akses: Calon Owner (terverifikasi = owner tanpa saham; hanya halaman personal), Owner pemegang saham (lihat + membuat/menarik Pesanan Pembelian sendiri), COO (konfirmasi Antrian Beli, input langsung, kelola konten & data dasar; aksi transaksional dengan MFA). Transparansi penuh hanya antar owner pemegang saham. COO saat ini: Sugeng Winanjuar; role harus dapat berpindah antar owner.
@@ -413,7 +415,7 @@ Peran COO dapat dialihkan ke owner lain (keputusan MRO/RUPS); riwayat siapa menj
 ## 6. MVP Scope
 
 ### 6.1 In Scope — Phase 1 (MVP)
-- FR-1, FR-3 s.d. FR-23 (Pesanan Pembelian mandiri + Antrian Beli + konfirmasi COO + input langsung + MFA, Pendaftaran Owner mandiri via akun Google, dashboard + chart-chart, harga via CMS + MoM, Contribution + cut-off + carry-over, distribusi laba, Bukti Transaksi via email, audit trail, manajemen owner + pergantian COO, pelacakan RKAP, migrasi data Sheets + Form, role).
+- FR-1, FR-3 s.d. FR-23 (Pesanan Pembelian mandiri + Antrian Beli + konfirmasi COO + input langsung + MFA, Pendaftaran Owner mandiri via akun Google, dashboard + chart-chart, harga via CMS + MoM, Contribution + cut-off + carry-over, distribusi laba, Bukti Transaksi via email, audit trail, manajemen owner + pergantian COO, pelacakan RKAP, migrasi data Sheets + Form + poin Contribution historis, role).
 - Web app responsif; 22 owner eksisting + pertumbuhan hingga ~40.
 
 ### 6.2 Phase 2
@@ -461,6 +463,8 @@ Peran COO dapat dialihkan ke owner lain (keputusan MRO/RUPS); riwayat siapa menj
 - Status owner tanpa saham, Keluar & reaktivasi (FR-13)
 - Field Profile (Lampiran A) + referral saat Pembelian Pertama (FR-22)
 - Matriks keterbukaan owner tanpa saham (§4.8)
+- MoM dua modus: tulis langsung + unggah PDF dengan preview web (FR-7)
+- Poin Contribution historis yang belum ditunaikan ikut dimigrasikan (FR-14)
 
 ## Lampiran A. Daftar Field Profile
 *Transkrip field Google Form pendaftaran owner saat ini — paritas migrasi (FR-14), rujukan resmi bagi FR-22 dan Glossary "Profile".*
