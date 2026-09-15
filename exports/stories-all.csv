@@ -1,0 +1,673 @@
+﻿Story ID,Epic,Judul Epic,Judul Story,As a,I want,So that,Referensi (FR/AD/AR/UX-DR/NFR),Jumlah AC,Acceptance Criteria,Status,Assignee,Sprint,Catatan
+1.1,1,Pendaftaran Owner & Fondasi Akses,Scaffold Platform Nuxt 4,"As a developer,","I want fondasi aplikasi sesuai Structural Seed dengan pin stack terverifikasi,",So that seluruh story berikutnya dibangun di atas substrat yang sudah diuji sesuai arsitektur.,"AR-2, AR-3, AR-6, AR-12, AD-8, AD-12, UX-DR2",5,"[AC 1] Given: repo belum memiliki kode aplikasi
+         When: scaffold Nuxt 4 dijalankan sesuai Structural Seed
+         Then: struktur direktori tercipta: `app/` (pages, components/islands, composables), `server/api`, `server/domain/` berisi 10 modul (identity, orders, ledger, rkap, pricing, contribution, distribution, proofs, audit, migration) masing-masing berbentuk seragam (`index.ts` satu pintu impor, `*.service.ts`, `*.repo.ts`, `events.ts` opsional), `server/jobs`, `shared/domain` tanpa I/O, `drizzle/`
+         And: pin terpasang eksak: `drizzle-orm@0.45.2`, `drizzle-kit@0.31.10`, `postgres.js` 3.4.9, Node 24 LTS dengan `engines >=22.19.0`; dist-tag Drizzle 1.0 dicek — bila GA, ambil dan ulangi smoke migrasi (AR-2)
+
+[AC 2] Given: NuxtAuth 1.3.1 terpasang
+         When: smoke-test OAuth Google + session dijalankan di Nuxt 4
+         Then: login Google dan session bekerja
+         And: bila gagal, fallback (`nuxt-auth-utils` / OAuth manual) dijalankan dan keputusannya tercatat — tetap memenuhi AD-8
+
+[AC 3] Given: `@vite-pwa/nuxt` 1.1.1 terpasang
+         When: smoke-test BUILD (generateSW) + install + prompt pembaruan dijalankan di Nuxt 4.5
+         Then: PWA installable dengan cangkang sesuai AD-12: cache hanya aset ter-fingerprint + manifest + ikon + `/offline`; dokumen SSR & `/api/**` `no-store`
+         And: bila gagal, fallback `vite-plugin-pwa` langsung / SW kustom direviu terhadap AD-12 (AR-3)
+
+[AC 4] Given: shadcn-vue (primitif reka-ui) + Tailwind dipasang
+         When: smoke-test paritas komponen kontrak dijalankan
+         Then: Dialog, Sheet, Tooltip, Drawer, Input-OTP, Toast berfungsi di Nuxt 4
+         And: keputusan library chart (condong ECharts) dan decimal library (AR-12) dipin dan dicatat dengan alasan; delta brand tokens UX-DR2 terpasang light-only tanpa pasangan dark
+
+[AC 5] Given: lingkungan lokal via Supabase CLI (Docker) dan produksi Vercel + Supabase PG 17 via pooler
+         When: konfigurasi env diselesaikan
+         Then: hanya ada lingkungan `local` + `production`; infrastruktur email outbox (baris in-tx, kirim async + retry) + Resend dengan SPF/DKIM & From-domain siap dipakai story berikutnya (AR-6)",Backlog,,,
+1.2,1,Pendaftaran Owner & Fondasi Akses,Autentikasi Akun Google & Halaman Login,"As a calon owner / owner / COO,","I want masuk ke sistem dengan akun Google,",So that saya tidak perlu menghafal password baru dan identitas email tunggal terjamin.,"AD-8, UX-DR3, UX-DR14, UX-DR15, UX-DR19",4,"[AC 1] Given: pengunjung belum terautentikasi membuka URL aplikasi
+         When: halaman Login tampil
+         Then: lockup logo 80px terpusat + tagline *""Sip the taste, dip the soul""* tampil (UX-DR3, UX-DR15) dengan satu CTA login Google
+
+[AC 2] Given: akun Google belum terhubung ke owner/pendaftar mana pun
+         When: login dicoba
+         Then: pesan arahan tampil: ""Akun Google ini belum terhubung. Pendaftar: lanjutkan pendaftaran. Owner eksisting: hubungi COO untuk pencocokan email migrasi."" (UX-DR15)
+
+[AC 3] Given: login berhasil
+         When: redirect landing dieksekusi
+         Then: tujuan mengikuti role: pemegang saham → Dashboard, owner tanpa saham/Keluar → Halaman Personal, COO → Antrian Beli (UX-DR14; untuk Epic 1 halaman tujuan cukup kerangka + state kosong sesuai UX-DR19)
+         And: seluruh pengecekan role dilakukan di middleware server + route handler, tidak pernah di klien saja (AD-8)
+
+[AC 4] Given: sesi berakhir
+         When: pengguna mengakses halaman terproteksi
+         Then: dialihkan ke halaman Login",Backlog,,,
+1.3,1,Pendaftaran Owner & Fondasi Akses,Audit Trail — Pencatatan & Tampilan COO,"As a COO,","I want semua aksi tercatat permanen dengan aktor, waktu, dan detail,",So that akuntabilitas setiap keputusan bisa diperiksa kapan pun dan tidak bisa diubah siapa pun.,"FR-12, AD-3, AD-5",3,"[AC 1] Given: modul AUDIT dengan tabel `audit_logs` dibuat via migrasi Drizzle
+         When: skema dan grants diterapkan
+         Then: tidak ada jalur UPDATE/DELETE pada `audit_logs` (AD-3) dan setiap entry ditulis dalam transaksi DB yang sama dengan aksinya — tidak pernah async
+
+[AC 2] Given: service domain melakukan aksi yang wajib diaudit
+         When: helper audit modul dipanggil
+         Then: entry berbentuk envelope `{ actor, action, target, details jsonb }`; nama action berasal dari registry enum terpusat; aktor berupa `user` (owner/COO) atau `system` (cron) (AD-3)
+         And: modul lain menulis audit hanya lewat API publik modul audit (`index.ts`), tidak pernah menulis tabel tetangga (AD-5)
+
+[AC 3] Given: COO membuka halaman Audit Trail
+         When: log dimuat
+         Then: daftar aksi (aktor, waktu, detail) tampil hanya untuk COO; non-COO yang mengakses URL langsung dialihkan (FR-12)",Backlog,,,
+1.4,1,Pendaftaran Owner & Fondasi Akses,Pendaftaran Owner Mandiri & Status,"As a calon owner,","I want mendaftar menjadi owner dengan akun Google dari halaman publik,",So that saya bisa memulai kepemilikan tanpa Google Form dan tanpa bergantung pada orang lain.,"FR-22, AD-11, UX-DR4",3,"[AC 1] Given: halaman pendaftaran diakses via link publik
+         When: calon owner mendaftar dengan akun Google
+         Then: baris owner dibuat dengan status `diajukan` (enum AD-11) dan pendaftaran tercatat di audit trail (FR-22)
+         And: field referral TIDAK diminta saat pendaftaran — referral diajukan saat Pembelian Pertama (FR-22; Glossary)
+
+[AC 2] Given: pendaftar login setelah mendaftar
+         When: status pendaftarannya dilihat
+         Then: tampil salah satu status Diajukan / Terverifikasi / Ditolak (+ alasan) memakai Status Badge (UX-DR4: Diajukan `warn`, Terverifikasi `success`, Ditolak `destructive`) dengan perubahan status diumumkan `aria-live=""polite""`
+
+[AC 3] Given: email yang sudah terdaftar sebagai owner
+         When: pendaftaran dengan email yang sama dicoba
+         Then: tidak ada baris owner duplikat (unique constraint per email — AD-11)",Backlog,,,
+1.5,1,Pendaftaran Owner & Fondasi Akses,Kelengkapan Profile 11 Field,"As a pendaftar,","I want mengisi 11 field Profile dengan indikator langkah yang persis,",So that saya tahu persis apa yang belum lengkap dan pendaftaran saya bisa diverifikasi.,"FR-22, AR-6, AD-11, UX-DR14, UX-DR16, UX-DR19",4,"[AC 1] Given: pendaftar berstatus `diajukan` login
+         When: membuka Kelengkapan Profile
+         Then: 11 field Lampiran A tampil (Nama Lengkap, Alias, Gmail, Nomor HP, Kontak Darurat, Nomor HP Kontak Darurat, Hubungan dengan Owner, Nama Bank, Pemilik Rekening, Nomor Rekening) dengan indikator langkah persis yang belum lengkap (UX-DR16), tanpa navigasi lain (UX-DR14)
+
+[AC 2] Given: Profile belum lengkap mendekati hari ke-7 sejak pendaftaran (kalender-hari zona Asia/Jakarta)
+         When: cron harian terproteksi CRON_SECRET berjalan
+         Then: email pengingat terkirim pada H-3 via outbox (AR-6), lalu pada hari ke-7 status berubah `kedaluwarsa` via compare-and-set + entry audit (AD-11; FR-22)
+
+[AC 3] Given: pendaftar berstatus `kedaluwarsa`
+         When: mendaftar ulang dengan email yang sama
+         Then: transisi `kedaluwarsa → diajukan` terjadi pada baris owner yang sama via CAS (bukan baris baru) dan tercatat audit (AD-11)
+
+[AC 4] Given: submit form gagal karena gangguan non-validasi
+         When: pendaftar mencoba lagi
+         Then: isian dipertahankan + toast ""Tidak dapat menyimpan — coba lagi."" (UX-DR19)",Backlog,,,
+1.6,1,Pendaftaran Owner & Fondasi Akses,Verifikasi & Penolakan Pendaftar oleh COO,"As a COO,","I want memverifikasi pendaftar yang Profile-nya sudah lengkap,",So that akun owner aktif tanpa satu pun entri manual dari saya.,"FR-15, AD-3, AD-11, UX-DR20, UX-DR21, UJ-6",4,"[AC 1] Given: COO membuka daftar pendaftar
+         When: pendaftar dengan Profile belum lengkap dilihat
+         Then: aksi verifikasi tidak tersedia (gerbang kelengkapan — edge UJ-6)
+
+[AC 2] Given: pendaftar dengan Profile lengkap
+         When: COO memverifikasi
+         Then: status berubah `diajukan → terverifikasi` via compare-and-set dalam SATU transaksi DB + entry audit; modul lain diaudit in-tx (AD-11, AD-3)
+         And: bila cron kedaluwarsa berjalan hampir bersamaan, hanya satu penulis yang berhasil (race dijaga CAS yang sama)
+
+[AC 3] Given: COO menolak pendaftar
+         When: alasan (wajib) diisi dan disimpan
+         Then: status `ditolak` + alasan tampil apa adanya kepada pendaftar + tercatat audit (UX-DR20, UX-DR21)
+
+[AC 4] Given: owner baru berstatus `terverifikasi` tanpa saham
+         When: login
+         Then: landing di Halaman Personal (cakupan akses terbatas — FR-15)",Backlog,,,
+1.7,1,Pendaftaran Owner & Fondasi Akses,"Role, Matriks Keterbukaan & Navigasi","As a owner tanpa saham,","I want hanya melihat informasi yang menjadi hak saya,",So that transparansi antar owner terjaga sampai Pembelian Pertama saya efektif.,"FR-15, AD-8, AD-11, UX-DR14",4,"[AC 1] Given: owner tanpa saham (terverifikasi, belum pernah membeli; berlaku juga bagi Keluar) mengakses URL permukaan terkunci secara langsung
+         When: middleware server mengevaluasi request
+         Then: ditolak di batas server dan dialihkan ke Halaman Personal dengan pesan ""Transparansi penuh terbuka setelah Pembelian Pertama Anda efektif."" (UX-DR14; AD-8) — bukan sekadar disembunyikan di UI
+
+[AC 2] Given: predikat akses/keterbukaan dievaluasi (aksesPenuh, perluReferral, pilihanReferral)
+         When: server memanggilnya
+         Then: memakai fungsi kanonik IDENTITAS atas status siklus hidup (AD-8, AD-11), tidak pernah diturunkan dari `positions.shares` live
+
+[AC 3] Given: pengguna login di mobile (<lg)
+         When: navigasi tampil
+         Then: bottom nav maksimal 4 item + ""Lainnya"" (Sheet) sesuai role; item nav terkunci tidak tampil sama sekali (UX-DR14)
+         And: di desktop (≥lg): sidebar kiri dengan grup sesuai role; modal bertumpuk maksimal 1 tingkat
+
+[AC 4] Given: Halaman Personal owner tanpa saham dibuka
+         When: konten dimuat
+         Then: kerangka berisi Profile, portofolio & status Pesanan Pembelian miliknya (state kosong hingga Epic 3), harga berjalan & RKAP (tautan state kosong hingga Epic 2), dan pintu pembuatan Pesanan Pembelian — sesuai matriks keterbukaan §4.8 (FR-15)",Backlog,,,
+1.8,1,Pendaftaran Owner & Fondasi Akses,Manajemen Owner oleh COO,"As a COO,","I want mengelola data owner (identitas, kontak, status) di satu tempat,",So that data dasar selalu mutakhir tanpa spreadsheet dan kontak pengiriman Bukti/OTP selalu benar.,"FR-13, AD-11",3,"[AC 1] Given: halaman Manajemen Owner (khusus COO)
+         When: COO menambah/mengedit data owner (identitas, kontak WA/email)
+         Then: perubahan tersimpan dan tercatat di audit trail (FR-13)
+         And: kontak email dipakai sebagai kanal Bukti Transaksi & OTP MFA (kesiapan untuk Epic 3)
+
+[AC 2] Given: daftar pemilih owner untuk keperluan input transaksi
+         When: COO memilih owner
+         Then: seluruh owner dapat dipilih, termasuk yang terverifikasi namun belum pernah membeli (FR-13)
+
+[AC 3] Given: COO mengedit data owner
+         When: mencoba mengubah status siklus hidup (mis. `keluar → terverifikasi`) secara langsung
+         Then: ditolak — transisi status hanya via transisi sah bersistem CAS + event domain (AD-11); reaktivasi penuh terjadi lewat transaksi efektif (FR-13)",Backlog,,,
+1.9,1,Pendaftaran Owner & Fondasi Akses,Pergantian COO,"As a owner,","I want pergantian COO tercatat dengan referensi MoM,",So that jelas siapa pemegang kewenangan transaksional pada setiap saat.,"FR-17, AD-8, UX-DR20",3,"[AC 1] Given: COO membuka alur pergantian peran
+         When: owner pengganti dipilih dan referensi MoM (wajib) dilampirkan
+         Then: tenure baru aktif, tenure lama berakhir, dan seluruh peristiwa tercatat di audit trail (FR-17)
+
+[AC 2] Given: referensi MoM kosong
+         When: pergantian disubmit
+         Then: ditolak oleh validasi sebelum menyimpan (UX-DR20)
+
+[AC 3] Given: COO lama login setelah pergantian
+         When: mengakses sistem
+         Then: kembali menjadi Owner biasa — kehilangan akses transaksional & menu COO (FR-17)
+         And: kewenangan COO dievaluasi in-tx terhadap `coo_tenures` berlaku pada saat commit — aktor audit selalu pejabat saat itu (AD-8)",Backlog,,,
+2.1,2,"Keputusan MRO: Harga, MoM & RKAP",MoM MRO/RUPS Tulis Langsung,"As a COO,","I want menyimpan notulen MRO/RUPS dari draft hingga final di sistem,","So that keputusan para owner hidup dengan jejak yang jelas — bukan di ""ingatan kolektif"" atau chat.","FR-7, UX-DR14, UX-DR19",5,"[AC 1] Given: COO membuka CMS MoM
+         When: notulen baru dibuat
+         Then: MoM tersimpan dengan tanggal dan status draft, serta dapat diedit hingga final (FR-7)
+
+[AC 2] Given: MoM berstatus draft selesai disusun
+         When: COO memfinalkan
+         Then: status berubah final dan peristiwa penfinalan tercatat di audit trail; MoM final tetap terbaca dengan tanggalnya
+
+[AC 3] Given: pemegang saham membuka daftar MoM
+         When: halaman dimuat
+         Then: notulen dapat dibaca; owner tanpa saham/Keluar mendapat permukaan terkunci (redirect Halaman Personal + pesan pembuka akses — matriks §4.8, UX-DR14)
+
+[AC 4] Given: belum ada MoM tersimpan
+         When: halaman dibuka
+         Then: tampil state kosong ""Belum ada MoM tersimpan."" (UX-DR19)
+
+[AC 5] Given: MoM tersimpan
+         When: keputusan tertaut dibuat (harga — 2.3, fase RKAP — 2.4)
+         Then: relasi keputusan → MoM tersedia sebagai referensi (FR-7)",Backlog,,,
+2.2,2,"Keputusan MRO: Harga, MoM & RKAP",Upload PDF MoM & Preview Web,"As a COO,","I want mengunggah MoM yang sudah matang sebagai PDF,",So that notulen yang disusun di text editor mana pun tetap tersimpan dan bisa dipreview owner tanpa diketik ulang.,"FR-7, AR-13, AD-8, UX-DR3",4,"[AC 1] Given: COO membuat atau mengedit MoM
+         When: file PDF diunggah
+         Then: file tersimpan di Supabase Storage bucket privat (AR-13) dengan metadata tertaut ke MoM dan peristiwa unggah tercatat audit (FR-7)
+
+[AC 2] Given: pemegang saham membuka MoM yang memiliki PDF
+         When: preview dibuka
+         Then: PDF tampil di web via URL bertanda tangan berumur pendek — akses hanya untuk role berwenang; akses URL langsung tanpa sesi valid ditolak (AD-8)
+
+[AC 3] Given: pengguna non-COO (termasuk pemegang saham)
+         When: mencoba mengunggah PDF
+         Then: ditolak di route handler — kewenangan upload hanya COO (AD-8)
+
+[AC 4] Given: materi email yang menyertakan logo
+         When: varian logo dipilih
+         Then: memakai `logo.jpg` (latar putih) sesuai aturan brand (UX-DR3)",Backlog,,,
+2.3,2,"Keputusan MRO: Harga, MoM & RKAP",CMS Harga Saham — Berjalan & Riwayat,"As a COO,","I want mengelola harga beli & jual dengan tanggal efektif tertaut MoM,",So that transaksi berikutnya otomatis memakai harga resmi dan riwayat keputusan harga terjaga.,"FR-6, AD-7",5,"[AC 1] Given: COO menetapkan harga baru (nilai, jenis beli/jual, tanggal efektif, referensi MoM)
+         When: disimpan
+         Then: baris `price_periods` baru tercipta dan pesanan/transaksi berikutnya otomatis memakai harga berjalan (FR-6); penyimpanan tercatat audit
+
+[AC 2] Given: sudah ada baris untuk kombinasi (jenis harga, tanggal efektif) yang sama
+         When: COO menyimpan harga untuk kombinasi itu
+         Then: ditolak oleh unique constraint — koreksi harga pada tanggal efektif yang sama berarti mengubah baris berjalan + audit, bukan menambah baris kedua (AD-7)
+
+[AC 3] Given: owner — termasuk owner tanpa saham — membuka halaman Harga
+         When: halaman dimuat
+         Then: harga berjalan dan seluruh riwayat (nilai, tanggal efektif, referensi MRO) terlihat (FR-6; matriks §4.8 terbuka)
+
+[AC 4] Given: API resolusi harga dipanggil dengan tanggal X
+         When: ""harga berjalan pada tanggal X"" diresolve
+         Then: hasil selalu tepat SATU baris (AD-7) — kontrak yang dipakai pratinjau dan validasi submit di Epic 3
+
+[AC 5] Given: nilai harga telah tersnapshot (Harga Terkunci pesanan / harga final ledger)
+         When: baris harga dikoreksi
+         Then: nilai tersnapshot tidak pernah berubah — Bukti dan re-validasi selalu memakai nilai tersimpan (AD-7)",Backlog,,,
+2.4,2,"Keputusan MRO: Harga, MoM & RKAP",Struktur RKAP: Fase & Capital Item,"As a owner,","I want melihat tabel RKAP beserta progress per jenis modal,",So that saya tahu pembelian saham saya memenuhi kebutuhan apa — termasuk saya yang belum memiliki saham.,"FR-12, FR-23, AD-8, UX-DR6, UX-DR19",7,"[AC 1] Given: COO membuat fase RKAP baru
+         When: disimpan
+         Then: fase wajib tertaut MoM; selector fase menawarkan berjalan (default) vs arsip (UX-DR6; FR-23)
+
+[AC 2] Given: COO menambah Capital Item ke fase
+         When: disimpan
+         Then: item memiliki nama, jenis modal (Tetap/Bergerak — Modal Operasional tidak masuk RKAP), dan Initial Requirement; nilai Initial dikunci saat MRO menetapkan fase (FR-23)
+
+[AC 3] Given: tabel RKAP dimuat
+         When: ditampilkan
+         Then: kolom verbatim: nama, jenis modal, Initial Requirement, Final Requirement, Fulfillment, Fulfillment Rate, Shortfall, Utilization, Achievement, Held — plus baris agregat per jenis modal (UX-DR6; FR-23); Final Requirement berangkat dari Initial; kolom Fulfillment/Fulfillment Rate/Shortfall bernilai awal (0/kosong) hingga transaksi efektif mengisinya di Epic 3 — kolom dan rumusnya sudah siap
+
+[AC 4] Given: viewport mobile (<lg)
+         When: tabel digulir
+         Then: kolom nama sticky kiri dengan scroll horizontal dalam Card (UX-DR6)
+
+[AC 5] Given: owner tanpa saham membuka RKAP
+         When: halaman dimuat
+         Then: TERBUKA (matriks §4.8) secara read-only; edit hanya untuk COO (AD-8)
+
+[AC 6] Given: belum ada fase RKAP
+         When: halaman dibuka
+         Then: state kosong ""Belum ada fase RKAP."" dengan COO dapat menambah (UX-DR19)
+
+[AC 7] Given: fase baru atau item ditambahkan
+         When: perubahan disimpan
+         Then: tercatat di audit trail (FR-12, FR-23)",Backlog,,,
+2.5,2,"Keputusan MRO: Harga, MoM & RKAP",Penyesuaian RKAP Manual dalam Batas Agregat,"As a COO,","I want menyesuaikan Final Requirement dan menambah Capital Item baru dalam batas fase,",So that RKAP tetap hidup mengikuti kenyataan tanpa melanggar kesepakatan MRO.,"FR-23, AR-10, AD-2, UX-DR6, UX-DR11, UX-DR20",6,"[AC 1] Given: COO menaikkan Final Requirement item eksisting
+         When: penyesuaian disimpan
+         Then: selisih tercatat sebagai penyesuaian dengan nilai lama → baru di audit trail (FR-23)
+
+[AC 2] Given: COO menambah Capital Item baru ke fase berjalan
+         When: disimpan
+         Then: nilai penuh item baru dihitung sebagai penyesuaian dan membuka kembali ruang pembelian jenis modalnya (contoh riil fase 1: Peralatan Lainnya, Modal Bergerak, 0 → 1.664.000) (FR-23)
+
+[AC 3] Given: penyesuaian (manual apa pun) diajukan
+         When: batas agregat divalidasi di dalam transaksi
+         Then: akumulasi seluruh penyesuaian fase — otomatis + manual — tidak boleh melebihi (1% × total Initial Requirement fase) + harga beli 1 saham berjalan; pelanggaran → ditolak dengan Alert Penolakan Terhitung berisi rincian batas dan langkah lanjut (FR-23; UX-DR11; AD-2 re-validasi in-tx)
+
+[AC 4] Given: halaman RKAP tampil
+         When: ringkasan dibaca
+         Then: Card ringkasan menampilkan batas penyesuaian (1% + 1 saham), tambahan aktual, persentase terpakai, dan Quantity Left (UX-DR6; FR-23)
+
+[AC 5] Given: penyesuaian akan difinalkan
+         When: dialog konfirmasi tampil
+         Then: sisa batas penyesuaian terlihat sebelum confirm (UX-DR20) dan hasil tercatat audit
+
+[AC 6] Given: data fase 1 aktual dipakai sebagai fixture verifikasi
+         When: batas dihitung
+         Then: total Initial 250.000.000 → batas 2.500.000 (1%) + 52.000 (1 saham); terpakai 2.484.000; sisa Kekurangan 44.744.000 tertutup bulat oleh 861 saham = 44.772.000 dengan overshoot 28.000 tertampung sisa batas 68.000 (FR-23; AR-10)",Backlog,,,
+2.6,2,"Keputusan MRO: Harga, MoM & RKAP","Utilization, Achievement, Held & Rebalancing","As a COO,","I want mencatat realisasi penggunaan modal per Capital Item dan merebalancing saat MRO memutuskan,",So that owner melihat dana terkumpul vs terpakai dan kebutuhan bisa bergeser antar item sejenis dengan jejak.,"FR-23, AD-2",4,"[AC 1] Given: COO menginput Utilization (realisasi di lapangan) per Capital Item
+         When: disimpan
+         Then: tercatat dengan audit — terpisah dari Fulfillment/pembelian saham (FR-23)
+
+[AC 2] Given: Utilization dan Fulfillment tersedia
+         When: Achievement dan Held ditampilkan
+         Then: Achievement = Utilization ÷ Fulfillment (bisa > 100%) dan Held = Fulfillment − Utilization — keduanya derived, bukan kolom tulisan terpisah (FR-23; AD-2 Fulfillment derived dari plotting)
+
+[AC 3] Given: MRO memutuskan rebalancing
+         When: COO merelokasi kebutuhan antar Capital Item
+         Then: hanya antar item sejenis (Tetap→Tetap, Bergerak→Bergerak), wajib tertaut MoM, total ruang jenis modal tidak berubah, dan tercatat audit (FR-23)
+
+[AC 4] Given: relokasi antar jenis modal berbeda dicoba
+         When: validasi berjalan
+         Then: ditolak sebelum menyimpan",Backlog,,,
+3.1,3,Pembelian Saham End-to-End,Rumus Domain Murni + Unit Test,"As a owner,","I want pratinjau di HP saya dan validasi di server memakai hitungan yang identik,",So that angka yang saya lihat selalu sama dengan keputusan sistem — tidak ada selisih (SM-1).,"NFR-1, AR-10, AD-6, AD-10, SM-1",5,"[AC 1] Given: modul `shared/domain` dibuat
+         When: diimpor oleh server route maupun pulau pratinjau
+         Then: berupa modul TypeScript murni tanpa I/O dan tanpa framework — satu-satunya implementasi rumus (AD-6)
+
+[AC 2] Given: rumus pembobotan diimplementasikan
+         When: diuji
+         Then: berperilaku: Shares = Quantity × bobot (Tetap 1, Bergerak 2, Operasional 3); Ceil = Quantity × plafon (5/3/1); Strength = Σ Shares ÷ Σ Ceil per owner gabungan semua jenis modal; Portion = Shares owner ÷ Σ Shares seluruh owner; RTL = Floor((Ceil − Shares) ÷ 2); Quantity maksimal Tetap/Bergerak = ceil(sisa ruang ÷ harga berjalan) selama overshoot tertampung batas penyesuaian fase, bila batas habis mengikuti Quantity Left; pembulatan half-up 2 desimal (Glossary; NFR-1)
+
+[AC 3] Given: fungsi perakitan input kanonik (assembly) dibuat
+         When: dipanggil pratinjau, validasi submit, dan re-validasi konfirmasi
+         Then: ketiganya memanggil fungsi yang sama: Strength = posisi terkini + seluruh pesanan-pending kanonik; ruang RKAP = Σ Final Requirement − Fulfillment dari transaksi EFEKTIF saja; sisa batas penyesuaian = Σ penyesuaian fase; ""harga 1 saham berjalan"" = harga berjalan pada momen evaluasi gerbang (AD-6)
+
+[AC 4] Given: nilai uang dan ratio melintasi batas modul/API
+         When: diserialisasi/diparse
+         Then: berupa string desimal berskala tetap melalui SATU pasangan parse/serialize di `shared/domain`; aritmetika memakai decimal library tunggal; `Number()`/`parseFloat()` atas nilai uang/ratio dilarang di semua lapisan termasuk display (AD-10)
+
+[AC 5] Given: contoh verifikasi PRD dijalankan sebagai unit test
+         When: suite dikonsumsi
+         Then: lolos: 2 saham Modal Bergerak → Quantity 2, Shares 4, Ceil 6, Strength 66,67%; sisa ruang 100.000 harga 52.000 → maksimal 2 saham (overshoot 4.000 tertampung); ceil(44.744.000 ÷ 52.000) = 861 saham (overshoot 28.000 tertampung sisa batas 68.000); Total Portion 99,99%/100,01% ditampilkan apa adanya (AR-10; rumus distribusi laba menyusul di Epic 5 dengan contohnya)",Backlog,,,
+3.2,3,Pembelian Saham End-to-End,Form Pesanan Pembelian + Panel Pratinjau Live,"As a owner,","I want memesan pembelian saham dengan pratinjau hitungan lengkap sebelum submit,",So that saya tahu pasti pesanan saya lolos mekanisme pembobotan sebelum masuk antrian.,"FR-1, FR-22, FR-23, AD-6, AD-8, UX-DR10, UX-DR11",6,"[AC 1] Given: owner terverifikasi membuka Form Pesanan Pembelian (halaman penuh di mobile, panel pratinjau sticky bawah viewport — UX-DR10)
+         When: Jenis Modal dipilih
+         Then: pilihan dinamis mengikuti kondisi RKAP: selama masih ada kebutuhan Tetap/Bergerak terbuka, ketiga jenis modal ditawarkan; saat seluruh ruang RKAP terpenuhi, satu-satunya pilihan Modal Operasional (FR-1)
+
+[AC 2] Given: Quantity diisi
+         When: batas maksimal ditampilkan
+         Then: Tetap/Bergerak: pembulatan ke atas sisa ruang ÷ harga dengan keterangan modus (overshoot tertampung batas) atau Quantity Left bila batas fase habis; Operasional dibatasi ruang RTL (FR-1, FR-23)
+
+[AC 3] Given: Pembelian Pertama owner belum efektif
+         When: form dirender
+         Then: isian Referral wajib — pilihan dari fungsi kanonik `pilihanReferral` (pemegang saham termasuk COO, atau owner Terverifikasi lain yang belum pernah membeli) (FR-22, AD-8)
+
+[AC 4] Given: input Jenis Modal/Quantity/Referral berubah
+         When: Panel Pratinjau Perhitungan bereaksi
+         Then: berganti seketika: Harga Terkunci (harga berjalan tanggal submit) + proyeksi Ceil, Shares, Strength, RTL; hitungan menyertakan pesanan owner yang masih Menunggu Konfirmasi; belum lengkap → placeholder; proyeksi Strength > 100% → angka `destructive-foreground` + Alert Penolakan Terhitung aktif + Submit terkunci; update diumumkan `aria-live=""polite""` (UX-DR10, UX-DR11)
+
+[AC 5] Given: owner submit pesanan
+         When: server memvalidasi
+         Then: validasi memakai fungsi assembly yang sama dengan pratinjau (AD-6); lolos → pesanan tersimpan berstatus `menunggu_konfirmasi` dengan Harga Terkunci sebagai nilai snapshot pada `buy_orders` + audit; gagal → pesanan DITOLAK tanpa baris pesanan, hanya entry audit + Alert Penolakan Terhitung berisi hitungan lengkap (konvensi Data & format)
+
+[AC 6] Given: owner punya satu pesanan antrian yang valid
+         When: membuat pesanan kedua yang sendirian juga valid namun gabungan Strength > 100%
+         Then: pesanan kedua ditolak dengan pesan yang menunjukkan hitungan gabungan (FR-1)",Backlog,,,
+3.3,3,Pembelian Saham End-to-End,"Antrian Beli, Pesanan Saya & Penarikan Pesanan","As a COO / owner,","I want melihat antrian sesuai peran saya dan menarik pesanan saya sendiri,",So that antrian jelas dan saya tidak menunggu pesanan yang sudah tidak saya inginkan.,"FR-19, AR-6, AD-2, UX-DR13, UX-DR20",4,"[AC 1] Given: COO membuka Antrian Beli (landing default COO)
+         When: daftar dimuat
+         Then: tampil seluruh pesanan berstatus pending kanonik (`menunggu_konfirmasi` AND `withdrawn_at IS NULL`) urut terlama-dulu, dengan nama owner + Status Badge, caption umur ""hari ke-N dari 7"", ringkasan hitungan pesanan (jenis modal, Quantity, Harga Terkunci), dan aksi Konfirmasi (UX-DR13)
+
+[AC 2] Given: owner membuka Pesanan Saya
+         When: daftar dimuat
+         Then: hanya pesanan miliknya (semua status) — tidak pernah pesanan owner lain; aksi Tarik hanya tersedia saat Menunggu Konfirmasi; pesanan Ditolak menampilkan alasan + hitungan (FR-19, UX-DR13)
+
+[AC 3] Given: owner menarik pesanan (confirm ringan: ""Pesanan keluar dari Antrian Beli. Pembayaran yang sudah dikirim tidak otomatis refund."" — UX-DR20)
+         When: penarikan dieksekusi
+         Then: SATU transaksi DB: set `withdrawn_at` via CAS `WHERE status = 'menunggu_konfirmasi' AND withdrawn_at IS NULL` + entry audit; pesanan keluar dari daftar — penarikan bukan status (AD-2)
+
+[AC 4] Given: pesanan baru lolos validasi submit
+         When: masuk antrian
+         Then: email notifikasi ke COO dikirim via outbox (FR-19; AR-6)",Backlog,,,
+3.4,3,Pembelian Saham End-to-End,Kedaluwarsa Otomatis Hari ke-7,"As a owner,","I want pesanan yang tak kunjung dikonfirmasi kedaluwarsa otomatis,",So that antrian bersih dan pesanan baru saya mengikuti harga berjalan yang segar.,"FR-19, AD-2, AD-9, UX-DR19",4,"[AC 1] Given: cron harian terproteksi CRON_SECRET berjalan
+         When: endpoint kedaluwarsa menemukan pesanan pending kanonik berumur ≥ 7 kalender-hari
+         Then: status berubah `kedaluwarsa` via compare-and-set yang menyertakan guard `AND withdrawn_at IS NULL` + entry audit (FR-19; AD-2)
+
+[AC 2] Given: batas hari dihitung
+         When: umur pesanan dievaluasi
+         Then: perhitungan kalender-hari memakai zona Asia/Jakarta di dalam endpoint — bukan jam trigger UTC (AD-9)
+
+[AC 3] Given: cron berjalan hampir bersamaan dengan konfirmasi COO atau penarikan owner pada baris yang sama
+         When: kedua penulis berebut
+         Then: hanya satu yang berhasil per baris (CAS)
+
+[AC 4] Given: pesanan kedaluwarsa dilihat owner
+         When: Pesanan Saya dimuat
+         Then: Badge Kedaluwarsa + keterangan ""kedaluwarsa otomatis hari ke-7 sejak submit (tanggal submit tertera)"" + info bisa membuat pesanan baru dengan harga berjalan (UX-DR19)",Backlog,,,
+3.5,3,Pembelian Saham End-to-End,MFA OTP untuk Aksi Transaksional COO,"As a COO,","I want aksi transaksional saya dilindungi OTP via email,",So that transaksi tidak bisa menjadi efektif hanya karena sesi saya bocor.,"FR-3, AD-5, AD-8, UX-DR12",6,"[AC 1] Given: himpunan aksi ber-MFA didefinisikan (tertutup)
+         When: endpoint dan UI dibangun
+         Then: Phase 1 berisi tepat: konfirmasi pesanan (3.6) dan input langsung (3.7); eksplisit BUKAN: penyesuaian RKAP, penetapan harga, cut-off, rebalancing, pergantian COO — mengubah himpunan = mengubah AD-8
+
+[AC 2] Given: COO memicu aksi transaksional
+         When: dialog MFA tampil
+         Then: alur: ""Kirim OTP ke email COO"" → kode 6 digit → verifikasi; state menunggu-kirim, menunggu-input (berlaku 10 menit), salah (sisa percobaan), kedaluwarsa, kirim ulang cooldown 60 detik; fokus otomatis ke digit pertama; Esc membatalkan seluruh aksi — tidak ada transaksi setengah jadi (UX-DR12)
+
+[AC 3] Given: baris `otp_codes` dibuat
+         When: OTP diminta
+         Then: kode disimpan hashed dengan `{action_type, target_ref}` — terikat tepat satu instance aksi (AD-8)
+
+[AC 4] Given: verifikasi OTP berjalan
+         When: dilakukan dalam transaksi finalisasi
+         Then: verifikasi DAN konsumsi terjadi DALAM tx via API IDENTITAS yang menerima `tx`; rollback re-validasi mengembalikan konsumsi — retry tanpa email baru (AD-8, AD-5)
+         And: penghitung percobaan gagal ditulis dalam transaksi terpisah yang selalu commit; batas percobaan dicek sebelum verifikasi
+
+[AC 5] Given: `requestOtp` baru dipanggil untuk `(action_type, target_ref)` yang sama
+         When: kode baru dibuat
+         Then: semua kode hidup sebelumnya terinvalideasi — maksimum satu baris OTP hidup per aksi; resend-cooldown dienforce server-side (AD-8)
+
+[AC 6] Given: permintaan MFA terjadi
+         When: dicatat
+         Then: seluruhnya masuk audit trail (FR-3)",Backlog,,,
+3.6,3,Pembelian Saham End-to-End,Konfirmasi COO — Finalisasi Transaksi Atomik,"As a COO,","I want mengonfirmasi pesanan setelah pembayaran benar-benar diterima,","So that satu konfirmasi meng-update ledger, posisi, RKAP, dan Bukti secara atomik — tidak ada selisih.","FR-20, FR-23, AD-1, AD-2, AD-4, AD-5, AD-7, UX-DR20, SM-4",7,"[AC 1] Given: COO mengetuk ""Konfirmasi"" pada Baris Antrian Beli
+         When: Form Konfirmasi tampil
+         Then: satu dialog berisi: tanggal & metode transfer (tanpa upload bukti), plotting alokasi ke Capital Item (default berurutan/FIFO), MFA — kolom terisi bawaan agar seluruh konfirmasi selesai < 5 menit (SM-4; UX-DR20)
+
+[AC 2] Given: konfirmasi disubmit setelah OTP terverifikasi
+         When: finalisasi dieksekusi
+         Then: SATU transaksi DB berisi: cek kewenangan `coo_tenures` berlaku pada `now()` (aktor audit = pejabat saat commit) + re-validasi (Strength, ruang RKAP untuk Tetap/Bergerak, keabsahan referral mekanis pada Pembelian Pertama) + append baris `ledger_transactions` (harga final = Harga Terkunci; pembayaran tanggal+metode dicatat) + CAS status pesanan `WHERE status = 'menunggu_konfirmasi' AND withdrawn_at IS NULL` + update tabel posisi (proyeksi) + plotting alokasi ke Capital Item + penyesuaian instant overshoot + entry audit + event Pembelian Pertama efektif (bila transaksi pertama owner: set `first_effective_at`, buka transparansi penuh) + baris outbox Bukti (AD-1, AD-2, AD-4, AD-5)
+
+[AC 3] Given: finalisasi mengambil lock
+         When: transaksi penulis lain berjalan bersamaan
+         Then: urutan lock global diikuti: `buy_orders → rkap_phases → positions → owners → contribution_periods → distribution` — tanpa deadlock AB-BA (AD-2)
+
+[AC 4] Given: re-validasi gagal (posisi owner atau ruang RKAP berubah sejak submit)
+         When: hasil dikembalikan
+         Then: pesanan berubah Ditolak dengan penjelasan hitungannya + saran: dialihkan ke Modal Operasional (pesanan baru harga berjalan) atau direfund via kanal luar; resolusi dicatat COO di audit trail (FR-20)
+
+[AC 5] Given: cross-referral hari yang sama terdeteksi pada Pembelian Pertama dua owner
+         When: re-validasi berjalan
+         Then: mesin tidak menolak otomatis — penilaian manusia COO, keputusan tercatat di audit (AD-7)
+
+[AC 6] Given: transaksi efektif dengan pembulatan ke atas
+         When: overshoot terjadi
+         Then: Final Requirement Capital Item ter-plot naik sebesar overshoot dan tercatat sebagai penyesuaian instant — contoh verifikasi: sisa kulkas 3.500.000, harga 52.000 → 68 saham = 3.536.000 (overshoot 36.000) → Final naik ke 3.536.000, Fulfillment Rate 100% (FR-23)
+
+[AC 7] Given: transaksi efektif
+         When: Fulfillment tercetak
+         Then: nilainya derived dari alokasi plotting di ledger — tabel RKAP (Epic 2) otomatis terisi; gerbang jenis modal menutup saat Fulfillment Rate mencapai 100% (AD-2, FR-23)",Backlog,,,
+3.7,3,Pembelian Saham End-to-End,Jalur Input Langsung COO,"As a COO,","I want mencatat pembelian tunai di cafe langsung efektif atas nama owner,",So that owner tidak perlu mengantre untuk pembayaran yang sudah saya terima langsung.,"FR-1, FR-21, AD-2",4,"[AC 1] Given: COO memilih aksi ""Input Langsung"" di Antrian Beli
+         When: form tampil
+         Then: COO memilih owner (mana pun, termasuk yang belum pernah membeli), Jenis Modal + Quantity dengan pratinjau/validasi yang sama seperti FR-1, Referral bila Pembelian Pertama owner tersebut, tanggal & metode pembayaran, lalu MFA (FR-21)
+
+[AC 2] Given: input langsung disubmit
+         When: harga ditetapkan
+         Then: memakai harga berjalan pada tanggal input (FR-21)
+
+[AC 3] Given: finalisasi input langsung dieksekusi
+         When: transaksi berjalan
+         Then: SATU transaksi DB dengan isi yang sama seperti konfirmasi (3.6) namun tanpa baris pesanan — `ledger_transactions` FK pesanan NULL; tidak melewati Antrian Beli; audit mencatat sebagai ""input langsung"" (AD-2)
+
+[AC 4] Given: validasi gagal (mis. Strength > 100% atau ruang RKAP habis)
+         When: hasil dikembalikan
+         Then: Alert Penolakan Terhitung dengan hitungan lengkap; transaksi tidak terjadi; tidak ada status pesanan yang menggantung (FR-21)",Backlog,,,
+3.8,3,Pembelian Saham End-to-End,"Bukti Transaksi — Generate, Kirim & Unduh Ulang","As a owner,","I want menerima Bukti Transaksi via email dan bisa mengunduhnya ulang kapan pun,",So that saya punya alat klaim kepemilikan bila terjadi sesuatu.,"FR-11, AR-6, UX-DR3, UX-DR19",5,"[AC 1] Given: transaksi efektif (konfirmasi maupun input langsung)
+         When: Bukti dirender
+         Then: PDF dihasilkan via `@react-pdf/renderer` (server-only, font di-bundle) mengikuti Template Konfirmasi Pembelian Saham v3, berisi: identitas owner, tanggal, jenis modal, Quantity, harga, Shares, Ceil, Strength, Portion setelah transaksi (FR-11)
+
+[AC 2] Given: Bukti dihitung
+         When: dibuat maupun diregenerasi
+         Then: merupakan fungsi murni state ledger PADA TITIK POTONG transaksinya — regenerasi (retry outbox maupun unduh ulang) selalu menghitung pada titik potong yang sama, tidak pernah dari posisi mutakhir (konvensi State)
+
+[AC 3] Given: baris outbox tersedia pasca-commit
+         When: pengiriman diproses PROOFS
+         Then: kirim async dengan retry; kegagalan terlihat (log/alert), bukan kegagalan senyap; kegagalan kirim tidak membatalkan transaksi efektif (AR-6)
+
+[AC 4] Given: owner membuka Riwayat Transaksi
+         When: halaman dimuat
+         Then: riwayat transaksinya tampil (termasuk hasil migrasi menyusul di Epic 6) dengan unduh ulang Bukti kapan pun — regenerasi deterministik; state ""Bukti Transaksi belum terkirim ke email — unduh di sini kapan pun"" saat pengiriman gagal (FR-11; UX-DR19)
+
+[AC 5] Given: email Bukti dikirim
+         When: template dirender
+         Then: memakai From-domain resmi + varian `logo.jpg` (latar putih) (AR-6; UX-DR3)",Backlog,,,
+4.1,4,Dashboard Kepemilikan & Transparansi,Tabel Kepemilikan Per Owner,"As a owner pemegang saham,","I want melihat tabel kepemilikan seluruh owner dengan angka yang bisa saya periksa sendiri,",So that saya percaya pada satu sumber kebenaran tanpa membuka spreadsheet.,"FR-4, FR-15, NFR-1, NFR-6, AD-12, UX-DR5, UX-DR14, UX-DR19",6,"[AC 1] Given: owner pemegang saham membuka Dashboard (landing default role-nya)
+         When: tabel dimuat
+         Then: kolom verbatim: Owner, Quantity, Shares, Portion, Ceil, Strength, Actual, RTL; urut default Portion menurun; baris Grand Total di akhir mencakup seluruh owner aktif (FR-4; UX-DR5)
+         And: baris owner sendiri disorot dengan penanda ""Anda""; seluruh angka rata kanan `tabular-nums`; Portion 2 desimal; RTL 0 diberi keterangan ""Strength optimal""
+
+[AC 2] Given: total Portion hasil pembulatan ≠ 100% (mis. 99,99% / 100,01%)
+         When: Grand Total ditampilkan
+         Then: ditampilkan apa adanya + catatan kaki ""total pembulatan 2 desimal (half-up)"" — tidak dipaksa ""100%"" (NFR-1; UX-DR19)
+
+[AC 3] Given: owner baru menyelesaikan transaksi pertamanya efektif (via Epic 3)
+         When: dashboard dimuat ulang
+         Then: baris owner baru muncul otomatis tanpa intervensi manual (FR-4)
+
+[AC 4] Given: viewport mobile (<lg)
+         When: tabel ditampilkan
+         Then: scroll horizontal dalam Card dengan kolom Owner sticky kiri (bukan card-stack); desktop (≥lg): 8 kolom penuh sampai `max-w-7xl` (UX-DR5; NFR-6)
+
+[AC 5] Given: dashboard merender data
+         When: payload dikonsumsi
+         Then: tabel dan chart memakai SATU payload bersama (SSR-embedded atau satu fetch) — tidak ada fetch domain independen per island pada render awal (AD-12)
+         And: cold load: Skeleton menyerap layout lalu render serentak; gagal muat: ""Tidak dapat memuat data."" + Coba lagi; kosong pra-migrasi: ""Belum ada data kepemilikan."" (UX-DR19)
+
+[AC 6] Given: owner tanpa saham/Keluar mengakses dashboard
+         When: middleware mengevaluasi
+         Then: terkunci — redirect Halaman Personal + pesan pembuka akses (FR-15; UX-DR14)",Backlog,,,
+4.2,4,Dashboard Kepemilikan & Transparansi,"Chart Pie ""Portion Kepemilikan""","As a owner,","I want melihat komposisi Portion dalam pie berlabel jelas,",So that saya langsung melihat siapa memegang berapa persen.,"FR-5, FR-18, UX-DR2, UX-DR7",5,"[AC 1] Given: dashboard dimuat
+         When: pie dirender
+         Then: proporsi Portion tiap owner tampil dengan label nama owner + persentase di luar wedge; wedge dipisah garis 1px background (FR-18.1; UX-DR7)
+
+[AC 2] Given: wedge ber-Portion ≥ 3%
+         When: label ditempatkan
+         Then: berlabel langsung; wedge di bawah 3% masuk legenda berurutan + tooltip — tidak ada owner yang hilang labelnya saat pertumbuhan 25 → ~40 owner (UX-DR7)
+
+[AC 3] Given: wedge diketuk/diklik
+         When: interaksi berjalan
+         Then: baris owner di tabel tersorot — dan sebaliknya, sorot baris tabel menyorot wedge (dua arah) (UX-DR7)
+
+[AC 4] Given: warna owner ditetapkan
+         When: chart dirender ulang atau owner bertambah
+         Then: identitas warna konsisten antar chart dengan assignment deterministik mengikuti urutan tabel; di atas 10 owner palet diperluas langkah lightness tetap dari hue sama (UX-DR2, UX-DR7)
+
+[AC 5] Given: transaksi baru efektif
+         When: dashboard dimuat
+         Then: pie sinkron dengan tabel dan owner baru otomatis muncul — satu sumber kebenaran (FR-5)",Backlog,,,
+4.3,4,Dashboard Kepemilikan & Transparansi,"Chart Donut ""Distribusi Pemodalan""","As a owner,","I want melihat distribusi pemodalan per jenis modal dan per owner dalam satu chart,",So that struktur modal cafe terbaca dalam satu pandang.,"FR-5, FR-18, AD-12, UX-DR8, UX-DR17",3,"[AC 1] Given: dashboard dimuat
+         When: donut dirender
+         Then: dua cincin: cincin dalam 3 segmen jenis modal (Modal Tetap/Bergerak/Operasional) monokrom slate; cincin luar per owner dengan identitas warna sama seperti pie (FR-18.2; UX-DR8)
+
+[AC 2] Given: donut ditampilkan
+         When: legenda dan tooltip digunakan
+         Then: legenda jenis modal selalu tampil; tooltip dua tingkat (owner → rincian per jenis modal); urutan owner sama dengan pie (UX-DR8)
+         And: makna tidak pernah disandikan warna semata (WCAG 1.4.1; UX-DR17)
+
+[AC 3] Given: data kepemilikan berubah
+         When: chart dimuat ulang
+         Then: donut sinkron dengan tabel dan pie melalui SATU payload bersama; owner baru otomatis muncul (AD-12; FR-5)",Backlog,,,
+4.4,4,Dashboard Kepemilikan & Transparansi,"Chart Stacked Bar ""Big Cap""","As a owner,","I want melihat Shares vs Ceil per kelompok kap,",So that terlihat siapa sudah mengisi ruang Ceil-nya dan siapa masih membukanya.,"FR-18, AD-12, UX-DR9",4,"[AC 1] Given: dashboard dimuat
+         When: stacked bar dirender
+         Then: bar bertumpuk per kelompok kap: Big Cap > 5%, agregat `[Medium Cap]` > 2%, agregat `[Small Cap]` ≤ 2%; seri Shares (isi, `chart-1`) vs Ceil (wadah, `bigcap-ceil`); pemisah segmen 1px background (FR-18.3; UX-DR9)
+
+[AC 2] Given: ambang kelompok kap dipakai
+         When: kelompok dihitung
+         Then: ambang = data konfigurasi COO (pernah berubah dari 7%) — bukan konstanta kode (FR-18; konvensi Data & format)
+
+[AC 3] Given: Portion owner berubah (transaksi efektif)
+         When: chart dihitung ulang
+         Then: kelompok Big/Medium/Small Cap dihitung ulang otomatis dari Portion terkini; nilai dibawa juga label sumbu (FR-18; UX-DR9)
+
+[AC 4] Given: chart dirender
+         When: sinkronisasi dicek
+         Then: memakai SATU payload bersama dengan tabel dan chart lain — selalu konsisten (AD-12)",Backlog,,,
+4.5,4,Dashboard Kepemilikan & Transparansi,Kesegaran Runtime & Sinkronisasi Lintas Permukaan,"As a owner,","I want angka dashboard selalu mutakhir atau berpenanda jelas kapan diambil,",So that saya tidak pernah berdiskusi memakai angka basi.,"FR-4, FR-5, FR-18, AD-12, UX-DR19, SM-1",5,"[AC 1] Given: permukaan bernilai domain (dashboard)
+         When: kontrak kesegaran diimplementasikan
+         Then: salah satu terpenuhi: (a) refetch penuh pada `visibilitychange`/focus, atau (b) penanda waktu data (""per …"") yang diperbarui bersama payload (AD-12)
+
+[AC 2] Given: halaman dashboard dirender pertama kali
+         When: data dikonsumsi komponen
+         Then: tabel dan seluruh island memakai SATU payload bersama (SSR-embedded atau satu fetch) — tidak ada fetch domain independen per island (AD-12)
+
+[AC 3] Given: transaksi baru menjadi efektif lewat Epic 3
+         When: dashboard dibuka kembali
+         Then: seluruh angka tabel + ketiga chart konsisten satu sama lain — verifikasi silang tanpa selisih (FR-4, FR-5, FR-18; SM-1)
+
+[AC 4] Given: data gagal dimuat atau usang
+         When: permukaan dirender
+         Then: tidak pernah menampilkan angka basi secara diam-diam — skeleton/state gagal + Coba lagi sesuai UX-DR19
+
+[AC 5] Given: dokumen SSR dan API domain disajikan
+         When: header respons diperiksa
+         Then: `Cache-Control: no-store` terjaga untuk dokumen dan `/api/**` (AD-12)",Backlog,,,
+5.1,5,Contribution & Distribusi Laba,Definisi Item Contribution,"As a COO,","I want mendefinisikan item Contribution hasil keputusan MRO dengan bobot poin kuantitatif,",So that evaluasi kontribusi owner objektif dan konsisten antar periode.,"FR-8, FR-12, UX-DR14, UX-DR19",4,"[AC 1] Given: COO membuka ruang kerja Contribution
+         When: item baru didefinisikan
+         Then: item memiliki nama, deskripsi, poin kuantitatif (angka — bukan penilaian kualitatif bebas), dan periode berlaku; tertaut MoM penetapannya (FR-8)
+
+[AC 2] Given: pemegang saham membuka halaman Contribution
+         When: daftar item dimuat
+         Then: item periode aktif terlihat; owner tanpa saham/Keluar mendapat permukaan terkunci (matriks §4.8; UX-DR14)
+
+[AC 3] Given: belum ada item pada periode berjalan
+         When: halaman dibuka
+         Then: state kosong ""Belum ada item Contribution periode ini."" (UX-DR19)
+
+[AC 4] Given: item dibuat/diubah
+         When: disimpan
+         Then: tercatat di audit trail (FR-12)",Backlog,,,
+5.2,5,Contribution & Distribusi Laba,Pencatatan Realisasi & Poin Berjalan,"As a owner kontributor,","I want poin Contribution saya tercatat dan bisa saya pantau,",So that dasar insentif saya transparan sepanjang periode — angka yang saya lihat identik dengan yang dipakai MRO/RUPS.,"FR-9, FR-10, AD-10",4,"[AC 1] Given: COO mencatat realisasi Contribution owner pada item terdefinisi
+         When: pencatatan disimpan
+         Then: tercatat dengan tanggal dan pencatat; masuk audit trail (FR-9)
+
+[AC 2] Given: owner login membuka halaman Contribution
+         When: poin dimuat
+         Then: poin Contribution berjalan periode aktif tampil, termasuk saldo carry-over sejak awal periode (FR-9; kesiapan FR-10)
+
+[AC 3] Given: COO membuka rekap
+         When: realisasi dilihat
+         Then: rekap per owner tersedia untuk kerja COO (FR-9)
+
+[AC 4] Given: writer entries menerima tulisan ke periode berstatus final (pasca cut-off)
+         When: validasi berjalan
+         Then: tulisan DITOLAK — koreksi/backdating hanya masuk periode berikut sebagai penyesuaian carry-over (AD-10)",Backlog,,,
+5.3,5,Contribution & Distribusi Laba,Cut-off Period dengan Carry-over,"As a COO,","I want menutup periode Contribution pada tanggal yang ditetapkan RUPS,",So that poin sah terfinalisasi sebagai dasar insentif dan sisanya jelas terbawa ke periode baru.,"FR-10, AD-2, AD-10, UX-DR20",4,"[AC 1] Given: COO memicu aksi ""Cut-off Period""
+         When: tanggal cut-off diinput
+         Then: pratinjau rekap tampil: poin sah tiap owner (Contribution hingga tanggal cut-off) vs poin carry-over — sebelum confirm (FR-10; UX-DR20)
+
+[AC 2] Given: COO mengonfirmasi cut-off
+         When: eksekusi berjalan
+         Then: SATU transaksi DB mengikuti urutan lock global (`contribution_periods → distribution`): snapshot poin sah per owner dibekukan **imutabel**, periode berstatus final dan ditandai selesai, seluruh peristiwa masuk audit trail (FR-10; AD-10; AD-2)
+         And: penandaan ""selesai"" (cut-off) TIDAK sama dengan ""ditunaikan"" — penandaan tertunaikan hanya terjadi saat rekap RUPS (5.5) (AD-10)
+
+[AC 3] Given: periode baru dimulai
+         When: owner membuka Contribution
+         Then: saldo carry-over tampil sejak awal (FR-10)
+
+[AC 4] Given: Contribution sudah diberi insentif pada RUPS sebelumnya
+         When: periode baru berjalan
+         Then: poin tersebut tidak pernah muncul lagi (FR-10)",Backlog,,,
+5.4,5,Contribution & Distribusi Laba,Rumus Distribusi & Simulasi Tiga Budget Pool,"As a COO,","I want mensimulasikan pembagian laba dengan parameter RUPS sebelum disahkan,",So that keputusan RUPS diambil berdasarkan angka yang bisa diperiksa sendiri.,"FR-16, AR-10, AD-6, AD-10",5,"[AC 1] Given: rumus distribusi diimplementasikan di `shared/domain`
+         When: unit test dijalankan
+         Then: lolos dengan contoh verifikasi PRD: laba diaudit 12.000.000 − ditahan 2.000.000 = Laba Dibagikan 10.000.000; ratio 5/41/54 → pool Charity 500.000, Dividen 4.100.000, Insentif 5.400.000; owner dengan poin 50% dan Portion 40% → Insentif 2.700.000 + Dividen 1.640.000 = total hak 4.340.000; Budget pool = ratio × Laba Dibagikan; Dividen owner = Portion × pool Dividen; Insentif owner = (poin ÷ total poin) × pool Insentif (FR-16; AD-6; AR-10)
+
+[AC 2] Given: COO membuka modul Distribusi Laba
+         When: laba diaudit & laba ditahan diinput
+         Then: sistem menampilkan Laba Dibagikan (FR-16)
+
+[AC 3] Given: ratio tiga komponen diatur (parameter RUPS; patokan MRO terakhir 5/41/54)
+         When: simulasi dihitung
+         Then: validasi ratio berjumlah 100% sebelum hitung; hasil: tiga budget pool + rincian per owner (Dividen + Insentif + total hak); Charity bukan bagian owner — pool utuh untuk amal (FR-16; EXPERIENCE Flow 5)
+
+[AC 4] Given: basis poin Insentif dihitung
+         When: simulasi berjalan
+         Then: basis = poin dari SEMUA periode ter-finalisasi-belum-tertunaikan (AD-10)
+
+[AC 5] Given: belum ada periode yang ter-finalkan cut-off
+         When: simulasi dibuka
+         Then: peringatan tampil dengan tautan ke alur cut-off (EXPERIENCE Flow 5 failure path)",Backlog,,,
+5.5,5,Contribution & Distribusi Laba,"Rekap RUPS, Flip Keluar & Perbandingan Antar-RUPS","As a owner,","I want rekap distribusi laba tersimpan imutabel dan bisa dibandingkan antar-RUPS,",So that pembagian laba auditable dan adil lintas waktu.,"FR-13, FR-16, AD-10, AD-11, UX-DR19",5,"[AC 1] Given: simulasi disetujui RUPS
+         When: COO menyimpan rekap
+         Then: snapshot imutabel tersimpan dari seluruh angka yang dipakai (Portion, poin, ratio, pool, rincian per owner) tertaut RUPS/MoM + audit; penandaan poin ""tertunaikan"" terjadi atomik dalam transaksi penyimpanan rekap yang sama (FR-16; AD-10)
+
+[AC 2] Given: owner tanpa saham menerima bagian Insentif pada rekap
+         When: rekap disimpan
+         Then: status owner berubah `keluar`: kandidat = seluruh owner dengan `positions.shares = 0` pada transaksi rekap (dengan atau tanpa insentif ditunaikan); re-validasi `shares = 0` in-tx mengikuti urutan lock global; transisi via CAS + audit (AD-11; FR-16; FR-13)
+         And: setelah flip, akses owner tersebut menyusut ke Halaman Personal pada login berikutnya (EXPERIENCE Flow 5)
+
+[AC 3] Given: pembagian pool menghasilkan sisa pembulatan per-owner
+         When: rekap disusun
+         Then: sisa tercatat sebagai baris penyesuaian di rekap (AD-10)
+
+[AC 4] Given: rekap dilihat owner
+         When: keterbukaan dievaluasi
+         Then: pemegang saham melihat; owner tanpa saham hanya selama masih memiliki poin Contribution belum ditunaikan (FR-16; §4.8)
+
+[AC 5] Given: rekap tersimpan lebih dari satu
+         When: rekap terakhir dibuka
+         Then: perbandingan dengan rekap RUPS sebelumnya tersedia (FR-16)
+         And: rekap pertama: blok perbandingan disembunyikan + catatan ""Belum ada rekap sebelumnya — perbandingan muncul setelah rekap kedua tersimpan."" (UX-DR19)",Backlog,,,
+6.1,6,Migrasi Historis & Go-Live,Ekstraksi & Transformasi Data Sumber,"As a COO,","I want seluruh data spreadsheet & form historis diekstraksi ke format import terstruktur,",So that migrasi bisa dijalankan berulang dan terverifikasi tanpa input manual.,"FR-14, AR-8",4,"[AC 1] Given: sumber data historis diidentifikasi
+         When: ekstraksi dijalankan
+         Then: mencakup: sheet Evidence (riwayat transaksi), rekap kepemilikan, RKAP fase 1 (Initial/Final Requirement + kolom Pemenuhan), harga historis, respons Google Form (Profile 11 field), dan poin Contribution historis yang belum ditunaikan (item + realisasi per owner) (FR-14)
+
+[AC 2] Given: data owner nyata diproses
+         When: artefak ekstraksi disimpan
+         Then: TIDAK ada di repo — hanya via env/Supabase storage (kebijakan AGENTS.md); script transform bisa di-commit tanpa menyertakan data
+
+[AC 3] Given: mapping ditetapkan
+         When: transform dijalankan
+         Then: kolom Pemenuhan direkonstruksi menjadi plotting alokasi per Capital Item; metode pembayaran historis `'migrasi'` bila tak diketahui; harga historis menjadi `price_periods` berlabel migrasi; poin Contribution menjadi snapshot periode berlabel migrasi (AR-8)
+
+[AC 4] Given: transform dijalankan dua kali pada sumber yang sama
+         When: hasil dibandingkan
+         Then: deterministik dan idempotent — tidak ada duplikasi saat re-run",Backlog,,,
+6.2,6,Migrasi Historis & Go-Live,Importer Migrasi via Pintu Finalisasi LEDGER,"As a owner,","I want data historis masuk lewat pintu yang sama dengan transaksi baru,",So that ledger tetap satu sumber kebenaran yang utuh sejak baris pertama — bukan salinan paralel.,"FR-14, FR-22, AR-8, AD-2, AD-10",7,"[AC 1] Given: importer modul MIGRASI dijalankan
+         When: transaksi historis diimpor
+         Then: lewat API internal LEDGER pintu finalisasi lengkap sesuai isi AD-2: append ledger + update posisi + plotting alokasi per Capital Item + pencatatan pembayaran historis + event Pembelian Pertama efektif (set `first_effective_at` untuk owner yang pembelian pertamanya historis — transparansi terbuka) + entry audit aktor `system` (AR-8)
+
+[AC 2] Given: baris historis diimpor
+         When: gerbang domain dievaluasi
+         Then: TANPA re-validasi gerbang (Strength, ruang RKAP, batas penyesuaian) dan TANPA penyesuaian instant atas baris historis — data spreadsheet otoritatif; gerbang berlaku untuk transaksi baru pasca go-live saja (AR-8)
+
+[AC 3] Given: transaksi berlabel migrasi difinalisasi
+         When: outbox dievaluasi
+         Then: TIDAK ada baris outbox email — Bukti migrasi hanya regenerate-on-demand; daftar event diteruskan vs disupres dideklarasikan eksplisit di modul MIGRASI dan diuji pada acceptance (AR-8)
+
+[AC 4] Given: harga historis diimpor
+         When: baris harga dibuat
+         Then: `price_periods` berlabel ""migrasi"" — FK harga pada ledger tidak pernah null (AR-8)
+
+[AC 5] Given: owner & Profile dari Google Form diimpor
+         When: baris owner dibuat
+         Then: unik per email dan siap dicocokkan dengan login Google (FR-22)
+
+[AC 6] Given: poin Contribution historis diimpor
+         When: periode dibuat
+         Then: menjadi `contribution_period` berlabel migrasi berstatus final dengan snapshot poin imutabel per owner — basis ""ter-finalisasi-belum-tertunaikan"" untuk RUPS pertama pasca go-live (AD-10; delta FR-14)
+
+[AC 7] Given: importer dijalankan ulang
+         When: data yang sama diproses
+         Then: idempotent — tidak ada duplikasi baris (guard/natural keys)",Backlog,,,
+6.3,6,Migrasi Historis & Go-Live,Rehearsal Staging & Acceptance Paritas,"As a owner,","I want migrasi diulang penuh di staging sampai paritas sempurna,",So that go-live produksi hanya mengulang proses yang sudah terbukti bekerja.,"FR-14, AR-8, SM-1",4,"[AC 1] Given: lingkungan staging siap (data nyata via env)
+         When: dry-run migrasi penuh dijalankan
+         Then: seluruh importer (6.2) selesai tanpa error dan idempotent
+
+[AC 2] Given: hasil import diverifikasi
+         When: acceptance dijalankan
+         Then: paritas tercapai: Grand Total Quantity 3.622, Shares 5.187, Ceil 14.980; Fulfillment Rate per jenis modal paritas dengan spreadsheet; total poin Contribution per owner paritas dengan sumber; setiap owner eksisting dapat melihat riwayat transaksinya (FR-14; AR-8; gerbang SM-1)
+
+[AC 3] Given: event yang disupres diuji
+         When: import selesai
+         Then: tidak ada badai email historis; Bukti migrasi dapat di-regenerate on-demand dan isinya menghitung pada titik potong transaksinya
+
+[AC 4] Given: rehearsal selesai dan paritas tercapai
+         When: proses didokumentasikan
+         Then: runbook cutover tersusun dari langkah yang terbukti",Backlog,,,
+6.4,6,Migrasi Historis & Go-Live,Kesiapan Operasional Go-Live,"As a owner,","I want backup dan pemulihan terbukti sebelum sistem memegang ledger sesungguhnya,",So that ledger — aset taktergantikan — tidak mungkin hilang.,"AR-6, AR-11",4,"[AC 1] Given: proyek Supabase produksi aktif
+         When: kesiapan diperiksa
+         Then: backup harian/PITR aktif (AR-11)
+
+[AC 2] Given: drill restore dijalankan
+         When: selesai
+         Then: SATU drill restore terdokumentasi (prosedur, hasil, durasi) sebelum go-live (AR-11)
+
+[AC 3] Given: operasional berjalan
+         When: kegagalan terjadi
+         Then: log terstruktur aktif; retry outbox email yang gagal terlihat (log/alert) — bukan kegagalan senyap (AR-6)
+
+[AC 4] Given: lingkungan dievaluasi
+         When: go-live didekati
+         Then: hanya `local` + `production` — tidak ada lingkungan liar (AR-11)",Backlog,,,
+6.5,6,Migrasi Historis & Go-Live,Cutover Produksi & Verifikasi Pasca Go-Live,"As a owner,","I want cutover produksi berjalan sesuai runbook dengan verifikasi menyeluruh,",So that Google Sheets pensiun dan sistem menjadi satu-satunya sumber kebenaran.,"AD-9, SM-1, SM-2, SM-3",4,"[AC 1] Given: runbook final dan semua pihak siap
+         When: cutover dieksekusi
+         Then: Google Sheets di-freeze (tidak ada pencatatan manual baru) → migrasi produksi dijalankan sesuai runbook → verifikasi paritas sama seperti rehearsal (Grand Total, Fulfillment Rate per jenis modal, poin Contribution, riwayat per owner)
+
+[AC 2] Given: cutover selesai
+         When: operasional baru dimulai
+         Then: seluruh transaksi baru dicatat lewat sistem; Google Sheets pensiun sebagai alat pencatatan (target SM-2: berhenti dipakai dalam 1 bulan)
+
+[AC 3] Given: minggu-minggu pasca go-live
+         When: monitoring berjalan
+         Then: SM-1 zero discrepancy diawal (3 bulan); SM-3 bukti terkirim 100%; kegagalan outbox terlihat dan di-retry
+
+[AC 4] Given: cron produksi berjalan
+         When: job harian dievaluasi
+         Then: kedaluwarsa pesanan hari-7 dan pengingat pendaftar berjalan dengan batas hari zona Asia/Jakarta (AD-9)",Backlog,,,
