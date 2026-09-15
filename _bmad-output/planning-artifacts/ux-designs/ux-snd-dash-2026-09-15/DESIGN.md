@@ -140,7 +140,7 @@ Radius diwarisi dari shadcn `--radius`; tanpa delta. Status Badge pill (bawaan B
 
 ## Components
 
-**Dipakai apa adanya dari shadcn (kontrak: jangan disunting):** `Button`, `Card`, `Dialog`, `Sheet`, `Drawer`, `Table`, `Alert`, `Badge`, `Input`, `Select`, `Label`/`Form`, `Tabs`, `Skeleton`, `Separator`, `Popover`, `Tooltip`, `Input OTP (input-otp)`, `Toast (sonner)`, `DropdownMenu`.
+**Dipakai apa adanya dari shadcn (kontrak: jangan disunting):** `Button`, `Card`, `Dialog`, `Sheet`, `Drawer`, `Table`, `Alert`, `Badge`, `Input`, `Select`, `Label`/`Form`, `Tabs`, `Skeleton`, `Separator`, `Popover`, `Tooltip`, `Input OTP (input-otp)`, `Toast (sonner)`, `DropdownMenu`. *Implementasi: **shadcn-vue (primitif reka-ui)** + Tailwind — implementasi Vue dari kontrak shadcn ini (spine arsitektur AD/Stack); nama komponen, token, dan perilaku kontrak tetap.*
 
 **Komponen ber-delta / custom (spesifikasi visual; perilaku di EXPERIENCE.md):**
 

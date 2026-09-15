@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Architecture Validation v2 — snd-dash</title>
+<style>
+  :root {
+    --bg:#FAFAF9; --surface:#FFF; --border:#E7E5E4; --text:#1C1917; --muted:#78716C;
+    --sev-critical:#DC2626; --sev-high:#EA580C; --sev-medium:#CA8A04; --sev-low:#64748B; --sev-info:#0D9488;
+    --verdict-holes:#DC2626; --verdict-pass:#D97706; --verdict-minor:#CA8A04; --verdict-clean:#16A34A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;padding:32px 24px 64px}
+  .container{max-width:960px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:20px}
+  h1{font-size:22px;font-weight:600;letter-spacing:-.01em}
+  .subtitle{color:var(--muted);font-size:12.5px;margin-top:4px;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+  .gate{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--verdict-holes);border-radius:8px;padding:18px 22px;margin-bottom:20px}
+  .gate b{font-size:16px}
+  .lensgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:22px}
+  .lens{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .lens .n{font-size:12.5px;color:var(--muted)}
+  .lens .v{font-size:14px;font-weight:600;margin:2px 0 6px}
+  .pill{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:600;color:#fff;letter-spacing:.03em}
+  .counts{font-size:12px;color:var(--muted)}
+  section{margin-bottom:12px}
+  details{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  summary{padding:13px 20px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:12px;user-select:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+  details[open] summary::before{transform:rotate(90deg)}
+  summary h2{font-size:15.5px;font-weight:600;flex:1}
+  .flist{padding:2px 20px 14px}
+  article{padding:13px 0;border-top:1px solid var(--border)}
+  article:first-child{border-top:none}
+  .fhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+  .badge{font-size:10.5px;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .b-critical{background:rgba(220,38,38,.13);color:var(--sev-critical)}
+  .b-high{background:rgba(234,88,12,.13);color:var(--sev-high)}
+  .b-medium{background:rgba(202,138,4,.14);color:var(--sev-medium)}
+  .b-low{background:rgba(100,116,139,.13);color:var(--sev-low)}
+  .b-info{background:rgba(13,148,136,.13);color:var(--sev-info)}
+  .ft{font-size:14.5px;font-weight:500;flex:1;min-width:220px}
+  .src{font-size:11.5px;color:var(--muted);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+  .fnote{font-size:13.5px;margin-top:4px}
+  .ffix{font-size:13.5px;margin-top:6px}
+  .ffix strong{color:var(--muted);font-weight:500}
+  ul.tail{padding-left:20px;font-size:13.5px}
+  ul.tail li{margin-bottom:8px}
+  footer{margin-top:36px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+  .v-holes{background:var(--verdict-holes)} .v-pass{background:var(--verdict-pass)} .v-minor{background:var(--verdict-minor)} .v-clean{background:var(--verdict-clean)}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div>
+    <h1>Architecture Spine Validation v2 — Sip &amp; Dip Ownership Dashboard</h1>
+    <div class="subtitle">architecture-snd-dash-2026-09-15 · run 15 Sep 2026 · lint + rubric + tech-currency + adversarial</div>
+  </div>
+</header>
+
+<div class="gate">
+  <p><b>HOLES-FOUND — spine perlu satu putaran Update sebelum build.</b></p>
+  <p style="margin-top:6px;font-size:14.5px">Paradigma inti bertahan (ledger append-only, single-writer, rumus bersama, CAS), lint bersih, versi hampir semua CURRENT — tetapi adversarial mengonstruksi 14 pasangan divergen yang masing-masing patuh seluruh AD namun saling tak kompatibel: 1 critical (kontradiksi internal AD-2 soal penarikan), 7 high (OTP binding, semantik migrasi, titik potong Bukti, topologi lock, format kawat uang, derivasi status owner, akuntansi poin lintas cut-off) + 1 high rubric (substrate UI shadcn/Vue). Semua 14 tertutup oleh usulan teks AD di <code>review-adversarial-v2.md</code>; tak ada yang menuntut perubahan paradigma.</p>
+</div>
+
+<div class="lensgrid">
+  <div class="lens"><div class="n">Lint (deterministik)</div><div class="v">CLEAN <span class="pill v-clean">0 temuan</span></div><div class="counts">placeholder · duplikat AD · Binds/Prevents/Rule · pin versi</div></div>
+  <div class="lens"><div class="n">Rubric walker</div><div class="v">PASS-with-fixes <span class="pill v-pass">1H · 1M · 4L</span></div><div class="counts">good-spine checklist + dimension sweep</div></div>
+  <div class="lens"><div class="n">Tech-currency</div><div class="v">MINOR-DISCREPANCIES <span class="pill v-minor">1M · 3L · 2I</span></div><div class="counts">12 teknologi diverifikasi live web</div></div>
+  <div class="lens"><div class="n">Adversarial</div><div class="v">HOLES-FOUND <span class="pill v-holes">1C · 7H · 5M · 1L</span></div><div class="counts">14 pasangan divergen terkonstruksi</div></div>
+</div>
+
+<section><details open><summary><h2>Critical — 1</h2></summary><div class="flist">
+  <article>
+    <div class="fhead"><span class="badge b-critical">critical</span><span class="ft">F1 — AD-2 kontradiksi diri: penarikan dijaga CAS-on-status, padahal "bukan status"</span><span class="src">adversarial · P1 · AD-2</span></div>
+    <div class="fnote">Unit A (penarikan) hanya set <code>withdrawn_at</code> + audit — compliant "penarikan bukan status". Unit B (konfirmasi) CAS <code>WHERE status='menunggu_konfirmasi'</code> — compliant verbatim. Tabrakan: COO finalisasi pesanan yang baru ditarik; assembly kanonik menghitung pesanan ditarik → penolakan Strength salah &amp; yakin pada pesanan valid; cron expiry menyala pada pesanan ditarik.</div>
+    <div class="ffix"><strong>Fix:</strong> penarikan = transisi tersimpan sendiri; SETIAP guard wajib <code>AND withdrawn_at IS NULL</code>; definisi kanonik pesanan-pending tunggal (pratinjau/submit/re-validasi/cron); hapus kalimat kontradiktif di AD-2.</div>
+  </article>
+</div></details></section>
+
+<section><details open><summary><h2>High — 8</h2></summary><div class="flist">
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">H-1 — Substrate komponen UI: shadcn/ui (React) vs Nuxt/Vue belum direkonsiliasi</span><span class="src">rubric · Stack/Deferred</span></div>
+    <div class="fnote">Kontrak UX ditulis verbatim terhadap shadcn/ui + Tailwind (ekosistem React); stack Nuxt 4/Vue 3. Substrate komponen absen dari Stack &amp; Deferred → tiap story UI bisa menarik primitif Vue berbeda; kontrak visual tanpa titik penegakan.</div>
+    <div class="ffix"><strong>Fix:</strong> baris Stack seed — shadcn-vue (reka-ui) + Tailwind sebagai implementasi Vue kontrak shadcn + smoke-test paritas saat scaffold; sinkron dua arah ke UX docs.</div></article>
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">F2 — OTP MFA tidak terikat satu instance aksi / satu transaksi</span><span class="src">adversarial · P2 · AD-8</span></div>
+    <div class="fnote">Verify-outside-tx vs consume-inside-tx dua-duanya compliant → token lintas aksi/target; OTP terbakar tanpa transaksi saat re-validasi gagal; dialog vs endpoint bisa beda protokol.</div>
+    <div class="ffix"><strong>Fix:</strong> <code>otp_codes</code> bermuatan <code>{action_type, target_ref}</code>; verifikasi DAN konsumsi di dalam tx finalisasi; rollback mengembalikan konsumsi.</div></article>
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">F3 — Semantik event/outbox migrasi tak terdefinisi → email storm ATAU keterbukaan tak terbuka</span><span class="src">adversarial · P3 · Migrasi</span></div>
+    <div class="fnote">Pintu finalisasi lengkap (compliant) vs outbox in-tx per append (compliant) → badai email Bukti historis; atau bila disupres: keterbukaan §4.8 &amp; Pembelian Pertama tak terbentuk untuk 22 owner — go-live terblokir.</div>
+    <div class="ffix"><strong>Fix:</strong> migrasi = pintu finalisasi lengkap TANPA outbox email untuk transaksi berlabel migrasi; daftar event diteruskan-vs-disupres dieksplisitkan &amp; diuji di acceptance.</div></article>
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">F4 — Bukti Transaksi tanpa titik potong waktu → unduh ulang menunjukkan angka beda dari email asli</span><span class="src">adversarial · P4 · State</span></div>
+    <div class="fnote">Regenerasi dari posisi mutakhir vs replay hingga timestamp efektif — dua pembacaan compliant; unduh ulang Bukti Maret di September menampilkan Portion berbeda → dugaan manipulasi (SM-1/SM-3).</div>
+    <div class="ffix"><strong>Fix:</strong> Bukti = fungsi murni state ledger PADA titik potong transaksinya; regenerasi selalu di titik potong yang sama.</div></article>
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">F5 — Tangga lock tak mencakup keluarga tx rekap DISTRIBUSI → deadlock / rekap imutabel Σ≠100%</span><span class="src">adversarial · P5 · AD-2/AD-11</span></div>
+    <div class="fnote">Finalisasi lock buy_order→rkap→position vs rekap lock owner dulu → AB-BA deadlock; atau snapshot inkonsisten dibekukan ke rekap RUPS imutabel.</div>
+    <div class="ffix"><strong>Fix:</strong> urutan lock global seluruh penulis: <code>buy_orders → rkap_phases → positions → owners → contribution_periods → distribution</code>; rekap baca snapshot konsisten.</div></article>
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">F6 — Format kawat uang string vs number tak dipinkan → pratinjau ≠ validasi server di input batas</span><span class="src">adversarial · P6 · AD-10</span></div>
+    <div class="fnote">API kembalikan string desimal; island koersi <code>Number()</code> "untuk display"; numeric(18,2) lintas 2^53 terdegradasi diam-diam.</div>
+    <div class="ffix"><strong>Fix:</strong> uang &amp; ratio sebagai string desimal berskala tetap lintas batas API/SSR; SATU pasangan parse/serialize di shared/domain; larang <code>Number()</code>/<code>parseFloat()</code> atas uang/ratio + baris Don't.</div></article>
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">F7 — Derivasi role/keterbukaan/referral &amp; enum status owner tak dipinkan</span><span class="src">adversarial · P8 · AD-8/AD-11</span></div>
+    <div class="fnote">Akses via shares live vs via status tersimpan → kompensasi AD-1 yang meng-nol-kan shares salah mengunci owner berhak; himpunan referral beda antara submit dan konfirmasi.</div>
+    <div class="ffix"><strong>Fix:</strong> enum siklus hidup owner dipinkan + <code>first_effective_at</code> oleh event Pembelian Pertama; <code>aksesPenuh</code>/<code>perluReferral</code>/<code>pilihanReferral</code> = fungsi kanonik tunggal IDENTITAS, bukan dari shares live.</div></article>
+  <article><div class="fhead"><span class="badge b-high">high</span><span class="ft">F8 — Poin lintas ≥2 cut-off: "ditandai selesai" vs "ditunaikan" ambigu → Insentif salah dibekukan</span><span class="src">adversarial · P14 · AD-6/AD-10</span></div>
+    <div class="fnote">Σ SEMUA periode final-belum-tunaikan vs hanya terakhir — dua pembacaan compliant; penyebut beda → pembagian salah, permanen di snapshot rekap.</div>
+    <div class="ffix"><strong>Fix:</strong> definisi tegas dua istilah; rekap = Σ semua periode ter-finalisasi-belum-tertunaikan; penandaan tertunaikan atomik dengan simpan rekap.</div></article>
+</div></details></section>
+
+<section><details><summary><h2>Medium — 7</h2></summary><div class="flist"><ul class="tail">
+  <li><b>[Rubric M-1]</b> FR-22 pendaftaran lifecycle tanpa single-writer/enum/CAS — kelas race AD-2 untuk pesanan. <i>Fix: perluas AD-11/konvensi Data.</i></li>
+  <li><b>[F9]</b> Portion absen dari enumerasi rumus AD-6 → label chart ≠ tabel satu layar. <i>Fix: seluruh persentase = rumus domain.</i></li>
+  <li><b>[F10]</b> Himpunan aksi ber-MFA tak terenumerasi → endpoint/UI tak cocok. <i>Fix: himpunan tertutup Phase 1 (FR-20/FR-21 saja) + eksplisit BUKAN.</i></li>
+  <li><b>[F11]</b> Assembly input kanonik hanya Strength → Quantity maksimal pratinjau ≠ re-validasi (861 vs 800). <i>Fix: fungsi assembly per gerbang.</i></li>
+  <li><b>[F12]</b> "Selalu sinkron" tanpa kontrak runtime → tab PWA menyajikan angka basi tanpa sinyal. <i>Fix: refetch on visibility ATAU penanda "per …"; satu payload tabel+island.</i></li>
+  <li><b>[F13]</b> Kewenangan COO dicek sesi vs commit → konfirmasi pejabat terguling tercatat atas nama lama. <i>Fix: otoritaskan coo_tenures di dalam tx.</i></li>
+  <li><b>[Tech M1]</b> Klaim "@vite-pwa/nuxt kompatibel Nuxt 4 — terverifikasi" tanpa sumber; vendor masih Nuxt 3-only. <i>Fix: reword + smoke-test build go/no-go + fallback dinamai.</i></li>
+</ul></div></details></section>
+
+<section><details><summary><h2>Low — 8 · Info — 2</h2></summary><div class="flist"><ul class="tail">
+  <li><b>[L-1]</b> AD-10 "decimal lib ATAU integer sen" fork hidup → pilih satu saat scaffold, campuran dilarang.</li>
+  <li><b>[L-2]</b> sources frontmatter kurang DESIGN.md.</li>
+  <li><b>[L-3]</b> Ops diam: error tracking/alerting &amp; SPF/DKIM/From-domain Resend.</li>
+  <li><b>[L-4]</b> Attempt-limit &amp; resend-cooldown OTP belum diikat server-side.</li>
+  <li><b>[Tech L1]</b> Node floor 22.19 (Nuxt 4.5.2 engines); Node 22 security-only → pin Node 24 LTS.</li>
+  <li><b>[Tech L2]</b> NuxtAuth menunggangi next-auth v4 legacy → namai fallback (nuxt-auth-utils / OAuth manual).</li>
+  <li><b>[Tech L3]</b> Drizzle v1.0 di rc.5 → pin eksak 0.45.2 + 0.31.10; cek dist-tag hari scaffold.</li>
+  <li><b>[F14]</b> Dua periode harga satu tanggal efektif tanpa tiebreak → unique constraint + koreksi = ubah baris + audit.</li>
+  <li><b>[I1]</b> PG 18 memang belum di Supabase hosted — klaim spine benar.</li>
+  <li><b>[I2]</b> react-pdf server-only sudah dicakup catatan spine — tetap tepat.</li>
+</ul></div></details></section>
+
+<footer>
+  reviews/review-rubric-v2.md · reviews/review-tech-currency-v2.md · reviews/review-adversarial-v2.md · lint 0 temuan · generated 2026-09-15
+</footer>
+
+</div>
+</body>
+</html>
