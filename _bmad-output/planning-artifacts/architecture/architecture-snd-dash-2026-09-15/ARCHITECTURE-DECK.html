@@ -266,7 +266,14 @@
   slides.forEach((_,n)=>{const d=document.createElement('div');d.className='dot';d.onclick=()=>show(n);dots.appendChild(d);});
   function show(n){i=(n+slides.length)%slides.length;slides.forEach((s,k)=>s.classList.toggle('active',k===i));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));}
   function go(d){show(i+d);}
-  document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1);});
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' ') {
+      go(1);
+    }
+    if(e.key==='ArrowLeft') {
+      go(-1);
+    }
+  });
   show(0);
 </script>
 </body>
