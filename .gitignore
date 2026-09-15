@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Rahasia & lingkungan (konfigurasi via env — konvensi spine AD)
+.env
+.env.*
+!.env.example
+
+# Claude Code — preferensi lokal per mesin
+.claude/settings.local.json
+
+# Node / Nuxt (seed untuk scaffold nanti)
+node_modules/
+.nuxt/
+.output/
+dist/
+coverage/
+
+# Vercel / Supabase lokal
+.vercel/
+supabase/.branches/
+supabase/.temp/
+
+# Log
+*.log

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="utf-8"><title>Key screen — Pendaftaran Owner &amp; Kelengkapan Profile (desktop)</title>
+<style>
+/*
+  Governed by:
+  - EXPERIENCE.md Information Architecture: IA #2 Pendaftaran Owner (publik), #3 Kelengkapan Profile
+  - EXPERIENCE.md Component Patterns: brand-logo (statis & terpusat; tagline di halaman publik)
+  - EXPERIENCE.md State Patterns: pendaftaran kedaluwarsa (7 hari, H-3)
+  - EXPERIENCE.md Key Flows: Flow 6 (UJ-6, Dewi)
+  - DESIGN.md Components 1 (brand-logo, brand-logo.tagline)
+  Adaptasi platform: halaman publik desktop = kartu terpusat (max-width), tanpa sidebar; konten & aturan sama dengan mobile.
+*/
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #E7E5E4; color: #1C1917; font-size: 15px; line-height: 1.55; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+.frame-browser { background: #FFFFFF; border-radius: 12px; border: 1px solid #D6D3D1; overflow: hidden; width: 1080px; display: flex; }
+.sidebar { width: 220px; border-right: 1px solid #E2E8F0; padding: 16px 12px; min-height: 640px; flex-shrink: 0 }
+.sidebar img { height: 32px; width: auto; margin: 0 0 6px 4px }
+.sidebar .wm { font-size: 13px; font-weight: 600; color: #2D3959; margin: 0 0 18px 4px }
+.navgroup { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #64748B; margin: 14px 4px 6px }
+.navitem { font-size: 13.5px; padding: 8px 10px; border-radius: 7px; color: #1C1917; margin-bottom: 2px }
+.navitem.on { background: #F1F5F9; color: #2D3959; font-weight: 600 }
+.content { flex: 1; background: #FAFAFA; padding: 20px 26px; min-width: 0 }
+h2.st { font-size: 18px; font-weight: 600; margin: 4px 0 2px; }
+.sub { font-size: 12.5px; color: #64748B; margin-bottom: 14px; }
+.card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.caption { font-size: 11px; color: #64748B; margin-top: 8px; }
+.section-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #64748B; margin: 0 0 10px; }
+.colnote { max-width: 720px; font-size: 12.5px; color: #64748B; text-align: center }
+.legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; color:#64748B; margin-top:8px; justify-content:center }
+.legend span { display:inline-flex; align-items:center; gap:5px }
+.sw { display:inline-block; width:9px; height:9px; border-radius:2px }
+table { border-collapse: collapse; width: 100%; }
+th { font-size: 11px; color: #64748B; font-weight: 600; text-align: right; padding: 6px 10px; border-bottom: 1px solid #E2E8F0; white-space: nowrap; }
+th:first-child { text-align: left; padding-left: 10px; }
+td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #E2E8F0; text-align: right; }
+td:first-child { text-align: left; white-space: nowrap; }
+
+.frame-center { width: 1080px; background: #FAFAFA; border: 1px solid #D6D3D1; border-radius: 12px; padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px }
+.pubcard { width: 440px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 36px 32px 28px; text-align: center }
+.pubcard img { height: 80px; width: auto; margin: 0 auto 14px; display: block }
+.gbtn { min-height: 48px; width: 100%; background: #2D3959; color: #fff; border: 0; border-radius: 8px; font-size: 15px; font-weight: 600; margin-top: 16px }
+.profcard { width: 560px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 24px 28px 20px }
+.prog { height: 8px; background: #F1F5F9; border-radius: 999px; overflow: hidden; margin: 10px 0 6px }
+.prog > div { width: 64%; height: 100%; background: #2D3959; border-radius: 999px }
+</style></head>
+<body>
+<p class="section-label">Key screen 4d — Pendaftaran Owner (halaman publik, desktop ≥lg)</p>
+<div class="frame-center">
+  <div class="pubcard">
+    <img src="../imports/logo.png" alt="Logo Sip &amp; Dip">
+    <h2 class="st" style="font-size:18px">Ownership Dashboard</h2>
+    <div style="font-size:13px;font-style:italic;color:#64748B;margin:2px 0 4px">Sip the taste, dip the soul</div>
+    <div class="sub" style="margin:8px 0 2px">Satu sumber kebenaran untuk kepemilikan cafe.<br>Daftar dengan akun Google untuk mulai.</div>
+    <button class="gbtn">Daftar dengan Akun Google</button>
+    <div style="font-size:11px;color:#64748B;margin-top:12px">Pendaftaran terbuka melalui alamat ini — tanpa perlu link referral.<br>Status pendaftaran: Diajukan → Terverifikasi / Ditolak (dengan alasan).</div>
+  </div>
+</div>
+<p class="section-label">State lanjutan — Kelengkapan Profile (desktop, 7 dari 11 field terisi)</p>
+<div class="frame-center">
+  <div class="profcard">
+    <h2 class="st">Lengkapi Profile Anda</h2>
+    <div class="sub">Verifikasi oleh COO tersedia setelah Profile lengkap.</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600"><span>7 dari 11 field terisi</span><span class="num" style="color:#2D3959">64%</span></div>
+    <div class="prog"><div></div></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#15803D;font-weight:600">✓</span></span><span style="flex:1">Nama Lengkap</span><span class="num">Hanif Pratama</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#15803D;font-weight:600">✓</span></span><span style="flex:1">Alias</span><span class="num">Hanif</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#15803D;font-weight:600">✓</span></span><span style="flex:1">Gmail</span><span class="num">hanif.p@gmail.com</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#15803D;font-weight:600">✓</span></span><span style="flex:1">Nomor HP</span><span class="num">+62 812-3456-7890</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#15803D;font-weight:600">✓</span></span><span style="flex:1">Kontak Darurat</span><span class="num">Sari Wulandari</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#64748B">○</span></span><span style="flex:1">Nomor HP Kontak Darurat</span><span style="color:#DC2626;font-weight:600">belum diisi</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#15803D;font-weight:600">✓</span></span><span style="flex:1">Hubungan dengan Owner</span><span class="num">Rekan kerja</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#64748B">○</span></span><span style="flex:1">Nama Bank</span><span style="color:#DC2626;font-weight:600">belum diisi</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#64748B">○</span></span><span style="flex:1">Pemilik Rekening</span><span style="color:#DC2626;font-weight:600">belum diisi</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#64748B">○</span></span><span style="flex:1">Nomor Rekening</span><span style="color:#DC2626;font-weight:600">belum diisi</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #E2E8F0;font-size:13px">
+<span style="width:18px;text-align:center"><span style="color:#15803D;font-weight:600">✓</span></span><span style="flex:1">Referal</span><span class="num">Sugeng Winanjuar</span></div>
+    <button class="gbtn" style="margin-top:14px">Simpan</button>
+    <div style="background:#F1F5F9;border:1px solid #E2E8F0;border-radius:8px;padding:11px 13px;font-size:12px;margin-top:12px">
+      Profile yang belum lengkap kedaluwarsa otomatis <b>7 hari</b> sejak pendaftaran (sisa 4 hari). Email pengingat dikirim H-3. Anda dapat mendaftar ulang setelah kedaluwarsa.
+    </div>
+  </div>
+</div>
+<p class="colnote">Desktop ≥lg: halaman publik menjadi kartu terpusat (440–560px) di atas latar page — tanpa sidebar; tagline tampil di bawah lockup logo.</p>
+</body></html>

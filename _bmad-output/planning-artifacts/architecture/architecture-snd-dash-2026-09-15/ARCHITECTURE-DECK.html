@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture Deck — Sip &amp; Dip Ownership Dashboard</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1c2540; --ink:#e8edf7; --muted:#8fa0bd;
+    --accent:#4f9cf9; --accent2:#39d98a; --warn:#f6c445; --line:#2a3654;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  main{flex:1; display:flex; align-items:center; justify-content:center; padding:24px}
+  .slide{
+    display:none; width:min(1060px,100%); background:var(--panel);
+    border:1px solid #263154; border-radius:var(--radius); padding:44px 52px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45); animation:fade .25s ease;
+  }
+  .slide.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  h1{font-size:2.4rem;letter-spacing:-.5px;margin-bottom:14px}
+  h2{font-size:1.6rem;letter-spacing:-.3px;margin-bottom:6px}
+  h2 .no{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:10px}
+  .sub{color:var(--muted);margin-bottom:26px;font-size:1.02rem;line-height:1.55}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--panel2);border:1px solid #2b3656;border-radius:10px;padding:16px 18px}
+  .card h3{font-size:1.02rem;margin-bottom:6px;color:var(--accent)}
+  .card p{color:var(--muted);font-size:.92rem;line-height:1.5}
+  .tag{display:inline-block;background:#213055;color:var(--accent);border-radius:99px;
+       padding:2px 12px;font-size:.78rem;margin:0 6px 8px 0}
+  .tag.green{color:var(--accent2);background:#173227}
+  .tag.yellow{color:var(--warn);background:#37301a}
+  table{width:100%;border-collapse:collapse;font-size:.92rem}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #263154}
+  th{color:var(--muted);font-weight:600;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em}
+  td code{background:#101828;border-radius:6px;padding:1px 7px;font-size:.85rem;color:#9cc4ff}
+  .flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .node{background:var(--panel2);border:1px solid #2b3656;border-radius:10px;padding:10px 16px;font-size:.95rem;text-align:center}
+  .node.hot{border-color:var(--accent);color:var(--accent);font-weight:600}
+  .arr{color:var(--muted);font-size:1.1rem}
+  footer{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 28px;border-top:1px solid #223050;color:var(--muted);font-size:.85rem;
+  }
+  .dots{display:flex;gap:8px}
+  .dot{width:9px;height:9px;border-radius:50%;cursor:pointer;background:#2c3a60}
+  .dot.on{background:var(--accent)}
+  button.nav{background:var(--panel2);color:var(--ink);border:1px solid #2b3656;border-radius:8px;
+    padding:8px 18px;cursor:pointer;font-size:.9rem}
+  button.nav:hover{border-color:var(--accent)}
+  .kbd{color:var(--muted)}
+  ul.clean{list-style:none}
+  ul.clean li{padding:7px 0 7px 26px;position:relative;color:var(--muted);line-height:1.5;font-size:.95rem}
+  ul.clean li::before{content:"—";position:absolute;left:0;color:var(--accent)}
+  ul.clean li b{color:var(--ink)}
+  svg text{font-family:inherit}
+</style>
+</head>
+<body>
+<main>
+
+<!-- 1 -->
+<section class="slide active">
+  <h1>Sip &amp; Dip Ownership Dashboard</h1>
+  <p class="sub">Architecture spine — Phase 1 (pembelian saham) · distill 15 Sep 2026 · pembaruan PWA &amp; platform 15 Sep 2026 · sumber: PRD final 14 Agu 2026</p>
+  <div class="grid g3">
+    <div class="card"><h3>Dari</h3><p>Google Sheets + Google Form — update banyak sheet sekali transaksi, chart manual, "salah hitung Portion" adalah risiko kepercayaan.</p></div>
+    <div class="card"><h3>Menjadi</h3><p>Web app internal: owner memesan saham mandiri, sistem memvalidasi, COO mengonfirmasi dengan MFA, dashboard &amp; bukti otomatis.</p></div>
+    <div class="card"><h3>Skala</h3><p>22 owner eksisting → ~40. Internal tool. Browser HP dominan. Nol tekanan skala — desain memilih <b>kesederhanaan yang membosankan</b>.</p></div>
+  </div>
+  <p style="margin-top:22px">
+    <span class="tag green">22 FR terikat</span>
+    <span class="tag">12 Architecture Decision</span>
+    <span class="tag">stack terverifikasi web Sep 2026</span>
+  </p>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <h2><span class="no">01</span>Bentuk sistem: modular monolith, ledger-centric</h2>
+  <p class="sub">Satu aplikasi Nuxt 4 — satu repo, satu deployable. Server-rendered; interaktivitas berat hidup sebagai pulau klien.</p>
+  <div class="flow">
+    <div class="node">app/ — halaman Vue SSR<br><small style="color:var(--muted)">+ pulau pratinjau &amp; chart</small></div>
+    <span class="arr">→</span>
+    <div class="node">server/api — route tipis</div>
+    <span class="arr">→</span>
+    <div class="node">server/domain — 10 modul</div>
+    <span class="arr">→</span>
+    <div class="node">Drizzle ORM</div>
+    <span class="arr">→</span>
+    <div class="node hot">PostgreSQL (Supabase)</div>
+  </div>
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card"><h3>Inti: LEDGER</h3><p>Tabel transaksi efektif <b>append-only</b>. Semua yang tampil — tabel kepemilikan, chart, Portion, Strength — adalah <b>proyeksi</b> turunannya. Koreksi = entry kompensasi, bukan edit.</p></div>
+    <div class="card"><h3>Satu rumus, dua runtime</h3><p><code>shared/domain</code> — modul TS murni berisi seluruh rumus (Ceil, Shares, Strength, RTL, RKAP, distribusi laba). Dipakai server (otoritas) dan pulau pratinjau. Pratinjau tidak pernah berbeda hasil dari validasi.</p></div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <h2><span class="no">02</span>10 modul &amp; arah dependensi</h2>
+  <p class="sub">Panah selalu menuju LEDGER. Audit ditulis semua, dibaca tak seorang pun (kecuali COO). Email bereaksi setelah commit.</p>
+  <svg viewBox="0 0 980 430" style="width:100%;height:auto" role="img" aria-label="Diagram dependensi modul">
+    <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8fa0bd"/></marker></defs>
+    <style>
+      .box{fill:#1c2540;stroke:#2b3656;rx:10}
+      .lbl{fill:#e8edf7;font-size:15px;text-anchor:middle}
+      .sm{fill:#8fa0bd;font-size:11.5px;text-anchor:middle}
+      .ed{stroke:#8fa0bd;stroke-width:1.4;fill:none;marker-end:url(#a)}
+      .dash{stroke:#5b6b8c;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+    </style>
+    <rect class="box" x="400" y="170" width="180" height="64" style="stroke:#4f9cf9"/>
+    <text class="lbl" x="490" y="197" style="fill:#4f9cf9;font-weight:700">LEDGER</text>
+    <text class="sm" x="490" y="217">append-only + posisi</text>
+    <rect class="box" x="60" y="30" width="180" height="52"/><text class="lbl" x="150" y="61">DASHBOARD</text>
+    <rect class="box" x="400" y="30" width="180" height="52"/><text class="lbl" x="490" y="61">PESANAN</text>
+    <rect class="box" x="740" y="30" width="180" height="52"/><text class="lbl" x="830" y="61">RKAP</text>
+    <rect class="box" x="60" y="170" width="180" height="52"/><text class="lbl" x="150" y="201">DISTRIBUSI</text>
+    <rect class="box" x="60" y="320" width="180" height="52"/><text class="lbl" x="150" y="351">CONTRIBUTION</text>
+    <rect class="box" x="400" y="320" width="180" height="52"/><text class="lbl" x="490" y="351">IDENTITAS</text>
+    <rect class="box" x="740" y="170" width="180" height="52"/><text class="lbl" x="830" y="201">HARGA &amp; MoM</text>
+    <rect class="box" x="740" y="320" width="180" height="52"/><text class="lbl" x="830" y="351">BUKTI &amp; NOTIF</text>
+    <rect class="box" x="400" y="395" width="180" height="30" style="stroke-dasharray:5 4"/><text class="sm" x="490" y="414" style="fill:#8fa0bd">AUDIT — tulis-only, baca COO</text>
+    <path class="ed" d="M200,56 C300,80 330,120 415,168"/>
+    <path class="ed" d="M490,82 L490,168"/>
+    <path class="ed" d="M770,82 C680,110 640,140 565,170"/>
+    <path class="ed" d="M150,222 L415,196"/>
+    <path class="ed" d="M240,346 C330,330 340,250 412,214"/>
+    <path class="ed" d="M580,192 C660,180 690,190 738,196"/>
+    <path class="ed" d="M580,208 C660,240 680,290 740,330"/>
+    <path class="ed" d="M490,234 L490,320" style="marker-end:none"/>
+    <path class="ed" d="M497,320 L497,240"/>
+    <path class="dash" d="M240,356 C340,375 620,385 740,362"/>
+    <text class="sm" x="300" y="106">baca proyeksi</text>
+    <text class="sm" x="665" y="115">baca ruang</text>
+    <text class="sm" x="497" y="283">event lifecycle owner</text>
+    <text class="sm" x="640" y="228">snapshot harga</text>
+  </svg>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <h2><span class="no">03</span>Invariants — jantung kontrak (1/2)</h2>
+  <p class="sub">Aturan yang tidak bisa dibaca ulang dari kode compliant — inilah yang mencegah dua tim membangun saling bertabrakan.</p>
+  <div class="grid g2">
+    <div class="card"><h3>AD-1 · Satu penulis posisi</h3><p>Hanya LEDGER menulis posisi, hanya lewat dua pintu finalisasi COO (+ import migrasi via API internal). Koreksi = entry kompensasi.</p></div>
+    <div class="card"><h3>AD-2 · Finalisasi atomik</h3><p>Satu transaksi DB: ledger + status (compare-and-set) + pembayaran + plotting RKAP + penyesuaian instant + audit. Row-lock fase RKAP — first-confirm wins.</p></div>
+    <div class="card"><h3>AD-3 · Audit atomik append-only</h3><p>Entry audit ditulis dalam transaksi yang sama dengan aksinya. Tanpa UPDATE/DELETE (DB grants). Aktor user | system.</p></div>
+    <div class="card"><h3>AD-4 · Posisi terkopling ledger</h3><p>Tabel posisi hanya diupdate di dalam transaksi append ledger — drift struktural mustahil; rekomputasi = alat rekonsiliasi.</p></div>
+    <div class="card"><h3>AD-5 · Kepemilikan tabel mutlak</h3><p>Satu tabel satu pemilik. Outbox email ditulis in-transaction, dikirim async + retry.</p></div>
+    <div class="card"><h3>AD-6 · Satu rumus domain</h3><p>Seluruh hitungan (termasuk perakitan input validasi Strength) di <code>shared/domain</code> — server &amp; pratinjau identik by construction.</p></div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <h2><span class="no">04</span>Invariants — jantung kontrak (2/2)</h2>
+  <div class="grid g2">
+    <div class="card"><h3>AD-7 · Harga Terkunci</h3><p>Snapshot harga saat submit = harga final. Re-validasi kondisi terkini saat finalisasi; referral = cek mekanis + penilaian manusia COO (cross-referral hari sama).</p></div>
+    <div class="card"><h3>AD-8 · Akses dipaksa di server</h3><p>3 tingkat (Calon Owner / Owner / COO) + matriks keterbukaan §4.8 di middleware server &amp; route handler — pernah bukan hanya di klien. MFA OTP COO: hashed, single-use, TTL menit.</p></div>
+    <div class="card"><h3>AD-9 · Operasional</h3><p>Vercel + Supabase PG 17 (Singapore). Cron harian — batas hari dihitung <b>Asia/Jakarta</b> di endpoint. Backup harian/PITR + drill restore sebelum go-live.</p></div>
+    <div class="card"><h3>AD-10 · Uang numeric-safe</h3><p>Rupiah <code>numeric(18,2)</code>, metrik integer, ratio presisi penuh → half-up 2 desimal saat sajikan. Rekap RUPS = snapshot imutabel + baris penyesuaian sisa pembulatan.</p></div>
+    <div class="card"><h3>AD-11 · Siklus hidup owner satu penulis</h3><p>Hanya IDENTITAS menulis status, via compare-and-set + re-validasi in-tx. "Pembelian Pertama efektif" = transaksi ledger pertama yang efektif (ditolak/ditarik/kedaluwarsa tak pernah menghasilkan baris ledger).</p></div>
+    <div class="card"><h3>AD-12 · Dua postur, PWA data selalu daring</h3><p>Satu basis kode, dua postur (<code>lg</code>); installed = viewport, bukan postur ketiga. PWA installable: cache hanya aset fingerprint + <code>/offline</code>; dokumen SSR &amp; API <code>no-store</code>; update SW <code>prompt</code>; tanpa tulis luring.</p></div>
+    <div class="card" style="border-color:var(--accent2)"><h3 style="color:var(--accent2)">Gerbang SM-1</h3><p>Zero discrepancy — unit test wajib memakai contoh verifikasi PRD (66,67%; 861 saham; ratio 5/41/54; 4.340.000) + acceptance migrasi Grand Total 3.622 / 5.187 / 14.980.</p></div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <h2><span class="no">05</span>Stack — terverifikasi web, Sep 2026</h2>
+  <p class="sub">Boring by design. Setiap pin dicek hidup &amp; terkini sebelum diikat.</p>
+  <table>
+    <tr><th>Lapisan</th><th>Pilihan</th><th>Catatan</th></tr>
+    <tr><td>Framework</td><td><code>Nuxt 4.x</code> (4.5.2)</td><td>Vue 3 + TS, server-rendered, Node ≥ 22</td></tr>
+    <tr><td>Database</td><td><code>Supabase PostgreSQL 17</code></td><td>region Singapore, via pooler</td></tr>
+    <tr><td>ORM</td><td><code>Drizzle 0.45.x</code></td><td>v1.0 sudah rc — pakai v1.0 bila GA saat scaffold</td></tr>
+    <tr><td>Auth</td><td><code>NuxtAuth 1.3.1</code> (sidebase)</td><td>Google OAuth; smoke-test di Nuxt 4 wajib saat scaffold</td></tr>
+    <tr><td>PWA</td><td><code>@vite-pwa/nuxt 1.1.1</code></td><td>installable; smoke-test Nuxt 4 wajib; batas cache mengikuti AD-12</td></tr>
+    <tr><td>Email keluar</td><td>Resend/SMTP + outbox</td><td>OTP, Bukti, notifikasi, pengingat</td></tr>
+    <tr><td>PDF bukti</td><td><code>@react-pdf/renderer</code></td><td>regenerasi deterministik dari ledger — Template v3</td></tr>
+    <tr><td>Hosting &amp; cron</td><td>Vercel + Vercel Cron</td><td>cron harian, endpoint terproteksi CRON_SECRET</td></tr>
+    <tr><td>Chart (FR-18)</td><td><i>deferred</i></td><td>menyusul di tahap UX — kebutuhan donut nested condong ECharts</td></tr>
+  </table>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <h2><span class="no">06</span>Topologi deployment</h2>
+  <p class="sub">Dua layanan terkelola, nol server yang diurus sendiri. Muat di free/cheap tier.</p>
+  <svg viewBox="0 0 940 300" style="width:100%;height:auto" role="img" aria-label="Topologi deployment">
+    <style>
+      .bxx{fill:#1c2540;stroke:#2b3656}
+      .t1{fill:#e8edf7;font-size:16px;text-anchor:middle;font-weight:600}
+      .t2{fill:#8fa0bd;font-size:12px;text-anchor:middle}
+      .ar{stroke:#8fa0bd;stroke-width:1.6;fill:none;marker-end:url(#a2)}
+    </style>
+    <defs><marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8fa0bd"/></marker></defs>
+    <rect class="bxx" x="30" y="110" width="170" height="80" rx="10"/><text class="t1" x="115" y="145">Browser</text><text class="t2" x="115" y="167">owner &amp; COO — HP (PWA) / desktop</text>
+    <rect class="bxx" x="300" y="90" width="230" height="120" rx="10" style="stroke:#4f9cf9"/><text class="t1" x="415" y="130" style="fill:#4f9cf9">Vercel</text><text class="t2" x="415" y="152">Nuxt SSR + API + Cron</text><text class="t2" x="415" y="172">Node ≥ 22</text>
+    <rect class="bxx" x="660" y="30" width="230" height="80" rx="10"/><text class="t1" x="775" y="65">Supabase</text><text class="t2" x="775" y="87">PostgreSQL 17 · Singapore</text>
+    <rect class="bxx" x="660" y="140" width="230" height="60" rx="10"/><text class="t1" x="775" y="175">Google OAuth</text>
+    <rect class="bxx" x="660" y="225" width="230" height="60" rx="10"/><text class="t1" x="775" y="260">Resend / SMTP</text>
+    <path class="ar" d="M200,150 L298,150"/>
+    <path class="ar" d="M530,130 C600,110 620,90 658,75"/>
+    <path class="ar" d="M530,165 C600,175 615,180 658,170"/>
+    <path class="ar" d="M530,195 C600,220 615,245 658,252"/>
+    <text class="t2" x="249" y="140">HTTPS</text>
+    <text class="t2" x="594" y="62">SQL via pooler</text>
+    <text class="t2" x="585" y="300"></text>
+    <text class="t2" x="584" y="162">OAuth</text>
+    <text class="t2" x="560" y="240">email — async after commit</text>
+  </svg>
+  <p style="color:var(--muted);font-size:.9rem;margin-top:6px">Lingkungan: <code style="color:#9cc4ff">local</code> (Supabase CLI/Docker) + <code style="color:#9cc4ff">production</code>. Staging &amp; ekstraksi layanan: deferred dengan alasan.</p>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <h2><span class="no">07</span>Sengaja ditunda (Deferred)</h2>
+  <p class="sub">Setengah dari kontrak adalah apa yang TIDAK diputuskan sekarang — masing-masing dengan alasan bisa menunggu.</p>
+  <ul class="clean">
+    <li><b>Library chart</b> — spesifikasi perilaku &amp; visual final di EXPERIENCE/DESIGN; pilihan library (Chart.js vs ECharts) dijatuhkan saat scaffold.</li>
+    <li><b>Keputusan UX/UI</b> — hidup di DESIGN.md &amp; EXPERIENCE.md (final Sep 2026); spine merujuk tanpa menduplikasi.</li>
+    <li><b>PWA baca luring</b> — ditolak Phase 1: data keuangan tak boleh tersaji usang; tulis luring melanggar AD-2.</li>
+    <li><b>Alur penjualan Phase 2</b> — ruang sudah disiapkan (ledger berorientasi transaksi, posisi bisa turun, koreksi kompensasi).</li>
+    <li><b>RLS PostgreSQL</b> — otorisasi cukup di aplikasi untuk v1.</li>
+    <li><b>i18n</b> — Bahasa Indonesia saja (publik luas bukan pengguna).</li>
+    <li><b>Staging environment</b> — solo dev; menyusul bila tim bertambah.</li>
+  </ul>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <h2><span class="no">08</span>Proses &amp; jejak audit</h2>
+  <p class="sub">Spine lahir dari 4 ronde coaching; setiap keputusan punya riwayat.</p>
+  <div class="grid g3">
+    <div class="card"><h3>Coaching 1–4</h3><p>Paradigma (monolith vs split) → stack (Nuxt/Vue vs Laravel vs Go-split — ditolak dengan alasan) → 10 modul &amp; dependensi → mutasi state &amp; materialized positions.</p></div>
+    <div class="card"><h3>Gerbang review</h3><p>Ronde 1: reconcile PRD (6 temuan) + 3 reviewer paralel (2 critical ditutup → AD-11 lahir, AD-2 dipertajam). Ronde pembaruan PWA: 3 reviewer lagi — cangkang didefinisikan tegas, CAS status owner, <code>otp_codes</code> diberi pemilik.</p></div>
+    <div class="card"><h3>Artefak</h3><p><code>ARCHITECTURE-SPINE.md</code> — kontrak build · <code>.memlog.md</code> — 50+ entri keputusan/rasional · <code>reviews/</code> — 6 laporan (2 ronde) · deck ini.</p></div>
+  </div>
+  <p style="margin-top:24px;color:var(--muted)">UX selesai (DESIGN/EXPERIENCE final). Langkah berikutnya yang direkomendasikan: <b style="color:var(--ink)">bmad-create-epics-and-stories</b> — di bawah kontrak spine ini.</p>
+</section>
+
+</main>
+<footer>
+  <div>Sip &amp; Dip Ownership Dashboard · Architecture Spine · 2026-09-15</div>
+  <div class="dots" id="dots"></div>
+  <div>
+    <button class="nav" onclick="go(-1)">‹ Sebelumnya</button>
+    <button class="nav" onclick="go(1)">Berikutnya ›</button>
+    <span class="kbd"> · ←/→ navigasi</span>
+  </div>
+</footer>
+<script>
+  const slides=[...document.querySelectorAll('.slide')];let i=0;
+  const dots=document.getElementById('dots');
+  slides.forEach((_,n)=>{const d=document.createElement('div');d.className='dot';d.onclick=()=>show(n);dots.appendChild(d);});
+  function show(n){i=(n+slides.length)%slides.length;slides.forEach((s,k)=>s.classList.toggle('active',k===i));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));}
+  function go(d){show(i+d);}
+  document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1);});
+  show(0);
+</script>
+</body>
+</html>

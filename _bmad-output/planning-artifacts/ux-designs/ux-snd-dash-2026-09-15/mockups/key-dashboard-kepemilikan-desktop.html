@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="utf-8"><title>Key screen — Dashboard Kepemilikan (desktop)</title>
+<style>
+/*
+  Governed by:
+  - EXPERIENCE.md Responsive &amp; Platform: desktop (>=lg) — sidebar kiri, konten sampai max-w-7xl, chart berjajar, tabel full-width
+  - EXPERIENCE.md Component Patterns: tabel-kepemilikan, chart-portion-kepemilikan, chart-distribusi-pemodalan, chart-big-cap
+  - EXPERIENCE.md State Patterns: Portion total 99,99%/100,01%
+  - EXPERIENCE.md Key Flows: Flow 2 (UJ-2, Hanif)
+  - DESIGN.md Colors / Components
+  Adaptasi platform: kolom sticky TIDAK diperlukan (8 kolom muat penuh di >=lg); identitas & aturan sama dengan varian mobile.
+*/
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #E7E5E4; color: #1C1917; font-size: 15px; line-height: 1.55; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+.frame-browser { background: #FFFFFF; border-radius: 12px; border: 1px solid #D6D3D1; overflow: hidden; width: 1080px; display: flex; }
+.sidebar { width: 220px; border-right: 1px solid #E2E8F0; padding: 16px 12px; min-height: 640px; flex-shrink: 0 }
+.sidebar img { height: 32px; width: auto; margin: 0 0 6px 4px }
+.sidebar .wm { font-size: 13px; font-weight: 600; color: #2D3959; margin: 0 0 18px 4px }
+.navgroup { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #64748B; margin: 14px 4px 6px }
+.navitem { font-size: 13.5px; padding: 8px 10px; border-radius: 7px; color: #1C1917; margin-bottom: 2px }
+.navitem.on { background: #F1F5F9; color: #2D3959; font-weight: 600 }
+.content { flex: 1; background: #FAFAFA; padding: 20px 26px; min-width: 0 }
+h2.st { font-size: 18px; font-weight: 600; margin: 4px 0 2px; }
+.sub { font-size: 12.5px; color: #64748B; margin-bottom: 14px; }
+.card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.caption { font-size: 11px; color: #64748B; margin-top: 8px; }
+.section-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #64748B; margin: 0 0 10px; }
+.colnote { max-width: 720px; font-size: 12.5px; color: #64748B; text-align: center }
+.legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; color:#64748B; margin-top:8px; justify-content:center }
+.legend span { display:inline-flex; align-items:center; gap:5px }
+.sw { display:inline-block; width:9px; height:9px; border-radius:2px }
+table { border-collapse: collapse; width: 100%; }
+th { font-size: 11px; color: #64748B; font-weight: 600; text-align: right; padding: 6px 10px; border-bottom: 1px solid #E2E8F0; white-space: nowrap; }
+th:first-child { text-align: left; padding-left: 10px; }
+td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #E2E8F0; text-align: right; }
+td:first-child { text-align: left; white-space: nowrap; }
+
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+</style></head>
+<body>
+<p class="section-label">Key screen 1d — Dashboard Kepemilikan (desktop ≥lg, owner pemegang saham)</p>
+<div class="frame-browser">
+
+  <div class="sidebar">
+    <img src="../imports/logo.png" alt="Logo Sip &amp; Dip"><div class="wm">Sip &amp; Dip</div>
+    <div class="navgroup">Utama</div>
+    <div class="navitem on">Dashboard</div>
+    <div class="navitem">Pesanan Saya</div>
+    <div class="navgroup">Kepemilikan &amp; Data</div>
+    <div class="navitem">RKAP</div>
+    <div class="navitem">Harga Saham</div>
+    <div class="navitem">Riwayat Transaksi</div>
+    <div class="navgroup">Komunitas</div>
+    <div class="navitem">Contribution</div>
+    <div class="navitem">MoM MRO/RUPS</div>
+  </div>
+  <div class="content">
+    <h2 class="st">Dashboard Kepemilikan</h2>
+    <div class="sub">Selalu sinkron dengan transaksi terakhir — satu sumber kebenaran.</div>
+    <div class="card" style="padding:6px 8px 10px">
+      <table>
+        <thead><tr><th>Owner</th><th>Quantity</th><th>Shares</th><th>Portion</th><th>Ceil</th><th>Strength</th><th>Actual</th><th>RTL</th></tr></thead>
+        <tbody><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#2563EB;margin-right:6px"></span>Sugeng Winanjuar</td><td class="num">520</td><td class="num">780</td><td class="num">15,60%</td>
+<td class="num">2.160</td><td class="num">36,07%</td><td class="num">Rp27.040.000</td><td class="num">1.380</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#EA580C;margin-right:6px"></span>Rani Kusuma</td><td class="num">460</td><td class="num">690</td><td class="num">13,70%</td>
+<td class="num">1.910</td><td class="num">36,13%</td><td class="num">Rp23.920.000</td><td class="num">1.220</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#0D9488;margin-right:6px"></span>Budi Santoso</td><td class="num">420</td><td class="num">630</td><td class="num">12,50%</td>
+<td class="num">1.750</td><td class="num">36,00%</td><td class="num">Rp21.840.000</td><td class="num">1.120</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#7C3AED;margin-right:6px"></span>Sari Wulandari</td><td class="num">380</td><td class="num">570</td><td class="num">11,30%</td>
+<td class="num">1.580</td><td class="num">36,08%</td><td class="num">Rp19.760.000</td><td class="num">1.010</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#65A30D;margin-right:6px"></span>Dewi Lestari</td><td class="num">340</td><td class="num">510</td><td class="num">10,10%</td>
+<td class="num">1.420</td><td class="num">35,92%</td><td class="num">Rp17.680.000</td><td class="num">910</td></tr><tr style="background:#F1F5F9;font-weight:600;">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#DB2777;margin-right:6px"></span>Hanif Pratama <span style="font-size:10px;color:#2D3959;background:#E0E7F2;border-radius:4px;padding:0 4px;font-weight:600">Anda</span></td><td class="num">300</td><td class="num">450</td><td class="num">8,90%</td>
+<td class="num">1.250</td><td class="num">36,00%</td><td class="num">Rp15.600.000</td><td class="num">800</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#0E7490;margin-right:6px"></span>Agus Setiawan</td><td class="num">260</td><td class="num">390</td><td class="num">7,70%</td>
+<td class="num">1.080</td><td class="num">36,11%</td><td class="num">Rp13.520.000</td><td class="num">690</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#475569;margin-right:6px"></span>Lina Marlina</td><td class="num">220</td><td class="num">330</td><td class="num">6,50%</td>
+<td class="num">920</td><td class="num">35,87%</td><td class="num">Rp11.440.000</td><td class="num">590</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#9333EA;margin-right:6px"></span>Fajar Ramadhan</td><td class="num">180</td><td class="num">270</td><td class="num">5,30%</td>
+<td class="num">750</td><td class="num">36,00%</td><td class="num">Rp9.360.000</td><td class="num">480</td></tr><tr style="">
+<td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#A16207;margin-right:6px"></span>Mira Anggraini</td><td class="num">140</td><td class="num">210</td><td class="num">2,90%</td>
+<td class="num">580</td><td class="num">36,21%</td><td class="num">Rp7.280.000</td><td class="num">370</td></tr><tr><td style="color:#64748B">… 12 owner lain</td><td class="num">402</td><td class="num">357</td><td class="num">2,59%</td><td class="num">1.580</td><td class="num">—</td><td class="num">Rp20.904.000</td><td class="num">440</td></tr><tr style="font-weight:600"><td style="border-top:2px solid #E2E8F0">Grand Total</td>
+<td class="num" style="border-top:2px solid #E2E8F0">3.622</td><td class="num" style="border-top:2px solid #E2E8F0">5.187</td>
+<td class="num" style="border-top:2px solid #E2E8F0">99,99%</td><td class="num" style="border-top:2px solid #E2E8F0">14.980</td>
+<td class="num" style="border-top:2px solid #E2E8F0">—</td><td class="num" style="border-top:2px solid #E2E8F0">Rp188.344.000</td>
+<td class="num" style="border-top:2px solid #E2E8F0">9.010</td></tr></tbody>
+      </table>
+      <div class="caption num" style="padding:0 4px">Total Portion ditampilkan apa adanya — pembulatan 2 desimal (half-up). 10 dari 22 owner ditampilkan; 12 lainnya diringkas.</div>
+    </div>
+    <div class="grid3">
+      <div class="card">
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Portion Kepemilikan</div>
+        <div style="display:flex;justify-content:center"><svg width="230" height="230" viewBox="0 0 230 230" role="img" aria-label="Pie Portion Kepemilikan"><path d="M 115.0 115.0 L 115.0 40.0 A 75.0 75.0 0 0 1 177.3 73.2 Z" fill="#2563EB" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 177.3 73.2 A 75.0 75.0 0 0 1 187.3 135.0 Z" fill="#EA580C" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 187.3 135.0 A 75.0 75.0 0 0 1 152.0 180.3 Z" fill="#0D9488" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 152.0 180.3 A 75.0 75.0 0 0 1 100.5 188.6 Z" fill="#7C3AED" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 100.5 188.6 A 75.0 75.0 0 0 1 59.7 165.6 Z" fill="#65A30D" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 59.7 165.6 A 75.0 75.0 0 0 1 41.2 128.6 Z" fill="#DB2777" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 41.2 128.6 A 75.0 75.0 0 0 1 43.4 92.7 Z" fill="#0E7490" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 43.4 92.7 A 75.0 75.0 0 0 1 58.1 66.1 Z" fill="#475569" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 58.1 66.1 A 75.0 75.0 0 0 1 77.2 50.2 Z" fill="#9333EA" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 77.2 50.2 A 75.0 75.0 0 0 1 89.6 44.4 Z" fill="#A16207" stroke="#FFFFFF" stroke-width="1"/><path d="M 115.0 115.0 L 89.6 44.4 A 75.0 75.0 0 0 1 101.4 41.3 Z" fill="#8FA6F2" stroke="#FFFFFF" stroke-width="1"/><text x="156.4" y="36.4" text-anchor="start" font-size="9.5" font-weight="600">Sugeng</text><text x="156.4" y="46.4" text-anchor="start" font-size="9" fill="#78716C">15,60%</text><text x="201.9" y="100.0" text-anchor="start" font-size="9.5" font-weight="600">Rani</text><text x="201.9" y="110.0" text-anchor="start" font-size="9" fill="#78716C">13,70%</text><text x="184.4" y="168.2" text-anchor="start" font-size="9.5" font-weight="600">Budi</text><text x="184.4" y="178.2" text-anchor="start" font-size="9" fill="#78716C">12,50%</text><text x="129.0" y="200.9" text-anchor="start" font-size="9.5" font-weight="600">Sari</text><text x="129.0" y="210.9" text-anchor="start" font-size="9" fill="#78716C">11,30%</text><text x="71.9" y="190.7" text-anchor="end" font-size="9.5" font-weight="600">Dewi</text><text x="71.9" y="200.7" text-anchor="end" font-size="9" fill="#78716C">10,10%</text><text x="36.2" y="153.2" text-anchor="end" font-size="9.5" font-weight="600">Hanif</text><text x="36.2" y="163.2" text-anchor="end" font-size="9" fill="#78716C">8,90%</text><text x="27.2" y="108.8" text-anchor="end" font-size="9.5" font-weight="600">Agus</text><text x="27.2" y="118.8" text-anchor="end" font-size="9" fill="#78716C">7,70%</text><text x="38.0" y="71.4" text-anchor="end" font-size="9.5" font-weight="600">Lina</text><text x="38.0" y="81.4" text-anchor="end" font-size="9" fill="#78716C">6,50%</text><text x="58.7" y="46.4" text-anchor="end" font-size="9.5" font-weight="600">Fajar</text><text x="58.7" y="56.4" text-anchor="end" font-size="9" fill="#78716C">5,30%</text></svg></div>
+        <div class="legend"><span><span class="sw" style="background:#A16207"></span>Mira 2,90%</span><span><span class="sw" style="background:#8FA6F2"></span>12 owner lain 2,59%</span></div>
+      </div>
+      <div class="card">
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Distribusi Pemodalan</div>
+        <div style="display:flex;justify-content:center"><svg width="230" height="230" viewBox="0 0 230 230" role="img" aria-label="Donut Distribusi Pemodalan"><path d="M 115.0 6.0 A 109.0 109.0 0 0 1 205.5 54.3 L 188.9 65.4 A 89.0 89.0 0 0 0 115.0 26.0 Z" fill="#2563EB" stroke="#FFFFFF" stroke-width="1"/><path d="M 205.5 54.3 A 109.0 109.0 0 0 1 220.0 144.1 L 200.8 138.8 A 89.0 89.0 0 0 0 188.9 65.4 Z" fill="#EA580C" stroke="#FFFFFF" stroke-width="1"/><path d="M 220.0 144.1 A 109.0 109.0 0 0 1 168.7 209.9 L 158.9 192.4 A 89.0 89.0 0 0 0 200.8 138.8 Z" fill="#0D9488" stroke="#FFFFFF" stroke-width="1"/><path d="M 168.7 209.9 A 109.0 109.0 0 0 1 93.9 221.9 L 97.8 202.3 A 89.0 89.0 0 0 0 158.9 192.4 Z" fill="#7C3AED" stroke="#FFFFFF" stroke-width="1"/><path d="M 93.9 221.9 A 109.0 109.0 0 0 1 34.6 188.6 L 49.4 175.1 A 89.0 89.0 0 0 0 97.8 202.3 Z" fill="#65A30D" stroke="#FFFFFF" stroke-width="1"/><path d="M 34.6 188.6 A 109.0 109.0 0 0 1 7.8 134.8 L 27.5 131.1 A 89.0 89.0 0 0 0 49.4 175.1 Z" fill="#DB2777" stroke="#FFFFFF" stroke-width="1"/><path d="M 7.8 134.8 A 109.0 109.0 0 0 1 10.9 82.6 L 30.0 88.6 A 89.0 89.0 0 0 0 27.5 131.1 Z" fill="#0E7490" stroke="#FFFFFF" stroke-width="1"/><path d="M 10.9 82.6 A 109.0 109.0 0 0 1 32.3 44.0 L 47.5 57.0 A 89.0 89.0 0 0 0 30.0 88.6 Z" fill="#475569" stroke="#FFFFFF" stroke-width="1"/><path d="M 32.3 44.0 A 109.0 109.0 0 0 1 60.1 20.8 L 70.2 38.1 A 89.0 89.0 0 0 0 47.5 57.0 Z" fill="#9333EA" stroke="#FFFFFF" stroke-width="1"/><path d="M 60.1 20.8 A 109.0 109.0 0 0 1 78.1 12.4 L 84.9 31.3 A 89.0 89.0 0 0 0 70.2 38.1 Z" fill="#A16207" stroke="#FFFFFF" stroke-width="1"/><path d="M 78.1 12.4 A 109.0 109.0 0 0 1 95.2 7.8 L 98.8 27.5 A 89.0 89.0 0 0 0 84.9 31.3 Z" fill="#8FA6F2" stroke="#FFFFFF" stroke-width="1"/><path d="M 99.5 31.4 A 85.0 85.0 0 0 1 175.5 174.7 L 164.1 163.5 A 69.0 69.0 0 0 0 102.5 47.2 Z" fill="#1E293B" stroke="#FFFFFF" stroke-width="1"/><path d="M 175.5 174.7 A 85.0 85.0 0 0 1 31.1 128.5 L 46.9 126.0 A 69.0 69.0 0 0 0 164.1 163.5 Z" fill="#475569" stroke="#FFFFFF" stroke-width="1"/><path d="M 31.1 128.5 A 85.0 85.0 0 0 1 99.5 31.4 L 102.5 47.2 A 69.0 69.0 0 0 0 46.9 126.0 Z" fill="#64748B" stroke="#FFFFFF" stroke-width="1"/></svg></div>
+        <div class="legend">
+          <span><span class="sw" style="background:#1E293B"></span>Modal Tetap 40,31%</span>
+          <span><span class="sw" style="background:#475569"></span>Modal Bergerak 35,06%</span>
+          <span><span class="sw" style="background:#64748B"></span>Modal Operasional 24,63%</span>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:8px">Big Cap</div>
+        <div style="margin-bottom:10px">
+<div style="font-size:11.5px;font-weight:600">Big Cap (>5%) <span style="font-weight:400;color:#64748B">— Sugeng · Rani · Budi · Sari · Dewi · Hanif · Agus · Lina · Fajar</span></div>
+<div style="margin-top:5px;height:12px;border-radius:3px;background:#93C5FD;position:relative">
+<div style="position:absolute;inset:0;width:36%;background:#2563EB;border-radius:3px 0 0 3px;"></div></div>
+<div class="num" style="font-size:10.5px;color:#64748B;margin-top:3px">Shares 4.620 dari Ceil 12.820 — 36,04%</div></div><div style="margin-bottom:10px">
+<div style="font-size:11.5px;font-weight:600">Medium Cap (>2%) <span style="font-weight:400;color:#64748B">— Mira · 12 owner lain</span></div>
+<div style="margin-top:5px;height:12px;border-radius:3px;background:#93C5FD;position:relative">
+<div style="position:absolute;inset:0;width:26%;background:#2563EB;border-radius:3px 0 0 3px;"></div></div>
+<div class="num" style="font-size:10.5px;color:#64748B;margin-top:3px">Shares 567 dari Ceil 2.160 — 26,25%</div></div><div style="margin-bottom:10px">
+<div style="font-size:11.5px;font-weight:600">Small Cap (≤2%) <span style="font-weight:400;color:#64748B">— Belum ada owner di bawah ambang 2% — ambang dikonfigurasi COO</span></div>
+<div style="margin-top:5px;height:12px;border-radius:3px;border:1px dashed #E2E8F0;"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="colnote">Desktop ≥lg: sidebar menggantikan bottom nav; tabel 8 kolom penuh tanpa scroll horizontal (kolom sticky hanya strategi mobile); ketiga chart berjajar. Ketuk/klik wedge ↔ sorot baris tabel (interaksi dua arah lintas platform).</p>
+</body></html>

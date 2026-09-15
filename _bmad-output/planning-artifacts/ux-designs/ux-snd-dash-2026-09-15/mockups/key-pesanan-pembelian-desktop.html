@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="utf-8"><title>Key screen — Form Pesanan Pembelian (desktop)</title>
+<style>
+/*
+  Governed by:
+  - EXPERIENCE.md Responsive &amp; Platform: desktop — sidebar; dialog terpusat (tidak dipakai di state ini)
+  - EXPERIENCE.md Component Patterns: panel-pratinjau-hitungan
+  - EXPERIENCE.md Interaction Primitives: panel pratinjau sticky; COO keyboard — owner pun tetap full-keyboard
+  - EXPERIENCE.md Key Flows: Flow 1 (UJ-1, Bima) langkah 2-5
+  - DESIGN.md Components 8 (Panel Pratinjau Perhitungan)
+  Adaptasi platform: di >=lg Panel Pratinjau menempel sisi kanan (sticky top), bukan di bawah viewport.
+*/
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #E7E5E4; color: #1C1917; font-size: 15px; line-height: 1.55; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+.frame-browser { background: #FFFFFF; border-radius: 12px; border: 1px solid #D6D3D1; overflow: hidden; width: 1080px; display: flex; }
+.sidebar { width: 220px; border-right: 1px solid #E2E8F0; padding: 16px 12px; min-height: 640px; flex-shrink: 0 }
+.sidebar img { height: 32px; width: auto; margin: 0 0 6px 4px }
+.sidebar .wm { font-size: 13px; font-weight: 600; color: #2D3959; margin: 0 0 18px 4px }
+.navgroup { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #64748B; margin: 14px 4px 6px }
+.navitem { font-size: 13.5px; padding: 8px 10px; border-radius: 7px; color: #1C1917; margin-bottom: 2px }
+.navitem.on { background: #F1F5F9; color: #2D3959; font-weight: 600 }
+.content { flex: 1; background: #FAFAFA; padding: 20px 26px; min-width: 0 }
+h2.st { font-size: 18px; font-weight: 600; margin: 4px 0 2px; }
+.sub { font-size: 12.5px; color: #64748B; margin-bottom: 14px; }
+.card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.caption { font-size: 11px; color: #64748B; margin-top: 8px; }
+.section-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #64748B; margin: 0 0 10px; }
+.colnote { max-width: 720px; font-size: 12.5px; color: #64748B; text-align: center }
+.legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; color:#64748B; margin-top:8px; justify-content:center }
+.legend span { display:inline-flex; align-items:center; gap:5px }
+.sw { display:inline-block; width:9px; height:9px; border-radius:2px }
+table { border-collapse: collapse; width: 100%; }
+th { font-size: 11px; color: #64748B; font-weight: 600; text-align: right; padding: 6px 10px; border-bottom: 1px solid #E2E8F0; white-space: nowrap; }
+th:first-child { text-align: left; padding-left: 10px; }
+td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #E2E8F0; text-align: right; }
+td:first-child { text-align: left; white-space: nowrap; }
+
+.cols { display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
+.flabel { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.ctl { min-height: 44px; border: 1px solid #E2E8F0; border-radius: 8px; padding: 11px 12px; font-size: 14px; background: #FFFFFF; display: flex; justify-content: space-between }
+.hint { font-size: 11.5px; color: #64748B; margin-top: 4px }
+.btn-p { width: 100%; min-height: 44px; background: #2D3959; color: #fff; border: 0; border-radius: 8px; font-size: 15px; font-weight: 600; margin-top: 12px }
+.sticky { position: sticky; top: 16px }
+</style></head>
+<body>
+<p class="section-label">Key screen 2d — Form Pesanan Pembelian (desktop ≥lg) · state kanonik</p>
+<div class="frame-browser">
+
+  <div class="sidebar">
+    <img src="../imports/logo.png" alt="Logo Sip &amp; Dip"><div class="wm">Sip &amp; Dip</div>
+    <div class="navgroup">Utama</div>
+    <div class="navitem on">Dashboard</div>
+    <div class="navitem">Pesanan Saya</div>
+    <div class="navgroup">Kepemilikan &amp; Data</div>
+    <div class="navitem">RKAP</div>
+    <div class="navitem">Harga Saham</div>
+    <div class="navitem">Riwayat Transaksi</div>
+    <div class="navgroup">Komunitas</div>
+    <div class="navitem">Contribution</div>
+    <div class="navitem">MoM MRO/RUPS</div>
+  </div>
+  <div class="content">
+    <h2 class="st">Pesanan Pembelian</h2>
+    <div class="sub">Hitungan tervalidasi otomatis terhadap mekanisme pembobotan sebelum masuk Antrian Beli.</div>
+    <div class="cols">
+      <div>
+        <div style="margin-bottom:16px">
+          <div class="flabel">Jenis Modal</div>
+          <div class="ctl"><span>Modal Bergerak</span><span style="color:#64748B">▾</span></div>
+          <div class="hint">Pilihan mengikuti kondisi RKAP — ketiga jenis terbuka.</div>
+        </div>
+        <div style="margin-bottom:16px">
+          <div class="flabel">Quantity</div>
+          <div class="ctl"><span class="num" style="flex:1">4</span></div>
+          <div class="hint num">Quantity maksimal 4 — pembulatan Ceil ke bawah (Ceil tersisa untuk Anda 4 unit; rincian di panel pratinjau).</div>
+        </div>
+        <div>
+          <div class="flabel">Referral <span style="font-weight:400;color:#64748B">(wajib — Pembelian Pertama)</span></div>
+          <div class="ctl"><span>Sugeng Winanjuar</span><span style="color:#64748B">▾</span></div>
+          <div class="hint">Owner eksisting atau owner Terverifikasi lain yang belum membeli.</div>
+        </div>
+      </div>
+      <div class="card sticky" style="margin-bottom:0">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Panel Pratinjau Perhitungan</div>
+        <div class="mono" style="font-size:12.5px;line-height:1.9">Harga Terkunci&nbsp;&nbsp;Rp52.000<br>
+Ceil proyeksi&nbsp;&nbsp;&nbsp;&nbsp;12<br>
+Shares proyeksi&nbsp;&nbsp;&nbsp;8&nbsp;&nbsp;(4 × bobot 2)<br>
+Strength&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;34,78%&nbsp;(8 ÷ 23)<br>
+RTL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;240</div>
+        <button class="btn-p">Ajukan Pesanan Pembelian</button>
+        <div style="font-size:11px;color:#64748B;margin-top:8px">Pesanan final setelah pembayaran dikonfirmasi COO. Pesanan kedaluwarsa otomatis pada hari ke-7.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="colnote">Desktop ≥lg: panel pratinjau menjadi kartu sticky di sisi kanan (di mobile menempel di bawah viewport). State error (Strength &gt; 100%, Alert Penolakan Terhitung, submit terkunci) identik dengan varian mobile — lihat mockups/key-pesanan-pembelian.html bagian kedua.</p>
+</body></html>
