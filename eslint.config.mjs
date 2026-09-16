@@ -68,6 +68,15 @@ const configs = withNuxt(
       'vue/require-default-prop': 'off',
     },
   },
+  {
+    // Fixture Playwright (mis. `{ auto: true }`) mewajibkan argumen pertama
+    // berupa destrukturasi objek — `async ({}, use)` — sehingga pola objek
+    // kosong ini idiomatik dan bukan defect di tests/**.
+    files: ['tests/**/*.ts'],
+    rules: {
+      'no-empty-pattern': 'off',
+    },
+  },
 )
 
 // Preset @nuxt/eslint meng-global-ignore '**/public' pada SEMUA kedalaman,

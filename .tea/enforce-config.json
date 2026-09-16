@@ -1,0 +1,15 @@
+{
+  "testGlobs": [
+    "tests/**/*.spec.{ts,js}",
+    "shared/**/*.test.ts",
+    "server/**/*.test.ts",
+    "app/**/*.test.ts"
+  ],
+  "pactConfigGlobs": [],
+  "excludeGlobs": [],
+  "disabledRules": [],
+  "maxFileLines": 1000,
+  "stopScanWindowSeconds": 900,
+  "maxScannedFiles": 5000,
+  "hookSha256": "faf4a92cc5baa5cd36c30668431f0ac41d9c9d5fbddce61dce876e0ef6192d68"
+}
