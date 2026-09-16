@@ -79,10 +79,47 @@ modul lain tampil 0% sebagai peta tes yang menyusul di story pemiliknya).
 Threshold per-file dipinkan untuk kontrak murni `shared/domain` (90/90/95/95) —
 regress kontrak AD-9/AD-10 menggagalkan `npm run test:coverage`.
 
+### Checklist Google Cloud Console (OAuth — sekali di awal, gerbang R-005)
+
+Kredensial TIDAK pernah masuk repo — hanya lewat `.env` (keputusan pengguna
+spec 1.1 #2). ±5–10 menit:
+
+1. **Buat/ pilih project** — [console.cloud.google.com](https://console.cloud.google.com)
+   → project picker → New Project (mis. `snd-dash-dev`).
+2. **OAuth consent screen** — menu *Google Auth Platform* (atau *APIs &
+   Services → OAuth consent screen*):
+   - User Type: **External** (kecuali semua user memakai Workspace yang sama).
+   - App name `Sip & Dip Dashboard`, support email, developer contact email.
+   - Scopes: default `openid`, `email`, `profile` — cukup (tidak ada scope
+     sensitif).
+   - Publishing status **Testing** → tambahkan akun Google yang dipakai smoke
+     ke *Test users* (user di luar daftar akan ditolak Google).
+3. **Buat OAuth Client** — *Google Auth Platform → Clients → Create Client*:
+   - Application type: **Web application**.
+   - Authorized JavaScript origins: `http://localhost:3000`.
+   - Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`
+     (path `/api/auth/callback/google` TEPAT — berasal dari `AUTH_ORIGIN`).
+   - Produksi nanti: tambahkan sekalian `https://<domain-prod>/api/auth/callback/google`.
+4. **Salin kredensial ke `.env`** (dari `cp .env.example .env`):
+   - `NUXT_GOOGLE_CLIENT_ID` / `NUXT_GOOGLE_CLIENT_SECRET` ← dari dialog client.
+   - `NUXT_AUTH_SECRET` ← `openssl rand -base64 32`.
+   - `AUTH_ORIGIN=http://localhost:3000/api/auth` — baseURL PENUH termasuk
+     path `/api/auth`, TANPA trailing slash (dipakai NuxtAuth 1.3.1 apa adanya).
+5. **Smoke login** — `npm run dev` → `http://localhost:3000/smoke` → "Masuk
+   dengan Google" → kembali dengan status `authenticated` + email tampil →
+   "Keluar" mengembalikan `unauthenticated`. Hasil go/no-go R-005 dicatat di
+   Design Notes spec 1.1.
+
+> Catatan: mode Testing mengeluarkan refresh token yang kedaluwarsa ±7 hari —
+> cukup untuk smoke; promote ke *In production* saat go-live (Story 1.2
+> memakai kredensial yang sama). Checklist ini sudah dijalankan 2026-09-16 —
+> smoke login lulus, R-005 = GO (lihat Design Notes spec 1.1).
+
 ### Runbook smoke R-005 (urut: auth → PWA → komponen)
 
 1. **NuxtAuth**: `npm run dev` → buka `/smoke` → "Masuk dengan Google" →
-   kembali dengan status sesi `authenticated` + email tampil.
+   kembali dengan status sesi `authenticated` + email tampil
+   (prasyarat: checklist Google Cloud Console di atas).
 2. **PWA** (AD-12): `npm run build && npm run preview` →
    - DevTools > Application: manifest tervalidasi, SW aktif, precache =
      aset ter-fingerprint + manifest + ikon + `offline.html` saja.
