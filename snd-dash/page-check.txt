@@ -1,0 +1,3 @@
+﻿### /  [ERROR] The remote server returned an error: (404) Not Found.
+### /api/auth/providers  [200]  len=253
+### /api/auth/signin  [200]  len=5300
