@@ -28,8 +28,8 @@ app/public/sw.js          # service worker kustom (injectManifest, AD-12)
 
 ## Prasyarat
 
-- Node `>=22.19.0` (dev/CI/Vercel memakai Node 24 LTS; jendela aktif berakhir
-  Okt 2026 — recek saat upgrade).
+- Node `>=24.19.0` (LTS, selaras `.nvmrc` dan `engines`; masa perawatan hingga
+  Apr 2028 — recek saat upgrade).
 - Docker + Supabase CLI (`brew install supabase/tap/supabase`) untuk database lokal.
 - Google Cloud OAuth Client (untuk smoke auth).
 
