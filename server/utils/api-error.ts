@@ -11,6 +11,12 @@ export interface ApiErrorEnvelope {
   details: Record<string, unknown>
 }
 
+/** Status HTTP yang dipakai envelope error — satu sumber untuk seluruh route. */
+export const HTTP_STATUS = {
+  unauthorized: 401,
+  serviceUnavailable: 503,
+} as const
+
 export function sendApiError(
   event: H3Event,
   status: number,

@@ -1,9 +1,9 @@
 <!-- bmad:context -->
-<!-- Verified 2026-09-15 against 7249a4a. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-09-16 against 2526c9c. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## snd-dash
 
-Dashboard kepemilikan saham Sip & Dip (Phase 1). Greenfield — belum ada kode; stack terputuskan: Nuxt 4 (Vue + TypeScript, SSR), Drizzle ORM, PostgreSQL 17 (Supabase), Vercel. Perencanaan final (PRD, UX, arsitektur) hidup di `_bmad-output/planning-artifacts/`.
+Dashboard kepemilikan saham Sip & Dip (Phase 1). Substrat Nuxt 4 ter-scaffold (Story 1.1); stack: Nuxt 4 (Vue + TypeScript, SSR), Drizzle ORM, PostgreSQL 17 (Supabase), Vercel. Perencanaan final (PRD, UX, arsitektur) hidup di `_bmad-output/planning-artifacts/`.
 
 ## Policy
 
@@ -20,7 +20,7 @@ Dashboard kepemilikan saham Sip & Dip (Phase 1). Greenfield — belum ada kode; 
 
 ## Running and verifying
 
-- Kode belum ada — belum ada perintah terverifikasi. TODO(scaffold): scaffold Nuxt 4 + Drizzle, lalu smoke-test wajib NuxtAuth OAuth Google, `@vite-pwa/nuxt` build+install, paritas komponen shadcn-vue (lihat tabel Stack di spine); diverifikasi di refresh pertama setelah kode ada.
+- Scaffold Story 1.1 lulus smoke R-005 (NuxtAuth OAuth Google, PWA install+prompt, paritas komponen shadcn-vue, migrasi Drizzle); kirim email Resend nyata belum terverifikasi — wajib sebelum Story 1.5 (spec 1.1).
 
 ## Conventions that differ
 
@@ -29,5 +29,6 @@ Dashboard kepemilikan saham Sip & Dip (Phase 1). Greenfield — belum ada kode; 
 - Nilai uang/ratio tidak pernah `number`/`parseFloat` — string desimal berskala tetap; aritmetika hanya di `shared/domain` (AD-10).
 - Import lintas modul domain hanya lewat `index.ts` modul; jangan menulis tabel milik modul tetangga (AD-5).
 - Aturan kalender-hari (expiry hari-7, "hari yang sama") dihitung zona Asia/Jakarta via helper `shared/domain` — jangan `new Date()` mentah (AD-9).
+- Tanpa magic number: angka dalam logika = konstanta bernama — lintas-modul di `shared/domain/<topik>.ts`, milik modul di `server/domain/<modul>/` (ditegakkan `@typescript-eslint/no-magic-numbers`, pengecualian di `eslint.config.mjs`); ambang yang dapat berubah (mis. kap kelompok) = data konfigurasi, bukan konstanta kode (spine, Data & format).
 
 <!-- /bmad:context -->

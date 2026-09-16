@@ -34,11 +34,24 @@ export function jakartaDayKey(instant: Date): DayKey {
   return `${get('year')}-${get('month')}-${get('day')}` as DayKey
 }
 
+// Aturan kabisat Gregorian: tahun habis dibagi 4, kecuali tahun abad yang
+// tidak habis dibagi 400.
+const GREGORIAN_LEAP = { solarDivisor: 4, centuryDivisor: 100, leapCenturyDivisor: 400 } as const
+
 function isLeapYear(y: number): boolean {
-  return y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)
+  return y % GREGORIAN_LEAP.solarDivisor === 0
+    && (y % GREGORIAN_LEAP.centuryDivisor !== 0 || y % GREGORIAN_LEAP.leapCenturyDivisor === 0)
 }
 
+// Panjang hari per bulan (indeks 0 = Januari); Februari non-kabisat = 28,
+// koreksi kabisat di parseDayKey. Tabel data kalender Gregorian — angka di
+// sini adalah data bernama, bukan magic number.
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
+
+const FEBRUARY = 2
+const FEBRUARY_LEAP_DAYS = 29
+const MONTHS_IN_YEAR = 12
 
 /**
  * Validasi BENTUK + SEMANTIK: bulan 1–12 dan hari valid untuk bulan/tahun
@@ -53,8 +66,8 @@ function parseDayKey(day: DayKey): { y: number, m: number, d: number } {
   const y = Number.parseInt(match[1], 10)
   const m = Number.parseInt(match[2], 10)
   const d = Number.parseInt(match[3], 10)
-  const daysInMonth = m === 2 && isLeapYear(y) ? 29 : (DAYS_IN_MONTH[m - 1] ?? 0)
-  if (m < 1 || m > 12 || d < 1 || d > daysInMonth) {
+  const daysInMonth = m === FEBRUARY && isLeapYear(y) ? FEBRUARY_LEAP_DAYS : (DAYS_IN_MONTH[m - 1] ?? 0)
+  if (m < 1 || m > MONTHS_IN_YEAR || d < 1 || d > daysInMonth) {
     throw new Error(`Kunci hari tidak sah (tanggal kalender tidak ada): "${day}"`)
   }
   return { y, m, d }
@@ -77,11 +90,13 @@ function epochUtc(day: DayKey): number {
 function epochToDayKey(epochDay: number): DayKey {
   // Tanggal kalender UTC dari epoch tengah hari (aman dari pinggir hari).
   const iso = new Date(epochDay).toISOString()
-  return iso.slice(0, 10) as DayKey
+  return iso.slice(0, DAY_KEY_LENGTH) as DayKey
 }
 
+const DAY_KEY_LENGTH = 10 // "YYYY-MM-DD"
 const MS_PER_DAY = 86_400_000
-const DAY_EPOCH_ORIGIN = Date.UTC(2001, 0, 1) // titik aman jauh dari pinggir
+const DAY_EPOCH_YEAR = 2001
+const DAY_EPOCH_ORIGIN = Date.UTC(DAY_EPOCH_YEAR, 0, 1) // titik aman jauh dari pinggir
 
 /** Penjumlahan hari KALENDER (bukan 24 jam): addCalendarDays("2026-01-31", 1) -> "2026-02-01". */
 export function addCalendarDays(day: DayKey, days: number): DayKey {

@@ -28,8 +28,12 @@ export type OutboxKind = (typeof OUTBOX_KINDS)[number]
 
 const MAX_ATTEMPTS = 5
 /** Backoff retry menit: [1, 5, 30, 120] menit untuk percobaan ke-2..5. */
+// Tabel data operasional milik konstanta bernama — angka di sini adalah
+// data tangga backoff, bukan magic number.
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
 const BACKOFF_MINUTES = [1, 5, 30, 120] as const
 const DISPATCH_BATCH_LIMIT = 10
+const MS_PER_MINUTE = 60_000
 
 /**
  * Tulis baris outbox dalam transaksi PEMANGGIL (AD-5: fungsi lintas modul di
@@ -122,7 +126,7 @@ export async function dispatchPendingOutboxEmails(options: { now?: Date, mailCli
       sent++
     } else {
       const backoffMinutes = result.retryable ? BACKOFF_MINUTES[Math.min(row.attempts, BACKOFF_MINUTES.length - 1)] : 0
-      const nextSendAfter = new Date(now.getTime() + backoffMinutes * 60_000)
+      const nextSendAfter = new Date(now.getTime() + backoffMinutes * MS_PER_MINUTE)
       const marked = await markOutboxEmailAttemptFailed(db, {
         id: row.id,
         readAttempts: row.attempts,
