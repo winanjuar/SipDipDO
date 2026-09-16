@@ -15,9 +15,8 @@ function muatVersiBaru() {
 </script>
 
 <template>
-  <div
+  <output
     v-if="needRefresh"
-    role="status"
     aria-live="polite"
     data-testid="prompt-pembaruan"
     class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border bg-popover px-4 py-3 text-popover-foreground shadow-lg"
@@ -30,5 +29,5 @@ function muatVersiBaru() {
     >
       Muat versi baru
     </button>
-  </div>
+  </output>
 </template>

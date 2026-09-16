@@ -7,7 +7,7 @@
 <template>
   <main class="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
     <h1 class="text-3xl font-semibold text-primary">Sip &amp; Dip</h1>
-    <p class="text-muted-foreground">Dashboard kepemilikan saham — scaffold Story 1.1.</p>
+    <p class="text-muted-foreground">Owner Dashboard</p>
     <NuxtLink
       to="/smoke"
       class="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm font-medium"
