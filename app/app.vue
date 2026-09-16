@@ -6,7 +6,7 @@
 // spesifik meng-override via useHead di halamannya masing-masing).
 useHead({
   htmlAttrs: { lang: 'id' },
-  title: 'Sip & Dip — Dashboard Kepemilikan Saham',
+  title: 'Sip & Dip Owner Dashboard',
 })
 </script>
 

@@ -69,9 +69,15 @@ supabase db reset                               # reset + replay migrasi (bila p
 npm run dev          # dev server — halaman smoke: http://localhost:3000/smoke
 npm run build        # build produksi (SW di-generate di .output/public)
 npm run preview      # prod-preview
-npm test             # unit test shared/domain (kontrak uang & hari)
+npm test             # unit test shared/domain + modul server teruji (kontrak uang & hari)
+npm run test:coverage  # sama, + laporan coverage (terminal, coverage/index.html, lcov.info)
 npm run typecheck && npm run lint
 ```
+
+Coverage mengukur kode domain (`shared/**`, `server/**`; file stub `export {}`
+modul lain tampil 0% sebagai peta tes yang menyusul di story pemiliknya).
+Threshold per-file dipinkan untuk kontrak murni `shared/domain` (90/90/95/95) —
+regress kontrak AD-9/AD-10 menggagalkan `npm run test:coverage`.
 
 ### Runbook smoke R-005 (urut: auth → PWA → komponen)
 
