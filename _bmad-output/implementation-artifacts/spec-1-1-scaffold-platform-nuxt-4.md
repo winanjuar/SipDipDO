@@ -147,6 +147,7 @@ serializeRupiah(x)        -> "52.000,50"                     // format id-ID
 - NuxtAuth: `@sidebase/nuxt-auth@1.3.1` + `next-auth@4.21.1` (satu-satunya rilis dalam peer `~4.21.1`; 4.24.x TIDAK memenuhi range). Resend SDK: `resend@6.28.1` (npm registry).
 - **Major Tailwind = v4** (4.3.3, CSS-first via `@tailwindcss/vite` — tanpa `tailwind.config.*`, token di `app/assets/css/tailwind.css`); shadcn-vue CLI `2.8.2` + `shadcn-nuxt@2.8.2`; runtime komponen: `reka-ui@2.10.4`, `vue-sonner@2.0.9`, `vue-input-otp@0.4.0`, `@vueuse/core@14.4.0`, `@lucide/vue@1.46.0`.
 - Node 24 (jendela aktif berakhir Okt 2026): recek 2026-09-16 — v24.19.0 masih dalam jendela; `engines >=22.19.0` terpasang. TODO recek ulang saat upgrade major berikutnya.
+- `@vitest/coverage-v8@5.0.1` (pasca-approval, 2026-09-16): peer `vitest@5.0.1` eksak (npm registry; docs config via context7 `/vitest-dev/vitest`) — coverage di `npm run test:coverage` (v8; reporter text+html+lcov; scope `shared/**`+`server/**` excluding `*.test.ts`; threshold per-file `shared/domain/*.ts` 90/90/95/95 — statements 90 memberi ruang kode defensif tak-terjangkau, mis. catch setelah validasi regex di money.ts).
 
 **Keputusan AR-12:**
 

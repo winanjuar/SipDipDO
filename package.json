@@ -11,6 +11,7 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "db:generate": "drizzle-kit generate",
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@nuxt/eslint": "1.17.0",
     "@tailwindcss/vite": "4.3.3",
+    "@vitest/coverage-v8": "5.0.1",
     "drizzle-kit": "0.31.10",
     "eslint": "10.10.0",
     "shadcn-nuxt": "2.8.2",
