@@ -34,11 +34,21 @@ export type FixedScale = 2 | 6
 /** Bentuk hasil parse — persis kontrak spec: { scale, value }. */
 export interface FixedDecimal<S extends FixedScale = FixedScale> {
   readonly scale: S
-  readonly value: S extends 2 ? Rupiah : Ratio
+  readonly value: S extends typeof RUPIAH_SCALE ? Rupiah : Ratio
 }
 
+/* eslint-disable @typescript-eslint/no-magic-numbers -- nilai skala kanonik
+ * (AD-10): sumber tunggal literal 2/6 modul ini; `as const` menjaga tipe
+ * literal untuk `FixedDecimal<typeof …>` namun mematahkan pengecualian
+ * deklarasi rule. */
 export const RUPIAH_SCALE = 2 as const
 export const RATIO_SCALE = 6 as const
+/* eslint-enable @typescript-eslint/no-magic-numbers */
+
+/** Bentuk hasil parseRupiah — FixedDecimal berskala rupiah (2). */
+export type FixedRupiah = FixedDecimal<typeof RUPIAH_SCALE>
+/** Bentuk hasil parseRatio — FixedDecimal berskala ratio (6). */
+export type FixedRatio = FixedDecimal<typeof RATIO_SCALE>
 
 /**
  * Cap magnitudo = kapasitas kolom DB (AD-10): rupiah `numeric(18,2)`
@@ -124,7 +134,7 @@ export function asRatio(value: string): Ratio {
  * Menerima bentuk tampilan id-ID maupun kanonik kawit; mengembalikan bentuk
  * kawit berskala 2 (koersi skala half-up). Throw MoneyParseError bila tidak sah.
  */
-export function parseRupiah(input: string): FixedDecimal<2> {
+export function parseRupiah(input: string): FixedRupiah {
   const d = toCanonicalDecimal(input, RUPIAH_SCALE)
   assertWithinColumnCapacity(d, RUPIAH_SCALE, input)
   return { scale: RUPIAH_SCALE, value: brand(d.toFixed(RUPIAH_SCALE), RUPIAH_SCALE) }
@@ -135,7 +145,7 @@ export function parseRupiah(input: string): FixedDecimal<2> {
  * Nilai pecahan nol disajikan tanpa ",00" ("1.000") — mengikuti konvensi
  * penyajian UX (Rp52.000); parse menerima keduanya.
  */
-export function serializeRupiah(parsed: FixedDecimal<2>): string {
+export function serializeRupiah(parsed: FixedRupiah): string {
   const canonical = toCanonicalDecimal(parsed.value, RUPIAH_SCALE).toFixed(RUPIAH_SCALE)
   return groupIdId(canonical, { omitZeroFraction: true })
 }
@@ -144,7 +154,7 @@ export function serializeRupiah(parsed: FixedDecimal<2>): string {
  * parseRatio("66,66665%") belum didukung — rasio masuk sebagai desimal.
  * parseRatio("0,6666665") -> { scale: 6, value: "0.666667" }  (half-up pada koersi skala)
  */
-export function parseRatio(input: string): FixedDecimal<6> {
+export function parseRatio(input: string): FixedRatio {
   const d = toCanonicalDecimal(input, RATIO_SCALE)
   assertWithinColumnCapacity(d, RATIO_SCALE, input)
   return { scale: RATIO_SCALE, value: brand(d.toFixed(RATIO_SCALE), RATIO_SCALE) }
@@ -153,18 +163,22 @@ export function parseRatio(input: string): FixedDecimal<6> {
 /**
  * serializeRatio({ scale: 6, value: "0.666667" }) -> "0,666667"  (id-ID)
  */
-export function serializeRatio(parsed: FixedDecimal<6>): string {
+export function serializeRatio(parsed: FixedRatio): string {
   const canonical = toCanonicalDecimal(parsed.value, RATIO_SCALE).toFixed(RATIO_SCALE)
   return groupIdId(canonical)
 }
+
+// Penyajian persentase: rasio dikalikan 100, dibulatkan half-up 2 desimal (AD-10).
+const PERCENT_MULTIPLIER = 100
+const PERCENT_SCALE = 2
 
 /**
  * Penyajian persentase AD-10: presisi penuh dihitung, dibulatkan half-up tepat
  * 2 desimal HANYA saat penyajian. serializeRatioPercent("0.666667") -> "66,67%".
  */
-export function serializeRatioPercent(parsed: FixedDecimal<6>): string {
+export function serializeRatioPercent(parsed: FixedRatio): string {
   const d = toCanonicalDecimal(parsed.value, RATIO_SCALE)
-  const percent = d.times(100).toFixed(2) // half-up
+  const percent = d.times(PERCENT_MULTIPLIER).toFixed(PERCENT_SCALE) // half-up
   return `${groupIdId(percent)}%`
 }
 

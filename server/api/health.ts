@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { sendApiError } from '../utils/api-error'
+import { HTTP_STATUS, sendApiError } from '../utils/api-error'
 import { useDb } from '../utils/db'
 
 /**
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     await useDb().execute(sql`select 1`)
     return { status: 'ok', database: 'ok' }
   } catch (error) {
-    return sendApiError(event, 503, {
+    return sendApiError(event, HTTP_STATUS.serviceUnavailable, {
       code: 'DEPENDENCY_UNAVAILABLE',
       message: 'Database tidak dapat dihubungi.',
       details: { cause: error instanceof Error ? error.message : String(error) },

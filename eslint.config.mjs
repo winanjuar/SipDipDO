@@ -45,6 +45,22 @@ const configs = withNuxt(
           message: 'AD-10/R-010: Number() dilarang untuk nilai uang/ratio — pakai pasangan parse/serialize shared/domain/money.ts (integer aman: Number.parseInt).',
         },
       ],
+      /**
+       * Kontrak bebas-magic-number: angka dalam logika = konstanta bernama
+       * (lintas-modul `shared/domain/<topik>.ts`; milik modul
+       * `server/domain/<modul>/`). Literal skala di posisi tipe memakai
+       * `typeof KONSTANTA` (mis. `FixedDecimal<typeof RUPIAH_SCALE>`);
+       * pengecualian deklarasi rule tidak menembus `as const` — nilai
+       * kanonik (mis. RUPIAH_SCALE) dan tabel data milik konstanta bernama
+       * (mis. DAYS_IN_MONTH) memakai disable berjustifikasi.
+       */
+      '@typescript-eslint/no-magic-numbers': ['error', {
+        ignore: [0, 1, -1],
+        ignoreArrayIndexes: true,
+        ignoreEnums: true,
+        ignoreNumericLiteralTypes: true,
+        ignoreTypeIndexes: true,
+      }],
     },
   },
   {
@@ -66,15 +82,27 @@ const configs = withNuxt(
     files: ['app/components/ui/**'],
     rules: {
       'vue/require-default-prop': 'off',
+      '@typescript-eslint/no-magic-numbers': 'off',
     },
   },
   {
     // Fixture Playwright (mis. `{ auto: true }`) mewajibkan argumen pertama
     // berupa destrukturasi objek — `async ({}, use)` — sehingga pola objek
     // kosong ini idiomatik dan bukan defect di tests/**.
-    files: ['tests/**/*.ts'],
+    files: ['tests/**/*.ts', '**/*.test.ts'],
     rules: {
       'no-empty-pattern': 'off',
+      // Nilai harapan uji adalah data, bukan logika — literal idiomatik di sini.
+      '@typescript-eslint/no-magic-numbers': 'off',
+    },
+  },
+  {
+    // Config tooling root (playwright/nuxt/vitest/eslint) = deklaratif
+    // (retries, workers, port) — angka di sini nilai konfigurasi, bukan
+    // logika domain.
+    files: ['*.config.{js,mjs,ts}'],
+    rules: {
+      '@typescript-eslint/no-magic-numbers': 'off',
     },
   },
 )
