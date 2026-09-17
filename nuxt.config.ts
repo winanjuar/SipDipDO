@@ -14,6 +14,16 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-09-15',
   devtools: { enabled: true },
 
+  app: {
+    head: {
+      // Favicon = logo login (BrandLogo /public/logo.png) + /favicon.ico fallback.
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/png', href: '/logo.png' },
+      ],
+    },
+  },
+
   modules: ['@sidebase/nuxt-auth', '@vite-pwa/nuxt', 'shadcn-nuxt', '@nuxt/eslint'],
 
   css: ['~/assets/css/tailwind.css'],
