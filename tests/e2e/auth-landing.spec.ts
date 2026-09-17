@@ -193,13 +193,13 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
 
   test('[P1] penutupan tenure COO memindahkan landing sesuai role baru', async ({ page, context, apiRequest }) => {
     // Verifikasi efek closeActiveCooTenures: persona 'coo' di-mint pada EMAIL
-    // sewaan (domain uji) sehingga baris ownernya terpisah dari persona 'coo'
+    // sewaan (gmail sintetis mint uji) sehingga baris ownernya terpisah dari persona 'coo'
     // deterministik yang dipakai suite lain (hindari race mint paralel dan
     // cache sesi .auth), lalu tenure-nya ditutup via re-mint cooAktif false.
     await log.step("GIVEN persona 'coo' dengan tenure aktif dialandingkan ke /antrian-beli")
     const cookiesCoo = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'coo',
-      email: 'coo-sewa@uji.example.test',
+      email: 'uji.snddash.e2e.coo.sewa@gmail.com',
       cooAktif: true,
     })
     await context.addCookies(cookiesCoo)
@@ -209,7 +209,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await log.step('WHEN tenure COO ditutup (re-mint identifier sama, cooAktif false)')
     const cookiesNonCoo = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'coo',
-      email: 'coo-sewa@uji.example.test',
+      email: 'uji.snddash.e2e.coo.sewa@gmail.com',
       cooAktif: false,
     })
     await context.addCookies(cookiesNonCoo)

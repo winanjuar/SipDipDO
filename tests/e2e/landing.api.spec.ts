@@ -248,9 +248,11 @@ test.describe('[P1] API /api/pendaftaran/status unlinked', () => {
 test.describe('[P1] API /api/test/login (dev-only)', () => {
   test('[P1] /api/test/login me-mint cookie sesi untuk owner sintetis (dev-only)', async ({ apiRequest }) => {
     await log.step('GIVEN konfigurasi owner sintetis COO + secret TEST_AUTH_SECRET')
-    // Email sintetis acak di domain uji (server menolak override di luar
-    // '@uji.example.test' agar mint tak pernah menimpa baris non-sintetis).
-    const emailSintetis = faker.internet.email({ provider: 'uji.example.test' }).toLowerCase()
+    // Email sintetis acak @gmail.com berawalan mint uji (server menolak
+    // override di luar 'uji.snddash.e2e.*@gmail.com' agar mint tak pernah
+    // menimpa baris non-sintetis maupun baris seed dev 'uji.snddash.*').
+    const lokalUji = faker.internet.username().toLowerCase().replace(/[^a-z0-9]+/g, '.')
+    const emailSintetis = `uji.snddash.e2e.${lokalUji}@gmail.com`
 
     await log.step('WHEN POST /api/test/login dengan triple guard terpenuhi')
     const { status, body } = await apiRequest<SesiMint>({

@@ -1,0 +1,2 @@
+DELETE FROM coo_tenures WHERE owner_id IN (SELECT id FROM owners WHERE email LIKE '%@yahoo.%' OR email LIKE '%@gmail.co.id');
+DELETE FROM owners WHERE email LIKE '%@yahoo.%' OR email LIKE '%@gmail.co.id';

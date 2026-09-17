@@ -29,8 +29,15 @@ const NAMA_COOKIE_SESI_HTTP = 'next-auth.session-token'
 /** Awalan cookie aman next-auth v4 (https) — di-set hanya via koneksi aman. */
 const PREFIX_COOKIE_AMAN = '__Secure-'
 
-/** Domain email sintetis — data uji tidak pernah data nyata (kebijakan repo). */
-const DOMAIN_EMAIL_UJI = '@uji.example.test'
+/**
+ * Kontrak email sintetis mint (spec PRD Lampiran A: akun owner = akun Google):
+ * domain WAJIB @gmail.com; awalan `uji.snddash.e2e.` menandai baris uji E2E
+ * sekaligus kunci anti-timpa — berbeda dari baris seed dev (`uji.snddash.*`,
+ * drizzle/seed.ts) sehingga mint tidak pernah menimpa baris non-sintetis
+ * maupun baris seed dev (email unik = kunci pencocokan, AD-11).
+ */
+const DOMAIN_EMAIL_GOOGLE = '@gmail.com'
+const PREFIX_EMAIL_UJI = 'uji.snddash.e2e.'
 
 /** Umur maksimum sesi mint — pin default next-auth v4 (30 hari). */
 const HARI_UMUR_SESI = 30
@@ -88,6 +95,19 @@ export function tripleGuardLolos(input: TandaTanganGuard): boolean {
   )
 }
 
+/** Predikat murni (murni agar teruji unit): email sintetis mint = awalan uji
+ *  E2E + domain @gmail.com — case-insensitive. */
+export function emailUjiSah(email: string): boolean {
+  const dinormalkan = email.toLowerCase()
+  return dinormalkan.startsWith(PREFIX_EMAIL_UJI) && dinormalkan.endsWith(DOMAIN_EMAIL_GOOGLE)
+}
+
+/** Identifier uji → bagian-lokal Gmail-sahih (huruf kecil, titik pemisah). */
+function lokalIdentifier(identifier: string): string {
+  const lokal = identifier.toLowerCase().replace(/[^a-z0-9]+/g, '.')
+  return lokal.length > 0 ? lokal : 'uji'
+}
+
 export default defineEventHandler(async (event) => {
   const env = process.env
   if (!tripleGuardLolos({
@@ -113,17 +133,20 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Email override HARUS tetap di domain uji — tanpa ini mint bisa menimpa
-  // baris owner non-sintetis (email unik = kunci pencocokan, AD-11).
+  // Email override HARUS tetap email sintetis mint (awalan uji E2E + domain
+  // @gmail.com) — tanpa ini mint bisa menimpa baris owner non-sintetis
+  // (email unik = kunci pencocokan, AD-11).
   const emailDiisi = typeof body.email === 'string' ? body.email.trim() : ''
-  if (emailDiisi !== '' && !emailDiisi.endsWith(DOMAIN_EMAIL_UJI)) {
+  if (emailDiisi !== '' && !emailUjiSah(emailDiisi)) {
     return sendApiError(event, HTTP_STATUS.badRequest, {
       code: 'BAD_REQUEST',
-      message: `Email uji harus berakhiran '${DOMAIN_EMAIL_UJI}'.`,
+      message: `Email uji harus berawalan '${PREFIX_EMAIL_UJI}' dan berakhiran '${DOMAIN_EMAIL_GOOGLE}'.`,
       details: {},
     })
   }
-  const email = emailDiisi !== '' ? emailDiisi : `${userIdentifier}${DOMAIN_EMAIL_UJI}`
+  const email = emailDiisi !== ''
+    ? emailDiisi
+    : `${PREFIX_EMAIL_UJI}${lokalIdentifier(userIdentifier)}${DOMAIN_EMAIL_GOOGLE}`
 
   // cooAktif/punyaSaham diterima hanya sebagai boolean — string 'false' dkk.
   // tidak pernah di-coerce truthy.

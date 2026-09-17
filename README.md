@@ -62,8 +62,16 @@ npx nuxt prepare          # regenerasi tipe & eslint Nuxt
 supabase start                                  # memulai stack Docker lokal
 npm run db:generate                             # drizzle-kit generate (bila skema berubah)
 DATABASE_URL=... npm run db:migrate             # apply migrasi (smoke AR-2)
+npm run db:seed                                 # seed owner sintetis @gmail.com (dev)
+npm run db:seed -- 25                           # atur jumlah owner extra (0 = persona saja)
 supabase db reset                               # reset + replay migrasi (bila perlu)
 ```
+
+`db:seed` menulis baris owner **sintetis** beralamat `@gmail.com` saja
+(spec: akun owner = akun Google; awalan lokal `uji.snddash.`) — 7 persona
+cermin `/api/test/login` + batch faker deterministik; idempoten (upsert by
+email unik). Guard: menolak `NODE_ENV=production`; host DB non-lokal butuh
+flag `--paksa`.
 
 ## Menjalankan & verifikasi
 
@@ -165,6 +173,10 @@ curl -i http://localhost:3000/dashboard          # tanpa cookie -> 302 ke /login
 sesi NuxtAuth asli (secret NuxtAuth sama — bukan bypass). Triple guard:
 `NODE_ENV !== 'production'` + `ENABLE_TEST_AUTH=1` + header
 `TEST_AUTH_SECRET` (nilai lokal `test-secret-lokal`, lihat `.env.example`).
+Email sintetis mint hanya `uji.snddash.e2e.<identifier>@gmail.com`
+(override wajib cocok pola itu) — seluruh tulisan ke tabel owners, termasuk
+uji, hanya @gmail.com (spec: akun owner = akun Google), dan mint tak pernah
+menimpa baris seed dev (`uji.snddash.*`) maupun baris nyata.
 Identifier uji: `coo`, `pemegang-saham`, `tanpa-saham`, `keluar`,
 `calon-diajukan`, `calon-ditolak`, `calon-kedaluwarsa`, `unlinked` (tanpa
 baris owner). Jalankan suite:
