@@ -1,23 +1,22 @@
 /**
- * SCAFFOLD ATDD RED-PHASE — Story 1.2 "Autentikasi Akun Google & Halaman Login".
- * Kontrak test design: `1-E2E-002` (subset) + R-003. Semua test dibungkus
- * `test.skip()` (TDD RED) dan diaktifkan satu per satu oleh tugas green-phase;
- * setiap test diberi komentar "GAGAL saat red: ..." yang menjelaskan mengapa
- * ia harus gagal sebelum implementasi ada.
+ * ATDD GREEN-PHASE — Story 1.2 "Autentikasi Akun Google & Halaman Login".
+ * Kontrak test design: `1-E2E-002` (subset) + R-003. Test dirancang red-phase
+ * (test.skip) lalu diaktifkan pada tugas green-phase bersama implementasinya;
+ * seluruh asersi ter-pin dari red-phase tidak berubah.
  *
  * Cakupan OTOMASI: proteksi rute SSR, redirect root→login, landing map per
  * role (coo→/antrian-beli, pemegang_saham→/dashboard, tanpa_saham & keluar→
  * /personal, calon_owner→/status-pendaftaran), badge status + alasan penolakan
- * (UX-DR4: by text, bukan warna), dan jalur akun Google belum terhubung.
- * OAuth Google ASLI (klik CTA + callback, termasuk skenario error callback)
- * sengaja TIDAK diotomasi — label CTA belum dipinkan dan OAuth live tidak
- * didorong headless; tetap diverifikasi lewat smoke manual AR-3 di luar
- * suite otomatis ini.
+ * (UX-DR4: by text, bukan warna), jalur akun Google belum terhubung, dan
+ * perilaku halaman login saat query `?error` (callback OAuth gagal — halaman
+ * tetap ter-render dengan pemberitahuan netral). OAuth Google ASLI (klik CTA +
+ * wiring callback live) sengaja TIDAK diotomasi — OAuth live tidak didorong
+ * headless; tetap diverifikasi lewat smoke manual AR-3 di luar suite otomatis.
  *
  * Sesi uji: cookie dimintakan via helper `mintSesiPemilik`
  * (POST /api/test/login, triple-guard dev-only) lalu diinjeksikan eksplisit
  * lewat `context.addCookies(...)` — deviasi tercatat dari fixture authToken
- * karena `manageAuthToken` masih stub (lihat fixture_needs workflow).
+ * agar tiap test memegang sesi userIdentifier-nya sendiri secara eksplisit.
  *
  * Catatan mandate playwright-utils: seluruh navigasi di spec ini adalah
  * dokumen SSR (redirect diputuskan server-side saat request), tidak ada
@@ -43,14 +42,12 @@ const ALASAN_SINTETIS = 'Dokumen belum lengkap — sintetis'
 
 /** Status calon non-ditolak yang tetap dialandingkan ke halaman status. */
 const STATUS_CALON_KE_STATUS = [
-  { status: 'diajukan', userIdentifier: 'calon-diajukan' },
-  { status: 'kedaluwarsa', userIdentifier: 'calon-kedaluwarsa' },
+  { status: 'diajukan', userIdentifier: 'calon-diajukan', labelBadge: 'Diajukan' },
+  { status: 'kedaluwarsa', userIdentifier: 'calon-kedaluwarsa', labelBadge: 'Kedaluwarsa' },
 ] as const
 
 test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 subset + R-003)', () => {
-  test.skip('[P0] halaman terproteksi tanpa sesi dialihkan ke halaman login', async ({ page }) => {
-    // GAGAL saat red: middleware `server/middleware/auth-guard.ts` belum ada,
-    // jadi goto dokumen SSR dijawab 404/kerangka 1.1, bukan redirect /login.
+  test('[P0] halaman terproteksi tanpa sesi dialihkan ke halaman login', async ({ page }) => {
     await log.step('GIVEN pengunjung tanpa cookie sesi')
     await log.step('WHEN membuka langsung tiap halaman terproteksi')
     for (const halaman of HALAMAN_TERPROTEKSI) {
@@ -60,50 +57,68 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     }
   })
 
-  test.skip('[P0] pengunjung baru di root dialihkan ke login dengan lockup lengkap', async ({ page }) => {
-    // GAGAL saat red: `app/pages/index.vue` masih kerangka Story 1.1 dan
-    // `app/pages/login.vue` belum ada — redirect, brand logo, tagline, dan
-    // CTA Google belum dirender.
+  test('[P0] pengunjung baru di root dialihkan ke login dengan lockup lengkap', async ({ page }) => {
     await log.step('GIVEN pengunjung baru tanpa sesi')
     await log.step('WHEN membuka root aplikasi')
     await page.goto('/')
     await log.step('THEN dialandingkan ke /login dengan lockup lengkap')
     await expect(page).toHaveURL(/\/login$/)
     await expect(page.getByTestId(TEST_IDS.login.brandLogo)).toBeVisible()
+    // Lockup 80px terpin (UX-DR3) — tinggi render logo = 80px.
+    await expect(page.getByTestId(TEST_IDS.login.brandLogo).locator('img')).toHaveCSS('height', '80px')
     await expect(page.getByText('Sip the taste, dip the soul')).toBeVisible()
-    // CTA kehadiran saja — JANGAN diklik (OAuth asli = smoke manual AR-3).
+    // CTA kehadiran + target sentuh ≥44px (UX-DR2) — JANGAN diklik (OAuth
+    // asli = smoke manual AR-3).
     const cta = page.getByRole('button', { name: /google/i })
     await expect(cta).toHaveCount(1)
+    await expect(cta).toHaveCSS('height', '44px')
   })
 
-  test.skip('[P1] login COO dialandingkan ke antrian beli', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: endpoint minting /api/test/login dan resolver landing
-    // per role belum ada — sesi tidak bisa dibentuk, root masih kerangka 1.1.
-    await log.step("GIVEN sesi COO sintetis dimintakan lalu diinjeksikan ke context")
+  test('[P2] callback OAuth membawa error: login tetap ter-render dengan pemberitahuan netral', async ({ page }) => {
+    // Matriks spec "OAuth gagal/dibatalkan": callback Google membawa error →
+    // kembali ke /login tanpa crash, tanpa pesan menyesatkan. Wiring callback
+    // Google LIVE tetap smoke manual AR-3; yang diotomasi = perilaku halaman
+    // saat param error hadir.
+    await log.step('GIVEN halaman login menerima query error dari callback OAuth')
+    await log.step('WHEN /login dibuka dengan ?error=access_denied')
+    await page.goto('/login?error=access_denied')
+
+    await log.step('THEN halaman login ter-render utuh (tanpa crash)')
+    await expect(page).toHaveURL(/\/login/)
+    await expect(page.getByTestId(TEST_IDS.login.ctaGoogle)).toBeVisible()
+
+    await log.step('AND pemberitahuan netral tampil tanpa pesan arahan unlinked yang menyesatkan')
+    await expect(page.getByText('Percobaan masuk belum selesai — silakan coba lagi.')).toBeVisible()
+    await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked)).toHaveCount(0)
+  })
+
+  test('[P1] login COO dialandingkan ke antrian beli', async ({ page, context, apiRequest }) => {
+    await log.step('GIVEN sesi COO sintetis dimintakan lalu diinjeksikan ke context')
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
     await context.addCookies(cookies)
     await log.step('WHEN membuka root aplikasi')
     await page.goto('/')
     await log.step('THEN dialandingkan ke /antrian-beli (UX-DR19: state kosong)')
     await expect(page).toHaveURL(/\/antrian-beli$/)
-    await expect(page.getByText('Antrian Beli')).toBeVisible()
+    // by-role heading — getByText('Antrian Beli') ambigu: NuxtRouteAnnouncer
+    // mengumumkan document.title ("Antrian Beli — Sip & Dip") yang memuat
+    // substring yang sama (racy strict-mode violation antar browser).
+    await expect(page.getByRole('heading', { name: 'Antrian Beli' })).toBeVisible()
   })
 
-  test.skip('[P1] login pemegang saham dialandingkan ke dashboard', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: endpoint minting + resolver landing belum ada.
-    await log.step("GIVEN sesi pemegang saham sintetis dimintakan lalu diinjeksikan")
+  test('[P1] login pemegang saham dialandingkan ke dashboard', async ({ page, context, apiRequest }) => {
+    await log.step('GIVEN sesi pemegang saham sintetis dimintakan lalu diinjeksikan')
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
     await context.addCookies(cookies)
     await log.step('WHEN membuka root aplikasi')
     await page.goto('/')
     await log.step('THEN dialandingkan ke /dashboard')
     await expect(page).toHaveURL(/\/dashboard$/)
-    await expect(page.getByText('Dashboard')).toBeVisible()
+    // by-role heading — lihat catatan ambiguity RouteAnnouncer di atas.
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
-  test.skip('[P1] login owner tanpa saham dan keluar dialandingkan ke halaman personal', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: endpoint minting + resolver landing (tanpa_saham &
-    // keluar → /personal) belum ada.
+  test('[P1] login owner tanpa saham dan keluar dialandingkan ke halaman personal', async ({ page, context, apiRequest }) => {
     for (const userIdentifier of IDENTIFIER_PERSONAL) {
       await log.step(`GIVEN sesi '${userIdentifier}' dimintakan lalu diinjeksikan`)
       const cookies = await mintSesiPemilik(apiRequest, { userIdentifier })
@@ -115,9 +130,8 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     }
   })
 
-  test.skip('[P1] calon owner ditolak melihat badge status dan alasan di halaman status pendaftaran', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: halaman /status-pendaftaran beserta badge status dan
-    // blok alasan penolakan (UX-DR4: assert by text, bukan warna) belum ada.
+  test('[P1] calon owner ditolak melihat badge status dan alasan di halaman status pendaftaran', async ({ page, context, apiRequest }) => {
+    // UX-DR4: badge di-assert by TEXT (Ditolak), bukan warna.
     await log.step("GIVEN sesi calon owner berstatus 'ditolak' (alasan sintetis)")
     const cookies = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'calon-ditolak',
@@ -129,13 +143,16 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await page.goto('/')
     await log.step('THEN dialandingkan ke /status-pendaftaran dengan badge Ditolak + alasan verbatim')
     await expect(page).toHaveURL(/\/status-pendaftaran$/)
-    await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Ditolak')
+    const badge = page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)
+    await expect(badge).toContainText('Ditolak')
+    // Pin varian token (UX-DR2: Ditolak = destructive) — teks tetap pembawa
+    // makna utama (UX-DR4: by text, bukan warna).
+    await expect(badge).toHaveClass(/bg-destructive/)
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.alasanPenolakan)).toContainText(ALASAN_SINTETIS)
   })
 
-  test.skip('[P1] non-calon yang membuka /status-pendaftaran langsung dialihkan ke landing role-nya', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: proteksi halaman status (khusus calon owner) belum ada.
-    await log.step("GIVEN sesi pemegang saham (bukan calon) sudah diinjeksikan")
+  test('[P1] non-calon yang membuka /status-pendaftaran langsung dialihkan ke landing role-nya', async ({ page, context, apiRequest }) => {
+    await log.step('GIVEN sesi pemegang saham (bukan calon) sudah diinjeksikan')
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
     await context.addCookies(cookies)
     await log.step('WHEN membuka /status-pendaftaran secara langsung')
@@ -144,8 +161,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 
-  test.skip('[P1] akun Google belum terhubung kembali ke login dengan pesan arahan', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: jalur `state=unlinked` dan blok pesan arahan belum ada.
+  test('[P1] akun Google belum terhubung kembali ke login dengan pesan arahan', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'unlinked' (Google tanpa baris owner) sudah diinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked' })
     await context.addCookies(cookies)
@@ -159,17 +175,47 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked)).toContainText(PESAN_UNLINKED)
   })
 
-  test.skip('[P2] calon owner diajukan dan kedaluwarsa juga dialandingkan ke halaman status', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: resolver landing calon owner (diajukan/kedaluwarsa →
-    // /status-pendaftaran) belum ada.
-    for (const { status, userIdentifier } of STATUS_CALON_KE_STATUS) {
+  test('[P2] calon owner diajukan dan kedaluwarsa juga dialandingkan ke halaman status', async ({ page, context, apiRequest }) => {
+    for (const { status, userIdentifier, labelBadge } of STATUS_CALON_KE_STATUS) {
       await log.step(`GIVEN sesi calon owner berstatus '${status}' sudah diinjeksikan`)
       const cookies = await mintSesiPemilik(apiRequest, { userIdentifier, status })
       await context.addCookies(cookies)
       await log.step('WHEN membuka root aplikasi')
       await page.goto('/')
-      await log.step('THEN dialandingkan ke /status-pendaftaran')
+      await log.step('THEN dialandingkan ke /status-pendaftaran dengan badge per status')
       await expect(page).toHaveURL(/\/status-pendaftaran$/)
+      // Pin teks badge per status (UX-DR4: by text); status non-ditolak tidak
+      // merender blok alasan penolakan.
+      await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText(labelBadge)
+      await expect(page.getByTestId(TEST_IDS.statusPendaftaran.alasanPenolakan)).toHaveCount(0)
     }
+  })
+
+  test('[P1] penutupan tenure COO memindahkan landing sesuai role baru', async ({ page, context, apiRequest }) => {
+    // Verifikasi efek closeActiveCooTenures: persona 'coo' di-mint pada EMAIL
+    // sewaan (domain uji) sehingga baris ownernya terpisah dari persona 'coo'
+    // deterministik yang dipakai suite lain (hindari race mint paralel dan
+    // cache sesi .auth), lalu tenure-nya ditutup via re-mint cooAktif false.
+    await log.step("GIVEN persona 'coo' dengan tenure aktif dialandingkan ke /antrian-beli")
+    const cookiesCoo = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'coo',
+      email: 'coo-sewa@uji.example.test',
+      cooAktif: true,
+    })
+    await context.addCookies(cookiesCoo)
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/antrian-beli$/)
+
+    await log.step('WHEN tenure COO ditutup (re-mint identifier sama, cooAktif false)')
+    const cookiesNonCoo = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'coo',
+      email: 'coo-sewa@uji.example.test',
+      cooAktif: false,
+    })
+    await context.addCookies(cookiesNonCoo)
+    await page.goto('/')
+
+    await log.step('THEN landing berpindah ke /dashboard (role pemegang saham)')
+    await expect(page).toHaveURL(/\/dashboard$/)
   })
 })

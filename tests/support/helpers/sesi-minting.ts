@@ -6,10 +6,9 @@
  * Kontrak: POST /api/test/login dengan konfigurasi owner SINTETIS → endpoint
  * men-seed owner sesuai konfigurasi lalu me-mint cookie sesi NuxtAuth yang
  * sah; respons berbentuk storage-state `{ cookies: [...] }` (kontrak yang
- * sama dikonsumsi `manageAuthToken` di auth-fixture.ts saat green phase).
- * Helper ini memetakan hasilnya ke bentuk cookie Playwright siap
- * `context.addCookies(...)` — deviasi tercatat dari fixture `authToken`
- * (manageAuthToken masih stub sesi-kosong; wiring menyusul saat green).
+ * sama dikonsumsi `manageAuthToken` di auth-fixture.ts — sudah ter-wiring
+ * sejak green phase Story 1.2). Helper ini memetakan hasilnya ke bentuk
+ * cookie Playwright siap `context.addCookies(...)`.
  *
  * Identifier `'unlinked'` = mint sesi TANPA baris owner — mensimulasikan
  * akun Google yang tidak terhubung ke owner/pendaftar mana pun.
@@ -26,8 +25,12 @@ type ApiRequestSesi = <T = unknown>(
 /** Secret guard — fallback wajib identik dengan env TEST_AUTH_SECRET server uji lokal. */
 const SECRET_TEST_AUTH = process.env.TEST_AUTH_SECRET ?? 'test-secret-lokal'
 
-/** Fallback domain/path/httpOnly sesuai konvensi cookie NuxtAuth di auth-fixture.ts. */
-const DOMAIN_DEFAULT = new URL(process.env.BASE_URL ?? 'http://localhost:3000').host
+/** Fallback domain/path/httpOnly sesuai konvensi cookie NuxtAuth di auth-fixture.ts.
+ *  hostname TANPA port — domain cookie tidak boleh memuat port (Firefox/WebKit
+ *  menolak cookie ber-domain ber-port; Chromium memaafkannya). Flag secure +
+ *  nama cookie diturunkan dari skema BASE_URL (varian __Secure- di https). */
+const DOMAIN_DEFAULT = new URL(process.env.BASE_URL ?? 'http://localhost:3000').hostname
+const SECURE_COOKIE = new URL(process.env.BASE_URL ?? 'http://localhost:3000').protocol === 'https:'
 const PATH_COOKIE = '/'
 const SAMESITE_COOKIE = 'Lax' as const
 
@@ -87,7 +90,7 @@ export async function mintSesiPemilik(
     domain: cookie.domain ?? DOMAIN_DEFAULT,
     path: cookie.path ?? PATH_COOKIE,
     httpOnly: cookie.httpOnly ?? true,
-    secure: cookie.secure ?? false,
+    secure: cookie.secure ?? SECURE_COOKIE,
     sameSite: cookie.sameSite ?? SAMESITE_COOKIE,
   }))
 }

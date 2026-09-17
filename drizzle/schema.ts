@@ -10,7 +10,8 @@
  *   diberi label modul pemiliknya; modul tetangga menulis hanya lewat API
  *   publik modul pemilik (index.ts).
  */
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { OWNER_STATUSES } from '../shared/domain/identity'
 
 /**
  * PROOFS — outbox email (AD-5, AR-6): baris ditulis DI DALAM transaksi aksi
@@ -42,3 +43,52 @@ export const outboxEmails = pgTable(
 
 export type OutboxEmail = typeof outboxEmails.$inferSelect
 export type NewOutboxEmail = typeof outboxEmails.$inferInsert
+
+/**
+ * Enum siklus hidup owner/pendaftaran — dipinkan AD-11 (himpunan tertutup).
+ * Hanya modul identity yang MENULIS kolom ini; setiap transisi = compare-and-set
+ * atas status sebelumnya dalam satu transaksi (AD-11) — implementasi menyusul
+ * Story 1.4/1.6.
+ */
+export const ownerStatus = pgEnum('owner_status', OWNER_STATUSES)
+
+/**
+ * IDENTITY — owners (AD-5/AD-11): satu baris per email (UNIQUE — re-daftar =
+ * baris yang sama, bukan baris baru). Kolom minimal Story 1.2; profile 11 field
+ * (Story 1.5) dan kontak (1.8) menyusul lewat migrasi BARU — bukan ALTER ini.
+ */
+export const owners = pgTable('owners', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** Email akun Google — kunci pencocokan sesi → owner (AD-8, migrasi). */
+  email: text('email').notNull().unique(),
+  status: ownerStatus('status').notNull().default('diajukan'),
+  /** Wajib terisi bila status 'ditolak' — tampil apa adanya kepada pendaftar. */
+  rejectionReason: text('rejection_reason'),
+  /** Di-set HANYA oleh event Pembelian Pertama efektif (AD-11). */
+  firstEffectiveAt: timestamp('first_effective_at', { withTimezone: true, mode: 'string' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+})
+
+/**
+ * IDENTITY — coo_tenures (AD-5): riwayat jabatan COO (FR-17). Tenure berlaku =
+ * started_at <= now() AND (ended_at IS NULL OR ended_at > now()) — kewenangan
+ * COO diautoritaskan dari sini, per-request (AD-8).
+ */
+export const cooTenures = pgTable(
+  'coo_tenures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => owners.id),
+    startedAt: timestamp('started_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+    /** Null = tenure masih berjalan. */
+    endedAt: timestamp('ended_at', { withTimezone: true, mode: 'string' }),
+  },
+  (t) => [index('coo_tenures_owner_started_idx').on(t.ownerId, t.startedAt)],
+)
+
+export type Owner = typeof owners.$inferSelect
+export type NewOwner = typeof owners.$inferInsert
+export type CooTenure = typeof cooTenures.$inferSelect

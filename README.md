@@ -53,6 +53,8 @@ npx nuxt prepare          # regenerasi tipe & eslint Nuxt
 | `NUXT_RESEND_API_KEY` | prod (opsional di local) | Resend; tanpa ini outbox no-op terlihat (log `alert: mail.unconfigured`). |
 | `NUXT_RESEND_FROM` | prod | From-domain terverifikasi, mis. `Sip & Dip <noreply@domain>`. |
 | `NUXT_CRON_SECRET` | prod | Proteksi `POST /jobs/daily` (`Authorization: Bearer <secret>`). |
+| `ENABLE_TEST_AUTH` | local saja | Aktifkan endpoint dev-only `POST /api/test/login` (session minting uji). JANGAN pernah diset di produksi (triple guard juga menuntut `NODE_ENV !== 'production'`). |
+| `TEST_AUTH_SECRET` | local saja | Secret header untuk `/api/test/login`; nilai dev-only (bukan rahasia) — wajib identik dengan fallback `test-secret-lokal` di `tests/support/*`. |
 
 ## Database lokal (Supabase CLI / Docker)
 
@@ -129,6 +131,51 @@ spec 1.1 #2). ±5–10 menit:
      "Pembaruan aplikasi tersedia" → "Muat versi baru" mengaktifkan versi baru.
 3. **Komponen kontrak**: `/smoke` → Dialog, Sheet, Tooltip, Drawer, Input-OTP,
    Toast semuanya interaktif.
+
+## Alur login & landing (Story 1.2)
+
+Jalur masuk aplikasi: halaman Login publik (`/login`) → OAuth Google →
+pencocokan email sesi → baris `owners` (modul identity, AD-8/AD-11) → landing
+per role. Role dievaluasi per-request di server (middleware `auth-guard` +
+route handler), tidak pernah dari klien atau JWT.
+
+| Role (fungsi kanonik identity) | Sumber kebenaran | Landing |
+| --- | --- | --- |
+| COO aktif | `coo_tenures` berlaku (`started_at` ≤ now < `ended_at`/NULL) | `/antrian-beli` |
+| Pemegang saham | `first_effective_at` terisi | `/dashboard` |
+| Tanpa saham / Keluar | `terverifikasi` tanpa `first_effective_at`, atau status `keluar` | `/personal` |
+| Calon owner | `diajukan` / `ditolak` / `kedaluwarsa` | `/status-pendaftaran` (badge + alasan penolakan apa adanya) |
+
+- Akun Google tanpa baris owner → kembali ke `/login?state=unlinked` dengan
+  pesan arahan verbatim (UX-DR15); aksi pendaftaran menyusul Story 1.4.
+- Sesi berakhir → akses halaman terproteksi (SSR) dialihkan ke `/login`;
+  `GET /api/landing` / `GET /api/pendaftaran/status` tanpa sesi → 401
+  envelope `{ code, message, details }`.
+
+Uji cepat lokal:
+
+```bash
+curl -i http://localhost:3000/api/landing        # tanpa cookie -> 401 envelope
+curl -i http://localhost:3000/dashboard          # tanpa cookie -> 302 ke /login
+```
+
+### Session minting dev-only (uji E2E/API)
+
+`POST /api/test/login` men-seed owner **sintetis** lalu menerbitkan cookie
+sesi NuxtAuth asli (secret NuxtAuth sama — bukan bypass). Triple guard:
+`NODE_ENV !== 'production'` + `ENABLE_TEST_AUTH=1` + header
+`TEST_AUTH_SECRET` (nilai lokal `test-secret-lokal`, lihat `.env.example`).
+Identifier uji: `coo`, `pemegang-saham`, `tanpa-saham`, `keluar`,
+`calon-diajukan`, `calon-ditolak`, `calon-kedaluwarsa`, `unlinked` (tanpa
+baris owner). Jalankan suite:
+
+```bash
+npx playwright test tests/e2e/landing.api.spec.ts
+npx playwright test tests/e2e/auth-landing.spec.ts
+```
+
+Owner sintetis hasil seed tersisa di DB lokal (dev-only); pembersihan
+menyusul lewat API tulis identity di Story 1.4.
 
 ## Email keluar — From-domain & SPF/DKIM (AR-6, gerbang pra-Story 1.5)
 

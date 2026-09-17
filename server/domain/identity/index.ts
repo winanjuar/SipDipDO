@@ -4,6 +4,21 @@
  * `pilihanReferral`), OTP MFA, COO & tenure.
  */
 export {
+  buildPrincipal,
+  LANDING_PATH,
+  resolveRole,
+} from './access.service'
+export type { IdentityRepoPort, OwnerRoleInput } from './access.service'
+export {
+  closeActiveCooTenures,
+  createIdentityRepo,
+  findActiveCooTenure,
+  findOwnerByEmail,
+  openCooTenure,
+  upsertOwnerByEmail,
+} from './owner.repo'
+export type { OwnerRecord } from './owner.repo'
+export {
   REGISTRATION_EXPIRY_DAYS,
   REGISTRATION_REMINDER_DAYS_BEFORE,
   registrationDeadline,
