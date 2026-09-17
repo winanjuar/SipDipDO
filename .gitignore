@@ -38,3 +38,8 @@ tests/support/auth-sessions/
 .bmad-loop/cache/
 .bmad-loop/policy.toml
 _bmad/render/
+
+# Playwright artefacts (local only — contains auth tokens)
+.auth/
+playwright-report/
+test-results/
