@@ -53,7 +53,7 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
     <section v-if="badge" class="flex flex-col gap-4 rounded-lg border p-4">
       <div class="flex items-center gap-3">
         <span class="text-sm text-muted-foreground">Status</span>
-        <Badge data-testid="status-badge" :variant="badge.variant" class="rounded-full">
+        <Badge data-testid="status-badge" aria-live="polite" :variant="badge.variant" class="rounded-full">
           {{ badge.label }}
         </Badge>
       </div>

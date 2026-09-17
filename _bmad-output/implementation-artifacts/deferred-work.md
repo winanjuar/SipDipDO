@@ -25,3 +25,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-audit-trail-pencatatan-tampilan-coo.md`
   summary: Test state "gagal muat → Coba lagi" halaman `/audit-trail` — butuh infra component-test (fetch terjadi SSR sehingga tak bisa dipaksa gagal dari e2e).
   evidence: Dicatat sadar di Design Notes spec saat step-03; dua review layer (verification-gap, blind-hunter) mengonfirmasi gap; component-test belum ada di repo — infrastruktur itu sendiri adalah prasyarat yang di luar scope story ini.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Keluarkan `.opencode/opencode.json` (config tooling lokal) dari commit story 1.4 atau gitignore-kan.
+  evidence: File pre-existing sebelum story (bukan keluaran implementasi), tanpa newline akhir; blind-hunter menandainya scope creep di diff.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Hardening app-wide — envelope error seragam untuk kegagalan infrastruktur (500) di seluruh route handler.
+  evidence: Handler baru mengikuti pola sibling (`status.get.ts`, `audit/index.get.ts`) tanpa catch-all; edge-case-hunter menandai 500 mentah bila service throw — perbaikannya lintas endpoint, bukan satu story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Otomasi inisiasi OAuth CTA anonim di `/pendaftaran` (assert redirect ke Google) bila konvensi smoke manual berubah.
+  evidence: Verification-gap pre-verified — jalur akuisisi utama tak terautomasi; konvensi repo saat ini mem-pin OAuth asli ke smoke manual AR-3 (`auth-landing.spec.ts:73-78`).

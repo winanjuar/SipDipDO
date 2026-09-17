@@ -59,6 +59,43 @@ export async function findActiveCooTenure(db: DbClient, ownerId: string, now: Da
   return rows.length > 0
 }
 
+/** Hasil pendaftaran CAS: `baru` = baris baru dibuat pada panggilan ini. */
+export interface HasilDaftarOwner {
+  rekaman: OwnerRecord
+  baru: boolean
+}
+
+/**
+ * Pendaftaran mandiri CAS idempotent per email (Story 1.4, AD-11): INSERT
+ * `ON CONFLICT (email) DO NOTHING` — baris existing TIDAK PERNAH dimutasi
+ * (status terverifikasi/keluar tidak pernah tertimpa). Bila insert tidak
+ * mengembalikan baris (email sudah ada), baris existing dibaca ulang via
+ * SELECT dan dikembalikan apa adanya. `baru` membedakan 201 vs 200 di
+ * lapis handler.
+ */
+export async function daftarOwnerByEmail(db: DbClient, input: { email: string }): Promise<HasilDaftarOwner> {
+  const disisipkan = await db
+    .insert(owners)
+    .values({ email: input.email })
+    .onConflictDoNothing({ target: owners.email })
+    .returning({
+      id: owners.id,
+      email: owners.email,
+      status: owners.status,
+      rejectionReason: owners.rejectionReason,
+      firstEffectiveAt: owners.firstEffectiveAt,
+    })
+
+  const barisBaru = disisipkan[0]
+  if (barisBaru) return { rekaman: barisBaru, baru: true }
+
+  const existing = await findOwnerByEmail(db, input.email)
+  if (!existing) {
+    throw new Error('daftarOwnerByEmail: baris owner tidak ditemukan setelah ON CONFLICT DO NOTHING.')
+  }
+  return { rekaman: existing, baru: false }
+}
+
 /** Tulis-ulang baris owner berdasar email unik (re-daftar = baris sama, AD-11). */
 export async function upsertOwnerByEmail(
   db: DbClient,
