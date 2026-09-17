@@ -118,6 +118,8 @@ context:
 
 ## Spec Change Log
 
+- **2026-09-17 — Renegosiasi copy halaman login (permintaan user pasca-1.3):** teks "Sip & Dip" di bawah logo dihapus; tagline menjadi lowercase `sip the taste, dip the soul`; teks bantuan menjadi `Selamat datang, gunakan akun Google Anda.` (dengan penekanan `akun Google`); CTA menjadi `Masuk`. Kontrak test `auth-landing.spec.ts` (lockup P0) diselaraskan: tagline dipin versi baru, CTA di-assert `getByRole('button', { name: 'Masuk', exact: true })` (tinggi 44px UX-DR2 tetap). Pesan unlinked verbatim (UX-DR15) TIDAK berubah.
+
 ## Review Triage Log
 
 Review step-04 (2026-09-17) — 3 lapis: blind-hunter (17), edge-case-hunter (16, termasuk 1 claim), verification-gap (5 gap + 3 other). Verdict per temuan; pengelompokan & routing di bawah tabel.

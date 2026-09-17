@@ -66,10 +66,14 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await expect(page.getByTestId(TEST_IDS.login.brandLogo)).toBeVisible()
     // Lockup 80px terpin (UX-DR3) — tinggi render logo = 80px.
     await expect(page.getByTestId(TEST_IDS.login.brandLogo).locator('img')).toHaveCSS('height', '80px')
-    await expect(page.getByText('Sip the taste, dip the soul')).toBeVisible()
+    // Tagline + CTA "Masuk" = renegosiasi copy user 2026-09-17 (lihat Spec
+    // Change Log 1.2): teks "Sip & Dip" di bawah logo dihapus, tagline
+    // lowercase, CTA tidak lagi menyebut "Google".
+    await expect(page.getByText('sip the taste, dip the soul')).toBeVisible()
     // CTA kehadiran + target sentuh ≥44px (UX-DR2) — JANGAN diklik (OAuth
-    // asli = smoke manual AR-3).
-    const cta = page.getByRole('button', { name: /google/i })
+    // asli = smoke manual AR-3). exact: true agar "Masuk" tidak tertukar
+    // dengan tombol devtools.
+    const cta = page.getByRole('button', { name: 'Masuk', exact: true })
     await expect(cta).toHaveCount(1)
     await expect(cta).toHaveCSS('height', '44px')
   })
@@ -193,13 +197,13 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
 
   test('[P1] penutupan tenure COO memindahkan landing sesuai role baru', async ({ page, context, apiRequest }) => {
     // Verifikasi efek closeActiveCooTenures: persona 'coo' di-mint pada EMAIL
-    // sewaan (domain uji) sehingga baris ownernya terpisah dari persona 'coo'
+    // sewaan (gmail sintetis mint uji) sehingga baris ownernya terpisah dari persona 'coo'
     // deterministik yang dipakai suite lain (hindari race mint paralel dan
     // cache sesi .auth), lalu tenure-nya ditutup via re-mint cooAktif false.
     await log.step("GIVEN persona 'coo' dengan tenure aktif dialandingkan ke /antrian-beli")
     const cookiesCoo = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'coo',
-      email: 'coo-sewa@uji.example.test',
+      email: 'uji.snddash.e2e.coo.sewa@gmail.com',
       cooAktif: true,
     })
     await context.addCookies(cookiesCoo)
@@ -209,7 +213,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await log.step('WHEN tenure COO ditutup (re-mint identifier sama, cooAktif false)')
     const cookiesNonCoo = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'coo',
-      email: 'coo-sewa@uji.example.test',
+      email: 'uji.snddash.e2e.coo.sewa@gmail.com',
       cooAktif: false,
     })
     await context.addCookies(cookiesNonCoo)

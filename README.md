@@ -62,8 +62,16 @@ npx nuxt prepare          # regenerasi tipe & eslint Nuxt
 supabase start                                  # memulai stack Docker lokal
 npm run db:generate                             # drizzle-kit generate (bila skema berubah)
 DATABASE_URL=... npm run db:migrate             # apply migrasi (smoke AR-2)
+npm run db:seed                                 # seed owner sintetis @gmail.com (dev)
+npm run db:seed -- 25                           # atur jumlah owner extra (0 = persona saja)
 supabase db reset                               # reset + replay migrasi (bila perlu)
 ```
+
+`db:seed` menulis baris owner **sintetis** beralamat `@gmail.com` saja
+(spec: akun owner = akun Google; awalan lokal `uji.snddash.`) — 7 persona
+cermin `/api/test/login` + batch faker deterministik; idempoten (upsert by
+email unik). Guard: menolak `NODE_ENV=production`; host DB non-lokal butuh
+flag `--paksa`.
 
 ## Menjalankan & verifikasi
 
@@ -165,6 +173,10 @@ curl -i http://localhost:3000/dashboard          # tanpa cookie -> 302 ke /login
 sesi NuxtAuth asli (secret NuxtAuth sama — bukan bypass). Triple guard:
 `NODE_ENV !== 'production'` + `ENABLE_TEST_AUTH=1` + header
 `TEST_AUTH_SECRET` (nilai lokal `test-secret-lokal`, lihat `.env.example`).
+Email sintetis mint hanya `uji.snddash.e2e.<identifier>@gmail.com`
+(override wajib cocok pola itu) — seluruh tulisan ke tabel owners, termasuk
+uji, hanya @gmail.com (spec: akun owner = akun Google), dan mint tak pernah
+menimpa baris seed dev (`uji.snddash.*`) maupun baris nyata.
 Identifier uji: `coo`, `pemegang-saham`, `tanpa-saham`, `keluar`,
 `calon-diajukan`, `calon-ditolak`, `calon-kedaluwarsa`, `unlinked` (tanpa
 baris owner). Jalankan suite:
@@ -204,6 +216,81 @@ curl -X POST -H 'Authorization: Bearer <secret>' http://localhost:3000/jobs/dail
 # tanpa/secret salah -> 401 { code: 'UNAUTHORIZED', message, details }
 ```
 
+## Audit Trail (Story 1.3)
+
+Setiap aksi domain tercatat append-only di `audit_logs` (AD-3): envelope
+`{ actor, action, target, details jsonb }`, ditulis **dalam transaksi yang
+sama** dengan aksinya lewat pintu modul `server/domain/audit/index.ts`
+(`writeAuditEntry(tx, …)` — menolak tanpa `tx` dan menolak `action` di luar
+registry `shared/domain/audit.ts`). Audit tidak dipakai modul lain untuk
+keputusan bisnis — hanya tampilan COO.
+
+- Endpoint: `GET /api/audit?page=<n>&limit=<n>` — khusus COO (role per-request
+  dari `coo_tenures`, AD-8). Tanpa sesi → 401; non-COO → 403; `?page`/`?limit`
+  tidak valid → 400 (envelope `{ code, message, details }`). Respons
+  `{ data, nextPage }` urut `created_at` desc; limit default 20, opsi
+  20/40/80 (renegosiasi user 2026-09-17), `nextPage` null bila habis.
+- Halaman: `/audit-trail` (hanya COO) — tabel aksi terbaru (waktu id-ID zona
+  Asia/Jakarta, aktor email/"System", aksi, target, detail JSON terpotong),
+  paginasi tautan + selector ukuran halaman, tanpa filter (keputusan spec
+  1.3: minimal dulu).
+- Endpoint uji dev-only: `POST /api/test/audit-seed` (`{ jumlah: <n> }`,
+  triple-guard sama dengan `/api/test/login`) — seed entry audit sintetis
+  dalam satu transaksi lewat API publik modul audit.
+
+### Runbook role runtime `app_runtime` + grants (AD-3, keputusan spec 1.3)
+
+Append-only `audit_logs` ditegakkan PENUH di DB: koneksi runtime aplikasi
+(`NUXT_DATABASE_URL`, dev & produksi) memakai role non-superuser
+`app_runtime`, dan REVOKE tidak mengikat superuser — makanya role ini ada.
+
+1. **Buat role** (sekali per database):
+
+   ```bash
+   # lokal (Supabase CLI Docker):
+   docker exec -i supabase_db_snd-dash psql -U postgres -d postgres < drizzle/runtime-role.sql
+   # produksi: jalankan isi file itu di Supabase → SQL Editor
+   ```
+
+   Password default `app_runtime` di file adalah DEV-ONLY; sebelum produksi
+   ganti dengan `ALTER ROLE app_runtime PASSWORD '<password-kuat>';` —
+   password tidak pernah ditulis di repo.
+
+2. **Terapkan grants** — SETELAH setiap migrasi yang membuat tabel baru:
+
+   ```bash
+   docker exec -i supabase_db_snd-dash psql -U postgres -d postgres < drizzle/grants.sql
+   ```
+
+   `audit_logs` hanya mendapat `SELECT, INSERT` — tanpa UPDATE/DELETE/TRUNCATE.
+
+3. **Migrasikan koneksi runtime** ke `app_runtime` — set
+   `NUXT_DATABASE_URL` (lokal & produksi; pola di `.env.example`):
+
+   ```bash
+   # lokal:
+   NUXT_DATABASE_URL=postgresql://app_runtime:app_runtime@127.0.0.1:54322/postgres
+   # produksi (pooler, username = app_runtime.<project-ref>):
+   # postgresql://app_runtime.<project-ref>:<PASSWORD>@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
+   ```
+
+   `DATABASE_URL` (drizzle-kit migrate) tetap admin/superuser.
+
+4. **Verifikasi append-only** (harus ERROR permission denied):
+
+   ```bash
+   docker exec supabase_db_snd-dash psql -U postgres -d postgres \
+     -c "SET ROLE app_runtime; UPDATE audit_logs SET action='x';"
+   ```
+
+Uji cepat lokal (dev server berjalan):
+
+```bash
+curl -i http://localhost:3000/api/audit                 # tanpa cookie -> 401 envelope
+curl -i "http://localhost:3000/api/audit?page=bukan"    # cookie COO      -> 400 envelope
+# cookie non-COO -> 403 envelope; cookie COO      -> 200 { data, nextPage }
+```
+
 ## Kontrak pengembang (ringkas)
 
 - Uang/ratio = string desimal berskala tetap; hanya lewat
@@ -213,6 +300,9 @@ curl -X POST -H 'Authorization: Bearer <secret>' http://localhost:3000/jobs/dail
 - Aturan kalender-hari hanya lewat `shared/domain/calendar.ts` (Asia/Jakarta).
 - Import lintas modul domain hanya lewat `index.ts` modul (AD-5); fungsi di
   jalur transaksi menerima `tx`; hanya service teratas membuka transaksi.
+- Aksi yang wajib diaudit menulis entry lewat `writeAuditEntry(tx, …)` dari
+  `server/domain/audit` DALAM transaksi aksinya (AD-3); nama `action` hanya
+  dari registry `shared/domain/audit.ts`.
 - Error API seragam `{ code, message, details }` (`server/utils/api-error.ts`).
 - UI light-only; delta brand UX-DR2 di `app/assets/css/tailwind.css`.
 - Data owner nyata tidak pernah masuk repo — uji memakai data sintetis.

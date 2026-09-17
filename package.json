@@ -17,7 +17,8 @@
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "npx tsx drizzle/seed.ts"
   },
   "dependencies": {
     "@lucide/vue": "^1.46.0",
