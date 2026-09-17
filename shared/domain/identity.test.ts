@@ -31,18 +31,18 @@ describe('shared/domain/identity — LANDING_PATH (1-UNIT-001 subset)', () => {
 })
 
 describe('shared/domain/identity — buatKodeReferral (Story 1.4, keputusan owner 2026-09-18)', () => {
-  test('panjang tepat PANJANG_KODE_REFERRAL dan seluruh karakter alfanumerik besar', () => {
+  test('panjang tepat PANJANG_KODE_REFERRAL dan seluruh karakter alfanumerik (besar/kecil/digit)', () => {
     const kode = buatKodeReferral()
     expect(kode).toHaveLength(PANJANG_KODE_REFERRAL)
-    expect(kode).toMatch(/^[A-Z0-9]+$/)
+    expect(kode).toMatch(/^[A-Za-z0-9]+$/)
   })
 
   test('sumber acak disuntikkan → keluaran deterministik dari indeks karakter', () => {
     // angkaAcak konstan 0 → indeks 0 → karakter pertama himpunan ('A').
     expect(buatKodeReferral(() => 0)).toBe('AAAAAAAA')
-    // 0.999999 × 36 = 35.99… → indeks 35 → karakter terakhir himpunan ('9').
+    // 0.999999 × 62 = 61.99… → indeks 61 → karakter terakhir himpunan ('9').
     expect(buatKodeReferral(() => 0.999999)).toBe('99999999')
-    // 0.5 × 36 = 18 → indeks 18 → huruf ke-19 himpunan ('S').
-    expect(buatKodeReferral(() => 0.5)).toBe('SSSSSSSS')
+    // 0.5 × 62 = 31 → indeks 31 → huruf kecil 'f' (zona lowercase, indeks 26-51).
+    expect(buatKodeReferral(() => 0.5)).toBe('ffffffff')
   })
 })

@@ -24,8 +24,9 @@ export const CALON_OWNER_STATUSES: readonly OwnerStatus[] = ['diajukan', 'ditola
 /** Panjang kode referral owner — alfanumerik (keputusan owner 2026-09-18). */
 export const PANJANG_KODE_REFERRAL = 8
 
-/** Himpunan karakter kode referral — huruf besar + digit (alfanumerik). */
-const KARAKTER_KODE_REFERRAL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+/** Himpunan karakter kode referral — alfanumerik lengkap: huruf besar, huruf
+ *  kecil, dan digit (keputusan owner 2026-09-18: menerima lowercase juga). */
+const KARAKTER_KODE_REFERRAL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
 /**
  * Buat kode referral MILIK owner — alfanumerik `PANJANG_KODE_REFERRAL`

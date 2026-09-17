@@ -75,7 +75,7 @@ describe('server/domain/identity/owner.repo — daftarOwnerByEmail (Story 1.4, A
     // INSERT-CAS: payload email + kode referral milik owner (Story 1.4,
     // keputusan owner 2026-09-18) — status default 'diajukan' dari DB.
     expect(rekaman.values?.email).toBe(baris.email)
-    expect(String(rekaman.values?.referralCode)).toMatch(/^[A-Z0-9]{8}$/)
+    expect(String(rekaman.values?.referralCode)).toMatch(/^[A-Za-z0-9]{8}$/)
     // Konflik = DO NOTHING dengan target email unik — baris existing tidak
     // pernah ditulis-ulang (bukan onConflictDoUpdate).
     expect(rekaman.konflik?.target).toBe(owners.email)
@@ -136,7 +136,7 @@ describe('server/domain/identity/owner.repo — daftarOwnerByEmail (Story 1.4, A
 
     expect(panggilanInsert).toBe(2)
     expect(hasil).toEqual({ rekaman: baris, baru: true })
-    expect(String(rekaman.values?.referralCode)).toMatch(/^[A-Z0-9]{8}$/)
+    expect(String(rekaman.values?.referralCode)).toMatch(/^[A-Za-z0-9]{8}$/)
   })
 
   test('tabrakan kode referral menetap (sampai batas coba) → error 23505 terakhir diteruskan', async () => {
