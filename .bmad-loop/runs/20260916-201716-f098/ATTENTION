@@ -1,0 +1,18 @@
+[2026-09-16 21:47:17] story token budget exceeded: 1-2-autentikasi-akun-google-halaman-login: 2756406 weighted tokens (14607952 raw incl. cache reads) past the 2000000 `limits.max_tokens_per_story` cap — advisory: the story continues. Stop the run with `bmad-loop stop` if the spend is no longer worth it.
+[2026-09-16 21:47:17] dev retry: 1-2-autentikasi-akun-google-halaman-login (attempt 1): dev session timeout
+[2026-09-16 21:47:17] ACTION REQUIRED: manual rollback for 1-2-autentikasi-akun-google-halaman-login: **ACTION REQUIRED — manual rollback needed**
+Story **1-2-autentikasi-akun-google-halaman-login**'s attempt was stopped and auto-rollback is OFF, so the working tree at `/Users/sugengwin/Developer/snd-dash` was left for you to inspect.
+To discard this attempt yourself:
+  1. **BACK UP any untracked files you want to keep** — the reset below deletes uncommitted work.
+  2. `git -C "/Users/sugengwin/Developer/snd-dash" reset --hard be8443767a64` then review/remove leftover untracked files.
+  3. **Restore the files you backed up in step 1.**
+Then run `bmad-loop resume 20260916-201716-f098`. To let the orchestrator do a safe automatic rollback next time, enable `[scm] rollback_on_failure` (it discards the attempt's uncommitted work but never deletes pre-existing untracked files).
+[2026-09-16 21:47:17] bmad-loop run finished: run 20260916-201716-f098: 0 done, 0 deferred, 0 escalated, 2,756,406 weighted tokens (14,607,952 raw incl. cache reads)
+PAUSED: **ACTION REQUIRED — manual rollback needed**
+Story **1-2-autentikasi-akun-google-halaman-login**'s attempt was stopped and auto-rollback is OFF, so the working tree at `/Users/sugengwin/Developer/snd-dash` was left for you to inspect.
+To discard this attempt yourself:
+  1. **BACK UP any untracked files you want to keep** — the reset below deletes uncommitted work.
+  2. `git -C "/Users/sugengwin/Developer/snd-dash" reset --hard be8443767a64` then review/remove leftover untracked files.
+  3. **Restore the files you backed up in step 1.**
+Then run `bmad-loop resume 20260916-201716-f098`. To let the orchestrator do a safe automatic rollback next time, enable `[scm] rollback_on_failure` (it discards the attempt's uncommitted work but never deletes pre-existing untracked files).
+[2026-09-16 22:06:03] bmad-loop run finished: run 20260916-201716-f098: 0 done, 0 deferred, 0 escalated, 2,756,406 weighted tokens (14,607,952 raw incl. cache reads)

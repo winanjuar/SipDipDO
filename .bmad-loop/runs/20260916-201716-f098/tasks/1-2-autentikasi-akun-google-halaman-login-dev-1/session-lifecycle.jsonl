@@ -1,0 +1,2 @@
+{"ts": 1789570037226284000, "event": "timeout-fired", "expired_clock": "both", "timeout_s": 5400, "mono_remaining_s": -0.969}
+{"ts": 1789570037264076000, "event": "kill-outcome", "reaped": true, "forced": [], "unreaped": [42527]}
