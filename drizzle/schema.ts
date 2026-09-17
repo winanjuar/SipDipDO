@@ -92,3 +92,36 @@ export const cooTenures = pgTable(
 export type Owner = typeof owners.$inferSelect
 export type NewOwner = typeof owners.$inferInsert
 export type CooTenure = typeof cooTenures.$inferSelect
+
+/**
+ * AUDIT — audit_logs (AD-3/AD-5): trail aksi append-only ber-envelope
+ * `{ actor, action, target, details }`. Aktor `user` = owner/COO via
+ * `owner_id`; null = `system` (cron/migrasi) — penentu aktor ada di pemanggil
+ * (AD-8: aktor audit pejabat saat commit). Kolom `action` bertipe `text`:
+ * keanggotaan registry divalidasi service (`shared/domain/audit.ts`) sehingga
+ * registry tumbuh tanpa migrasi enum DB.
+ *
+ * TANPA jalur UPDATE/DELETE — repo hanya INSERT/SELECT, diperkuat DB grants
+ * role `app_runtime` (drizzle/runtime-role.sql + drizzle/grants.sql, keputusan
+ * spec 1.3 2026-09-17). Modul lain menulis/membaca HANYA lewat
+ * `server/domain/audit/index.ts` (AD-5).
+ */
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Null = aktor system — envelope AD-3 dipenuhi satu kolom. */
+    actorOwnerId: uuid('actor_owner_id').references(() => owners.id),
+    /** Nama aksi dari registry terpusat `shared/domain/audit.ts` (text, bukan enum). */
+    action: text('action').notNull(),
+    /** Referensi target berformat `<tabel>:<id>`; null bila aksi tanpa target. */
+    target: text('target'),
+    /** Payload jsonb — imutabel sejak ditulis dalam transaksi aksinya. */
+    details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+  },
+  (t) => [index('audit_logs_created_at_idx').on(t.createdAt)],
+)
+
+export type AuditLogRow = typeof auditLogs.$inferSelect
+export type NewAuditLogRow = typeof auditLogs.$inferInsert
