@@ -23,6 +23,17 @@ supabase/.temp/
 
 # Log
 *.log
+
+# Playwright — artefak run & sesi auth tersimpan (mandate auth-session).
+# `.auth/` = lokasi default storageDir bila konfigurasi global-setup terlewati.
+test-results/
+playwright-report/
+blob-report/
+playwright-logs/
+tests/support/auth-sessions/
+.auth/
+
+# bmad-loop — artefak run/cache per-mesin & policy lokal (mux backend per-mesin)
 .bmad-loop/runs/
 .bmad-loop/cache/
 .bmad-loop/policy.toml

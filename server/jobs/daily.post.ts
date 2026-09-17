@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { jakartaDayKey } from '#shared/domain/calendar'
 import { runRegistrationDailyJob } from '../domain/identity'
 import { dispatchPendingOutboxEmails } from '../domain/proofs'
-import { sendApiError } from '../utils/api-error'
+import { HTTP_STATUS, sendApiError } from '../utils/api-error'
 
 /**
  * Cron harian terproteksi CRON_SECRET (AD-9) — dipanggil Vercel Cron (UTC);
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     && timingSafeEqual(Buffer.from(presented, 'utf8'), Buffer.from(cronSecret, 'utf8'))
 
   if (!authorized) {
-    return sendApiError(event, 401, {
+    return sendApiError(event, HTTP_STATUS.unauthorized, {
       code: 'UNAUTHORIZED',
       message: 'Cron secret tidak sah.',
       details: { expected: 'Authorization: Bearer <CRON_SECRET>' },

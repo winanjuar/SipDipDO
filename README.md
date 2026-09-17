@@ -28,8 +28,8 @@ app/public/sw.js          # service worker kustom (injectManifest, AD-12)
 
 ## Prasyarat
 
-- Node `>=22.19.0` (dev/CI/Vercel memakai Node 24 LTS; jendela aktif berakhir
-  Okt 2026 — recek saat upgrade).
+- Node `>=24.19.0` (LTS, selaras `.nvmrc` dan `engines`; masa perawatan hingga
+  Apr 2028 — recek saat upgrade).
 - Docker + Supabase CLI (`brew install supabase/tap/supabase`) untuk database lokal.
 - Google Cloud OAuth Client (untuk smoke auth).
 
@@ -53,6 +53,8 @@ npx nuxt prepare          # regenerasi tipe & eslint Nuxt
 | `NUXT_RESEND_API_KEY` | prod (opsional di local) | Resend; tanpa ini outbox no-op terlihat (log `alert: mail.unconfigured`). |
 | `NUXT_RESEND_FROM` | prod | From-domain terverifikasi, mis. `Sip & Dip <noreply@domain>`. |
 | `NUXT_CRON_SECRET` | prod | Proteksi `POST /jobs/daily` (`Authorization: Bearer <secret>`). |
+| `ENABLE_TEST_AUTH` | local saja | Aktifkan endpoint dev-only `POST /api/test/login` (session minting uji). JANGAN pernah diset di produksi (triple guard juga menuntut `NODE_ENV !== 'production'`). |
+| `TEST_AUTH_SECRET` | local saja | Secret header untuk `/api/test/login`; nilai dev-only (bukan rahasia) — wajib identik dengan fallback `test-secret-lokal` di `tests/support/*`. |
 
 ## Database lokal (Supabase CLI / Docker)
 
@@ -79,10 +81,47 @@ modul lain tampil 0% sebagai peta tes yang menyusul di story pemiliknya).
 Threshold per-file dipinkan untuk kontrak murni `shared/domain` (90/90/95/95) —
 regress kontrak AD-9/AD-10 menggagalkan `npm run test:coverage`.
 
+### Checklist Google Cloud Console (OAuth — sekali di awal, gerbang R-005)
+
+Kredensial TIDAK pernah masuk repo — hanya lewat `.env` (keputusan pengguna
+spec 1.1 #2). ±5–10 menit:
+
+1. **Buat/ pilih project** — [console.cloud.google.com](https://console.cloud.google.com)
+   → project picker → New Project (mis. `snd-dash-dev`).
+2. **OAuth consent screen** — menu *Google Auth Platform* (atau *APIs &
+   Services → OAuth consent screen*):
+   - User Type: **External** (kecuali semua user memakai Workspace yang sama).
+   - App name `Sip & Dip Dashboard`, support email, developer contact email.
+   - Scopes: default `openid`, `email`, `profile` — cukup (tidak ada scope
+     sensitif).
+   - Publishing status **Testing** → tambahkan akun Google yang dipakai smoke
+     ke *Test users* (user di luar daftar akan ditolak Google).
+3. **Buat OAuth Client** — *Google Auth Platform → Clients → Create Client*:
+   - Application type: **Web application**.
+   - Authorized JavaScript origins: `http://localhost:3000`.
+   - Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`
+     (path `/api/auth/callback/google` TEPAT — berasal dari `AUTH_ORIGIN`).
+   - Produksi nanti: tambahkan sekalian `https://<domain-prod>/api/auth/callback/google`.
+4. **Salin kredensial ke `.env`** (dari `cp .env.example .env`):
+   - `NUXT_GOOGLE_CLIENT_ID` / `NUXT_GOOGLE_CLIENT_SECRET` ← dari dialog client.
+   - `NUXT_AUTH_SECRET` ← `openssl rand -base64 32`.
+   - `AUTH_ORIGIN=http://localhost:3000/api/auth` — baseURL PENUH termasuk
+     path `/api/auth`, TANPA trailing slash (dipakai NuxtAuth 1.3.1 apa adanya).
+5. **Smoke login** — `npm run dev` → `http://localhost:3000/smoke` → "Masuk
+   dengan Google" → kembali dengan status `authenticated` + email tampil →
+   "Keluar" mengembalikan `unauthenticated`. Hasil go/no-go R-005 dicatat di
+   Design Notes spec 1.1.
+
+> Catatan: mode Testing mengeluarkan refresh token yang kedaluwarsa ±7 hari —
+> cukup untuk smoke; promote ke *In production* saat go-live (Story 1.2
+> memakai kredensial yang sama). Checklist ini sudah dijalankan 2026-09-16 —
+> smoke login lulus, R-005 = GO (lihat Design Notes spec 1.1).
+
 ### Runbook smoke R-005 (urut: auth → PWA → komponen)
 
 1. **NuxtAuth**: `npm run dev` → buka `/smoke` → "Masuk dengan Google" →
-   kembali dengan status sesi `authenticated` + email tampil.
+   kembali dengan status sesi `authenticated` + email tampil
+   (prasyarat: checklist Google Cloud Console di atas).
 2. **PWA** (AD-12): `npm run build && npm run preview` →
    - DevTools > Application: manifest tervalidasi, SW aktif, precache =
      aset ter-fingerprint + manifest + ikon + `offline.html` saja.
@@ -92,6 +131,51 @@ regress kontrak AD-9/AD-10 menggagalkan `npm run test:coverage`.
      "Pembaruan aplikasi tersedia" → "Muat versi baru" mengaktifkan versi baru.
 3. **Komponen kontrak**: `/smoke` → Dialog, Sheet, Tooltip, Drawer, Input-OTP,
    Toast semuanya interaktif.
+
+## Alur login & landing (Story 1.2)
+
+Jalur masuk aplikasi: halaman Login publik (`/login`) → OAuth Google →
+pencocokan email sesi → baris `owners` (modul identity, AD-8/AD-11) → landing
+per role. Role dievaluasi per-request di server (middleware `auth-guard` +
+route handler), tidak pernah dari klien atau JWT.
+
+| Role (fungsi kanonik identity) | Sumber kebenaran | Landing |
+| --- | --- | --- |
+| COO aktif | `coo_tenures` berlaku (`started_at` ≤ now < `ended_at`/NULL) | `/antrian-beli` |
+| Pemegang saham | `first_effective_at` terisi | `/dashboard` |
+| Tanpa saham / Keluar | `terverifikasi` tanpa `first_effective_at`, atau status `keluar` | `/personal` |
+| Calon owner | `diajukan` / `ditolak` / `kedaluwarsa` | `/status-pendaftaran` (badge + alasan penolakan apa adanya) |
+
+- Akun Google tanpa baris owner → kembali ke `/login?state=unlinked` dengan
+  pesan arahan verbatim (UX-DR15); aksi pendaftaran menyusul Story 1.4.
+- Sesi berakhir → akses halaman terproteksi (SSR) dialihkan ke `/login`;
+  `GET /api/landing` / `GET /api/pendaftaran/status` tanpa sesi → 401
+  envelope `{ code, message, details }`.
+
+Uji cepat lokal:
+
+```bash
+curl -i http://localhost:3000/api/landing        # tanpa cookie -> 401 envelope
+curl -i http://localhost:3000/dashboard          # tanpa cookie -> 302 ke /login
+```
+
+### Session minting dev-only (uji E2E/API)
+
+`POST /api/test/login` men-seed owner **sintetis** lalu menerbitkan cookie
+sesi NuxtAuth asli (secret NuxtAuth sama — bukan bypass). Triple guard:
+`NODE_ENV !== 'production'` + `ENABLE_TEST_AUTH=1` + header
+`TEST_AUTH_SECRET` (nilai lokal `test-secret-lokal`, lihat `.env.example`).
+Identifier uji: `coo`, `pemegang-saham`, `tanpa-saham`, `keluar`,
+`calon-diajukan`, `calon-ditolak`, `calon-kedaluwarsa`, `unlinked` (tanpa
+baris owner). Jalankan suite:
+
+```bash
+npx playwright test tests/e2e/landing.api.spec.ts
+npx playwright test tests/e2e/auth-landing.spec.ts
+```
+
+Owner sintetis hasil seed tersisa di DB lokal (dev-only); pembersihan
+menyusul lewat API tulis identity di Story 1.4.
 
 ## Email keluar — From-domain & SPF/DKIM (AR-6, gerbang pra-Story 1.5)
 
