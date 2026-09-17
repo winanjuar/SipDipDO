@@ -3,17 +3,18 @@ import { LANDING_PATH } from '#shared/domain/identity'
 import type { LandingRespons } from '~/lib/landing'
 
 /**
- * Pendaftaran Owner — halaman PUBLIK (Story 1.4, Flow 6 EXPERIENCE.md;
- * mockup key-pendaftaran-profile): lockup logo 80px terpusat + judul +
- * tagline + sub-copy + SATU CTA "Daftar dengan Akun Google" + footer copy.
+ * Pendaftaran Owner — halaman PUBLIK (Story 1.4, Flow 6 EXPERIENCE.md).
+ * Copy hasil re-negotiasi manual owner 2026-09-18 (menggantikan mockup
+ * key-pendaftaran-profile): judul "Jadilah Pemilik" di atas lockup logo
+ * 80px + tagline + sub-copy + SATU CTA "Daftar"; footer copy disembunyikan.
  * Tanpa input referral (referral hanya di Pembelian Pertama, Epic 3).
  *
  * Mesin status halaman (SSR, seperti status-pendaftaran.vue): resolver
  * /api/landing menentukan mode — tanpa sesi = anonim (CTA → OAuth Google);
- * sesi unlinked = CTA memicu POST /api/pendaftaran lalu redirect
- * /status-pendaftaran; calon/non-calon = redirect landing role-nya. Klik CTA
- * (bukan auto-submit saat mount) yang memicu POST; kegagalan menampilkan
- * pesan envelope di region aria-live="polite" dekat CTA dengan state
+ * sesi unlinked = POST /api/pendaftaran berjalan otomatis saat mount (pasca-
+ * OAuth langsung redirect /status-pendaftaran) atau via klik CTA; calon/
+ * non-calon = redirect landing role-nya. Kegagalan menampilkan pesan
+ * envelope di region aria-live="polite" dekat CTA dengan state
  * dipertahankan.
  */
 definePageMeta({ auth: false })
@@ -71,17 +72,27 @@ async function daftarGoogle() {
 }
 
 useHead({ title: 'Pendaftaran — Sip & Dip' })
+
+/**
+ * Auto-submit saat mount untuk sesi unlinked (Flow 6 UX: URL publik → daftar
+ * akun Google → status Diajukan — tanpa klik kedua pasca-OAuth). Sekaligus
+ * pengerasan race hidrasi dev-server: redirect tidak lagi bergantung pada
+ * klik yang menang race hidrasi Vue. Klik CTA tetap berlaku (idempotent);
+ * kegagalan tetap menampilkan pesan envelope di region aria-live.
+ */
+onMounted(() => {
+  if (denganSesi.value) void daftarGoogle()
+})
 </script>
 
 <template>
   <main class="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-10 text-center">
     <section class="flex flex-col items-center gap-3">
+      <h1 class="text-lg font-semibold">Jadilah Pemilik</h1>
       <BrandLogo size="login" />
-      <h1 class="text-lg font-semibold">Ownership Dashboard</h1>
-      <p class="text-sm italic text-muted-foreground">Sip the taste, dip the soul</p>
+      <p class="text-sm italic text-muted-foreground">sip the taste, dip the soul</p>
       <p class="text-sm text-muted-foreground">
-        Satu sumber kebenaran untuk kepemilikan cafe.<br>
-        Daftar dengan akun Google untuk mulai.
+        dengan <b>akun Google</b> Anda.
       </p>
     </section>
 
@@ -92,7 +103,7 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
         :disabled="sedangDaftar"
         @click="daftarGoogle"
       >
-        Daftar dengan Akun Google
+        Daftar
       </Button>
 
       <p
@@ -103,10 +114,10 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
         {{ pesanError }}
       </p>
 
-      <p class="text-xs leading-relaxed text-muted-foreground">
+      <!-- <p class="text-xs leading-relaxed text-muted-foreground">
         Pendaftaran terbuka melalui alamat ini — tanpa perlu link referral.<br>
         Status pendaftaran: Diajukan → Terverifikasi / Ditolak (dengan alasan).
-      </p>
+      </p> -->
     </div>
   </main>
 </template>

@@ -35,3 +35,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
   summary: Otomasi inisiasi OAuth CTA anonim di `/pendaftaran` (assert redirect ke Google) bila konvensi smoke manual berubah.
   evidence: Verification-gap pre-verified — jalur akuisisi utama tak terautomasi; konvensi repo saat ini mem-pin OAuth asli ke smoke manual AR-3 (`auth-landing.spec.ts:73-78`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Keputusan test-design (owner, 2026-09-18): e2e WAJIB menjaga DB dev tetap bersih — data sintetis tidak boleh menumpuk pasca-run.
+  evidence: Pasca-suite 1.4 menumpuk 136 owner `uji.snddash.e2e.*`/re-mint + 87 audit junk; `denganAuditKosong` (TRUNCATE audit) juga menghapus entry audit riil pendaftaran manual owner. Implementasi yang harus dievaluasi: (1) `cleanup.track` untuk tiap mint `mintSesiPemilik`/POST pendaftaran di spec 1.4; (2) script dev purge `uji.snddash.e2e.%` (audit→tenure→owner, FK-aware) sebagai jaring pengaman pasca-suite; (3) pertimbangkan ulang TRUNCATE `denganAuditKosong` vs isolasi per-test agar data riil dev tak ikut terhapus. Kontraindikasi yang harus dijaga: test idempotensi (`EMAIL_IDEMPOTEN_UJI`) sengaja bergantung baris persisten antar-run — rancang cleanup agar kontrak itu tetap sah (atau ubah asersi first-call ke [200,201] dan dokumentasikan).

@@ -4,10 +4,10 @@
  * Test red-phase telah diaktifkan (un-skip) pada tugas green-phase bersama
  * implementasinya (spec Story 1.4). Given-When-Then + log.step + prioritas.
  *
- * PENYESUAIAN GREEN-PHASE TERSANKSI SPEC (Design Notes): label CTA memakai
- * "Daftar dengan Akun Google" — mockup UX terpin
- * (`mockups/key-pendaftaran-profile.html`) mengalahkan asumsi red-phase
- * "Daftar sebagai Owner" (alasan dicatat di komentar test terkait).
+ * PENYESUAIAN LABEL CTA (riwayat): asumsi red-phase "Daftar sebagai Owner"
+ * → mockup UX terpin "Daftar dengan Akun Google" (green-phase) → "Daftar"
+ * (re-negotiasi copy manual oleh owner pasca-uji manual, 2026-09-18 —
+ * judul "Jadilah Pemilik" + sub-copy baru + footer disembunyikan).
  *
  * Non-negotiable tetap dari kontrak UX: route halaman = `/pendaftaran`;
  * TANPA textbox /referral/i; sukses submit → redirect `/status-pendaftaran`
@@ -64,8 +64,8 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await page.goto(HALAMAN_PENDAFTARAN)
 
     await log.step('WHEN halaman pendaftaran ter-render')
-    await log.step('THEN CTA "Daftar dengan Akun Google" tampil (by-role; label mockup terpin, menggantikan asumsi red-phase)')
-    await expect(page.getByRole('button', { name: 'Daftar dengan Akun Google' })).toBeVisible()
+    await log.step('THEN CTA "Daftar" tampil (by-role; label hasil re-negotiasi copy owner 2026-09-18)')
+    await expect(page.getByRole('button', { name: 'Daftar' })).toBeVisible()
 
     await log.step('AND form TANPA field referral (AC1: tanpa input referral)')
     await expect(page.getByRole('textbox', { name: /referral/i })).toHaveCount(0)
@@ -76,7 +76,6 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     context,
     apiRequest,
     interceptNetworkCall,
-    recurse,
   }) => {
     // Kontrak 201 = baris BARU dibuat → mint dengan email sintetis UNIK agar
     // rerun tidak menjawab 200 idempoten (lihat catatan emailSintetisUji).
@@ -87,39 +86,22 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await log.step('AND spy POST /api/pendaftaran dideklarasikan SEBELUM navigasi (network-first)')
     const pendaftaranCall = interceptNetworkCall({ url: '**/api/pendaftaran', method: 'POST' })
     // Redam penolakan dini spy (timeout waitForRequest saat hidrasi lambat)
-    // agar tidak jadi unhandled rejection selama loop — await asli tetap
-    // melempar setelah loop bila POST benar-benar tidak pernah terkirim.
+    // agar tidak jadi unhandled rejection — await asli tetap melempar bila
+    // POST benar-benar tidak pernah terkirim.
     pendaftaranCall.catch(() => {})
 
-    await log.step('WHEN membuka halaman pendaftaran lalu submit via CTA')
+    await log.step('WHEN membuka halaman pendaftaran — auto-submit sesi unlinked mengirim POST saat mount (Flow 6; klik CTA tetap berlaku, idempotent)')
     await page.goto(HALAMAN_PENDAFTARAN)
-    // Label "Daftar dengan Akun Google" = mockup UX terpin (menggantikan
-    // asumsi red-phase "Daftar sebagai Owner" — lihat header file).
-    // Hidrasi Vue di dev server = kondisi eventual-consistent → recurse
-    // (pola smoke.ui.spec.ts): klik diulang sampai redirect terjadi — klik
-    // sebelum hidrasi tidak membawa handler. Spy jangan di-await DI DALAM
-    // loop (promise waitForRequest memblokir iterasi sampai timeout) —
-    // perpindahan URL jadi sinyal berhenti; spy di-await setelahnya.
-    await recurse(
-      async () => {
-        if (page.url().includes('/status-pendaftaran')) return true
-        try {
-          await page.getByRole('button', { name: 'Daftar dengan Akun Google' }).click()
-        } catch {
-          // Klik kalah race terhadap redirect — dievaluasi ulang iterasi berikutnya.
-        }
-        return page.url().includes('/status-pendaftaran')
-      },
-      selesai => selesai === true,
-      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA mengirim POST lalu redirect' },
-    )
 
     await log.step('THEN panggilan pendaftaran terkirim (201)')
     const { status } = await pendaftaranCall
     expect(status).toBe(STATUS_CREATED)
 
     await log.step('AND dialihkan ke /status-pendaftaran dengan badge Diajukan (by text)')
-    await expect(page).toHaveURL(/\/status-pendaftaran$/)
+    // Asersi web-first auto-retry (bukan polling URL manual): di dev server,
+    // URL vue-router baru berganti SETELAH chunk route lazy selesai dimuat —
+    // cold-start browser pertama bisa jauh lebih lambat dari interval polling.
+    await expect(page).toHaveURL(/\/status-pendaftaran$/, { timeout: BATAS_RECURSE_SUBMIT_MS })
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
   })
 
@@ -168,12 +150,12 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
 
       await log.step('WHEN membuka halaman pendaftaran lalu submit hingga halaman menampilkan kegagalan')
       await page.goto(HALAMAN_PENDAFTARAN)
-      // Label "Daftar dengan Akun Google" = mockup UX terpin (lihat header file).
+      // Label CTA "Daftar" = re-negotiasi copy owner 2026-09-18 (lihat header file).
       // Hidrasi Vue di dev server = eventual-consistent → recurse (pola
       // smoke.ui.spec.ts): klik diulang sampai pesan error envelope tampil.
       await recurse(
         async () => {
-          await page.getByRole('button', { name: 'Daftar dengan Akun Google' }).click()
+          await page.getByRole('button', { name: 'Daftar' }).click()
           return page.getByText(/sudah terdaftar/i).isVisible()
         },
         tampil => tampil === true,
