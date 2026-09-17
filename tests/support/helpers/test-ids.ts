@@ -33,4 +33,13 @@ export const TEST_IDS = {
     badgeStatus: 'status-badge',
     alasanPenolakan: 'status-alasan-penolakan',
   },
+  // Story 1.3 — audit trail (kontrak ATDD red-phase; elemen halaman
+  // /audit-trail diimplementasikan dengan data-testid ini).
+  auditTrail: {
+    halaman: 'audit-trail-halaman',
+    tabel: 'audit-trail-tabel',
+    baris: 'audit-trail-baris',
+    kosong: 'audit-trail-kosong',
+    paginasi: 'audit-trail-paginasi',
+  },
 } as const
