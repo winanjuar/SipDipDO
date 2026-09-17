@@ -22,4 +22,15 @@ export const TEST_IDS = {
     otpValue: 'otp-value',
     toast: 'smoke-toast',
   },
+  // Story 1.2 — autentikasi & halaman login (kontrak ATDD red-phase;
+  // elemen dihalaman diimplementasikan dengan data-testid ini).
+  login: {
+    brandLogo: 'login-brand-logo',
+    ctaGoogle: 'login-cta-google',
+    pesanUnlinked: 'login-pesan-unlinked',
+  },
+  statusPendaftaran: {
+    badgeStatus: 'status-badge',
+    alasanPenolakan: 'status-alasan-penolakan',
+  },
 } as const

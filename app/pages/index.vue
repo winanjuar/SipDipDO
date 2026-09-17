@@ -1,18 +1,35 @@
 <script setup lang="ts">
-// Kerangka landing scaffold (Story 1.1) — landing sesuai role menyusul di
-// Story 1.2 (UX-DR14). Halaman ini hanya memastikan `/` ter-render SSR dengan
-// header no-store (verifikasi AD-12).
+import type { LandingRespons } from '~/lib/landing'
+import { HTTP_SERVER_ERROR, HTTP_UNAUTHORIZED } from '~/lib/landing'
+
+/**
+ * Resolver landing SSR (UX-DR14) — redirect murni, tanpa konten:
+ * tanpa sesi → `/login`; sesi unlinked → `/login?state=unlinked`; selain itu
+ * `navigateTo(path)` dari `/api/landing` (keputusan dievaluasi server-side,
+ * AD-8 — klien hanya meneruskan). Kerangka scaffold Story 1.1 digantikan.
+ */
+definePageMeta({ auth: false })
+
+const api = useRequestFetch()
+
+try {
+  const landing = await api<LandingRespons>('/api/landing')
+  if ('unlinked' in landing) {
+    await navigateTo('/login?state=unlinked')
+  } else {
+    await navigateTo(landing.path)
+  }
+} catch (error) {
+  // HANYA 401 yang berarti belum login — error lain (5xx/DB mati) diteruskan
+  // ke error page, jangan tersamar menjadi redirect login.
+  const statusCode = (error as { statusCode?: number } | null | undefined)?.statusCode
+  if (statusCode !== HTTP_UNAUTHORIZED) {
+    throw createError({ statusCode: statusCode ?? HTTP_SERVER_ERROR, statusMessage: 'Gagal menentukan halaman landing.', cause: error })
+  }
+  await navigateTo('/login')
+}
 </script>
 
 <template>
-  <main class="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
-    <h1 class="text-3xl font-semibold text-primary">Sip &amp; Dip</h1>
-    <p class="text-muted-foreground">Owner Dashboard</p>
-    <NuxtLink
-      to="/smoke"
-      class="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm font-medium"
-    >
-      Halaman smoke substrat
-    </NuxtLink>
-  </main>
+  <div />
 </template>
