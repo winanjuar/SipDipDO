@@ -27,9 +27,18 @@
  * (jalur unlinked adalah redirect produk, bukan 4xx/5xx tersembunyi), sehingga
  * anotasi `skipNetworkMonitoring` tidak digunakan.
  */
+import { faker } from '@faker-js/faker/locale/id_ID'
 import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
 import { mintSesiPemilik } from '../support/helpers/sesi-minting'
+
+/** Email sintetis unik pola mint dev-only (prefix terkunci agar tak pernah
+ *  menimpa baris non-sintetis — pola pendaftaran.api.spec.ts; dipakai bila
+ *  auto-submit /pendaftaran akan MEMBUAT baris owner untuk email mint). */
+const emailSintetisUji = (): string => {
+  const lokalUji = faker.internet.username().toLowerCase().replace(/[^a-z0-9]+/g, '.')
+  return `uji.snddash.e2e.${lokalUji}@gmail.com`
+}
 
 /** Halaman terproteksi (landing map ter-pin) — proteksi SSR diharapkan seragam. */
 const HALAMAN_TERPROTEKSI = ['/dashboard', '/personal', '/antrian-beli', '/status-pendaftaran'] as const
@@ -178,6 +187,40 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       'Owner eksisting: hubungi COO untuk pencocokan email migrasi.'
     await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked)).toContainText(PESAN_UNLINKED)
   })
+
+  test(
+    '[P2] tautan pendaftaran dari login — anonim "Mau daftar?" & unlinked "lanjutkan pendaftaran"',
+    { annotation: [{ type: 'skipNetworkMonitoring' }] },
+    async ({ page, context, apiRequest }) => {
+      // skipNetworkMonitoring: klik tautan = navigasi klien ke /pendaftaran —
+      // resolver /api/landing di browser anonim menjawab 401 envelope yang
+      // DITANGKAP halaman (useAsyncData catch → mode anonim); 401 ini produk
+      // sah, bukan bug jaringan.
+      await log.step('GIVEN pengunjung anonim membuka halaman login')
+      await page.goto('/login')
+
+      await log.step('WHEN menekan tautan "Mau daftar?"')
+      await page.getByTestId(TEST_IDS.login.tautanDaftar).click()
+
+      await log.step('THEN mendarat di halaman pendaftaran publik')
+      await expect(page).toHaveURL(/\/pendaftaran$/)
+
+      // Email unik WAJIB: email mint deterministik persona 'unlinked' dipakai
+      // bersama test lain — auto-submit /pendaftaran (Story 1.4) akan MEMBUAT
+      // baris owner untuk email ini; email unik mencegah polusi antar-test.
+      await log.step("GIVEN sesi 'unlinked' dengan email sintetis UNIK kembali ke login dengan pesan arahan")
+      const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
+      await context.addCookies(cookies)
+      await page.goto('/login?state=unlinked')
+
+      await log.step('WHEN menekan tautan "lanjutkan pendaftaran" di dalam pesan arahan')
+      await page.getByRole('link', { name: 'lanjutkan pendaftaran' }).click()
+
+      await log.step('THEN mendarat di pendaftaran lalu auto-submit (Story 1.4) mengarahkan ke status dengan badge Diajukan')
+      await expect(page).toHaveURL(/\/status-pendaftaran$/, { timeout: 15_000 })
+      await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
+    },
+  )
 
   test('[P2] calon owner diajukan dan kedaluwarsa juga dialandingkan ke halaman status', async ({ page, context, apiRequest }) => {
     for (const { status, userIdentifier, labelBadge } of STATUS_CALON_KE_STATUS) {

@@ -28,6 +28,7 @@ export const TEST_IDS = {
     brandLogo: 'login-brand-logo',
     ctaGoogle: 'login-cta-google',
     pesanUnlinked: 'login-pesan-unlinked',
+    tautanDaftar: 'login-tautan-daftar',
   },
   statusPendaftaran: {
     badgeStatus: 'status-badge',

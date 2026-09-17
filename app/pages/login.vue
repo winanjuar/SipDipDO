@@ -1,21 +1,18 @@
 <script setup lang="ts">
 /**
  * Halaman Login publik (UX-DR3/DR15): lockup logo 80px terpusat + tagline +
- * SATU CTA Google. Akun Google belum terhubung (`?state=unlinked`) → pesan
- * arahan verbatim. Halaman TIDAK terproteksi (auth: false) — tanpa navigasi
- * app (Story 1.7). Kegagalan/batal OAuth (`?error=…` callback Google) kembali
- * ke halaman ini tanpa crash, dengan pemberitahuan netral (tanpa pesan
- * menyesatkan).
+ * SATU CTA Google + tautan pendaftaran (Story 1.4): "Mau daftar?" untuk
+ * pengunjung anonim; frasa "lanjutkan pendaftaran" pada pesan unlinked
+ * menaut ke /pendaftaran — teks pesan verbatim UX-DR15 tidak berubah (pin
+ * verbatim di tests/e2e/auth-landing.spec.ts). Halaman TIDAK terproteksi
+ * (auth: false) — tanpa navigasi app (Story 1.7). Kegagalan/batal OAuth
+ * (`?error=…` callback Google) kembali ke halaman ini tanpa crash, dengan
+ * pemberitahuan netral (tanpa pesan menyesatkan).
  */
 definePageMeta({ auth: false })
 
 const { signIn } = useAuth()
 const route = useRoute()
-
-/** Pesan arahan verbatim UX-DR15 — teks kontrak, tidak boleh diubah. */
-const PESAN_UNLINKED =
-  'Akun Google ini belum terhubung. Pendaftar: lanjutkan pendaftaran. '
-  + 'Owner eksisting: hubungi COO untuk pencocokan email migrasi.'
 
 const unlinked = computed(() => route.query.state === 'unlinked')
 /** Callback Google membawa error (batal/ditolak) — pemberitahuan netral.
@@ -62,7 +59,9 @@ useHead({ title: 'Masuk — Sip & Dip' })
         class="rounded-md border p-3 text-sm leading-relaxed text-foreground"
         aria-live="polite"
       >
-        {{ PESAN_UNLINKED }}
+        Akun Google ini belum terhubung. Pendaftar:
+        <NuxtLink to="/pendaftaran" class="font-medium text-primary underline underline-offset-4">lanjutkan pendaftaran</NuxtLink>.
+        Owner eksisting: hubungi COO untuk pencocokan email migrasi.
       </p>
 
       <p
@@ -71,6 +70,11 @@ useHead({ title: 'Masuk — Sip & Dip' })
         aria-live="polite"
       >
         Percobaan masuk belum selesai — silakan coba lagi.
+      </p>
+
+      <p v-else class="text-sm text-muted-foreground">
+        Belum jadi owner?
+        <NuxtLink data-testid="login-tautan-daftar" to="/pendaftaran" class="font-medium text-primary underline underline-offset-4">Mau daftar?</NuxtLink>
       </p>
     </div>
   </main>
