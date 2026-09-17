@@ -19,3 +19,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-autentikasi-akun-google-halaman-login.md`
   summary: Putuskan nasib perubahan `.bmad-loop/policy.toml` (max_tokens_per_story 2M→3M, rollback_on_failure false→true) — pisahkan commit sendiri atau revert.
   evidence: Perubahan dibuat harness bmad-loop di luar pekerjaan story; ikut ter-stage karena `git add -A` step-03. Keputusan milik user; jangan ikut commit story tanpa justifikasi.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-audit-trail-pencatatan-tampilan-coo.md`
+  summary: Otomasi penegakan append-only `audit_logs` di level env/CI — script `db:grants`, ALTER DEFAULT PRIVILEGES untuk tabel baru, penerapan role `app_runtime` pada `NUXT_DATABASE_URL` lokal, dan asersi permission-denied otomatis.
+  evidence: Grants/role kini hanya diverifikasi manual via runbook psql (spec mem-prescribe manual; absennya harness DB-assert pre-date story ini); REVOKE tidak mengikat superuser sehingga env yang melewatkan runbook berjalan tanpa penegakan tanpa ada test yang merah. Penyelesaiannya = infra CI/harness DB (kandidat bmad-testarch-ci atau pekerjaan ops pra-produksi).
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-audit-trail-pencatatan-tampilan-coo.md`
+  summary: Test state "gagal muat → Coba lagi" halaman `/audit-trail` — butuh infra component-test (fetch terjadi SSR sehingga tak bisa dipaksa gagal dari e2e).
+  evidence: Dicatat sadar di Design Notes spec saat step-03; dua review layer (verification-gap, blind-hunter) mengonfirmasi gap; component-test belum ada di repo — infrastruktur itu sendiri adalah prasyarat yang di luar scope story ini.

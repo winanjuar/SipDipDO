@@ -1,20 +1,23 @@
 /**
- * ATDD RED-PHASE (TDD RED) — Story 1.3 "Audit Trail — Pencatatan & Tampilan COO".
+ * ATDD GREEN-PHASE — Story 1.3 "Audit Trail — Pencatatan & Tampilan COO".
  *
- * Scaffold FASE MERAH: SEMUA test di-skip (`test.skip`) sampai developer
- * mengaktifkannya satu per satu pada tugas green-phase Story 1.3. Kontrak
- * yang diperiksa = matriks I/O spec Story 1.3 (beku):
+ * Test dirancang red-phase (test.skip) lalu diaktifkan pada tugas green-phase
+ * bersama implementasinya; seluruh asersi ter-pin dari red-phase tidak
+ * berubah. Kontrak yang diperiksa = matriks I/O spec Story 1.3 (beku):
  * - GET /api/audit tanpa sesi            → 401 envelope { code, message, details }
- * - GET /api/audit sesi non-COO          → 403 envelope (status baru HTTP_STATUS.forbidden)
+ * - GET /api/audit sesi non-COO          → 403 envelope (HTTP_STATUS.forbidden)
  * - GET /api/audit?page=bukan-angka      → 400 envelope
  * - GET /api/audit sesi COO              → 200 { data, nextPage } urut created_at desc,
  *                                          nextPage null bila habis, LIMIT 100
  * - POST /api/test/audit-seed (dev-only) → triple-guard pola login.post.ts
  *
- * ASUMSI KONTRAK SEED (diselaraskan saat implementasi green-phase): body
- * `{ jumlah: <n> }` + header TEST_AUTH_SECRET — spec hanya mem-pin
- * keberadaan endpoint seed dev-only triple-guard (pola
- * server/api/test/login.post.ts), bentuk body-nya belum di-pin.
+ * Kontrak seed terwujud: body `{ jumlah: <n> }` + header TEST_AUTH_SECRET
+ * (server/api/test/audit-seed.post.ts — menulis via API publik modul audit
+ * dalam satu transaksi, AD-3). Test stateful menjamin prekondisinya sendiri
+ * via helper dev-only `denganAuditKosong` (TRUNCATE koneksi ADMIN + advisory
+ * lock antar project browser, lihat tests/support/helpers/audit-reset.ts) —
+ * asersi ter-pin tidak berubah; grants role `app_runtime` tetap menutup
+ * jalur tulis runtime (reset bukan jalur aplikasi).
  *
  * Pact: use_pactjs_utils=true TETAPI gerbang relevansi TUTUP (satu aplikasi,
  * bukan microservices) → TIDAK ada contract test di story ini.
@@ -23,17 +26,44 @@
  * via `apiRequest` (bukan request mentah); validasi zod via metode promise
  * `.validateSchema(skema)` (kontrak library — BUKAN opsi params); `log.step` untuk
  * milestone GIVEN/WHEN/THEN; tanpa console.log, tanpa waitForTimeout.
- * Registry AUDIT (shared/domain/audit) SENGAJA tidak diimpor — berkasnya
- * baru lahir saat green-phase sehingga impor akan mematahkan typecheck
- * fase merah.
  */
-import type { Cookie } from '@playwright/test'
+import type { Cookie, Playwright } from '@playwright/test'
 import { z } from 'zod'
 import { test, expect, log } from '../support/merged-fixtures'
 import { mintSesiPemilik } from '../support/helpers/sesi-minting'
+import { denganAuditKosong } from '../support/helpers/audit-reset'
 
 /** Secret guard endpoint dev-only — fallback wajib identik env TEST_AUTH_SECRET uji lokal. */
 const SECRET_TEST_AUTH = process.env.TEST_AUTH_SECRET ?? 'test-secret-lokal'
+
+/** Derivasi cookie sesi (pola landing.api.spec.ts) — varian __Secure- di https. */
+const BASE_URL_UJI = process.env.BASE_URL ?? 'http://localhost:3000'
+const DOMAIN_BASE_URL = new URL(BASE_URL_UJI).hostname
+const COOKIE_AMAN = new URL(BASE_URL_UJI).protocol === 'https:'
+const NAMA_COOKIE_SESSION = COOKIE_AMAN ? '__Secure-next-auth.session-token' : 'next-auth.session-token'
+
+/** Context request ber-cookie sesi yang ikut dikirim di SETIAP hop — dipakai
+ *  test yang menyangkut redirect (Cookie manual tidak di-replay antar hop;
+ *  pola /api/pendaftaran/status di landing.api.spec.ts). */
+const contextCookiePerHop = async (
+  playwright: Playwright,
+  token: string,
+) => playwright.request.newContext({
+  baseURL: BASE_URL_UJI,
+  storageState: {
+    cookies: [{
+      name: NAMA_COOKIE_SESSION,
+      value: token,
+      domain: DOMAIN_BASE_URL,
+      path: '/',
+      expires: -1,
+      httpOnly: true,
+      secure: COOKIE_AMAN,
+      sameSite: 'Lax',
+    }],
+    origins: [],
+  },
+})
 
 /** LIMIT halaman /api/audit — spec matriks I/O: "LIMIT konstanta bernama (100)". */
 const BATAS_HALAMAN_AUDIT = 100
@@ -118,7 +148,7 @@ async function seedAuditUji(apiRequest: ApiRequestUji, jumlah: number): Promise<
 }
 
 test.describe('[P0] GET /api/audit tanpa sesi (AD-8 wajib auth)', () => {
-  test.skip('[P0] /api/audit menolak tanpa sesi dengan envelope 401 seragam', async ({ apiRequest }) => {
+  test('[P0] /api/audit menolak tanpa sesi dengan envelope 401 seragam', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint /api/audit belum ada; validasi
     // SkemaEnvelopeError melempar sebelum asersi status tercapai.
     await log.step('GIVEN permintaan GET /api/audit tanpa cookie sesi')
@@ -137,7 +167,7 @@ test.describe('[P0] GET /api/audit tanpa sesi (AD-8 wajib auth)', () => {
 })
 
 test.describe('[P0] GET /api/audit sesi non-COO (status 403 baru)', () => {
-  test.skip('[P0] /api/audit menolak pemegang-saham dengan envelope 403', async ({ apiRequest }) => {
+  test('[P0] /api/audit menolak pemegang-saham dengan envelope 403', async ({ apiRequest }) => {
     // GAGAL saat red: GET /api/audit menjawab 404 (endpoint belum ada) — 403
     // menuntut HTTP_STATUS.forbidden yang baru ditambahkan saat green-phase.
     await log.step('GIVEN sesi pemegang saham (role ≠ coo) dari endpoint mint dev-only')
@@ -158,7 +188,7 @@ test.describe('[P0] GET /api/audit sesi non-COO (status 403 baru)', () => {
 })
 
 test.describe('[P1] GET /api/audit query page tidak valid', () => {
-  test.skip('[P1] /api/audit?page=bukan-angka ditolak dengan envelope 400', async ({ apiRequest }) => {
+  test('[P1] /api/audit?page=bukan-angka ditolak dengan envelope 400', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint /api/audit belum ada; validasi envelope
     // gagal lebih dulu.
     await log.step('GIVEN sesi COO aktif')
@@ -178,86 +208,112 @@ test.describe('[P1] GET /api/audit query page tidak valid', () => {
 })
 
 test.describe('[P1] GET /api/audit sesi COO setelah seed', () => {
-  test.skip('[P1] /api/audit mengembalikan { data, nextPage } urut created_at desc setelah seed', async ({ apiRequest }) => {
+  test('[P1] /api/audit mengembalikan { data, nextPage } urut created_at desc setelah seed', async ({ apiRequest }) => {
     // GAGAL saat red: baseline GET /api/audit menjawab 404 (endpoint belum
-    // ada) sebelum seed maupun asersi manapun.
-    await log.step('GIVEN sesi COO dan baseline daftar audit terbaca')
-    const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
-    const headerCookie = headerCookieDariMint(cookieSesi)
+    // ada) sebelum seed maupun asersi manapun. Reset dev-only menjamin
+    // baseline terukur walau tabel pernah berisi (asersi tak diubah).
+    await denganAuditKosong(async () => {
+      await log.step('GIVEN sesi COO dan baseline daftar audit terbaca')
+      const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+      const headerCookie = headerCookieDariMint(cookieSesi)
 
-    const jawabBaseline = await apiRequest<DaftarAudit>({
-      method: 'GET',
-      path: '/api/audit',
-      headers: headerCookie,
-    }).validateSchema(SkemaDaftarAudit)
-    expect(jawabBaseline.status).toBe(200)
-    const baseline = jawabBaseline.body.data.length
+      const jawabBaseline = await apiRequest<DaftarAudit>({
+        method: 'GET',
+        path: '/api/audit',
+        headers: headerCookie,
+      }).validateSchema(SkemaDaftarAudit)
+      expect(jawabBaseline.status).toBe(200)
+      const baseline = jawabBaseline.body.data.length
 
-    await log.step(`WHEN endpoint seed menambah ${JUMLAH_SEED_DASAR} entry lalu COO membaca ulang (default page 1)`)
-    await seedAuditUji(apiRequest, JUMLAH_SEED_DASAR)
-    const { status, body } = await apiRequest<DaftarAudit>({
-      method: 'GET',
-      path: '/api/audit',
-      headers: headerCookie,
-    }).validateSchema(SkemaDaftarAudit)
+      await log.step(`WHEN endpoint seed menambah ${JUMLAH_SEED_DASAR} entry lalu COO membaca ulang (default page 1)`)
+      await seedAuditUji(apiRequest, JUMLAH_SEED_DASAR)
+      const { status, body } = await apiRequest<DaftarAudit>({
+        method: 'GET',
+        path: '/api/audit',
+        headers: headerCookie,
+      }).validateSchema(SkemaDaftarAudit)
 
-    await log.step('THEN 200 { data, nextPage } — entry hasil seed bertambah dan urut created_at desc (tie diizinkan: seed satu tx punya now() sama)')
-    expect(status).toBe(200)
-    expect(body.data.length).toBeGreaterThanOrEqual(baseline + JUMLAH_SEED_DASAR)
-    for (let i = 0; i < body.data.length - 1; i += 1) {
-      expect(
-        body.data[i].createdAt >= body.data[i + 1].createdAt,
-        `urutan desc pada indeks ${i}: ${body.data[i].createdAt} >= ${body.data[i + 1].createdAt}`,
-      ).toBe(true)
-    }
+      await log.step('THEN 200 { data, nextPage } — entry hasil seed bertambah dan urut created_at desc (tie diizinkan: seed satu tx punya now() sama)')
+      expect(status).toBe(200)
+      expect(body.data.length).toBeGreaterThanOrEqual(baseline + JUMLAH_SEED_DASAR)
+      for (let i = 0; i < body.data.length - 1; i += 1) {
+        expect(
+          body.data[i].createdAt >= body.data[i + 1].createdAt,
+          `urutan desc pada indeks ${i}: ${body.data[i].createdAt} >= ${body.data[i + 1].createdAt}`,
+        ).toBe(true)
+      }
+    })
   })
 })
 
 test.describe('[P2] Paging GET /api/audit', () => {
-  test.skip('[P2] nextPage non-null meneruskan halaman berikutnya dan null saat habis', async ({ apiRequest }) => {
+  test('[P2] nextPage non-null meneruskan halaman berikutnya dan null saat habis', async ({ apiRequest }) => {
     // GAGAL saat red: POST /api/test/audit-seed menjawab 404 (endpoint seed
-    // belum ada) — asersi status seed menjadi kegagalan pertama.
-    await log.step(`GIVEN sesi COO dan seed ${JUMLAH_SEED_PAGING} entry audit (LIMIT + 1)`)
-    const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
-    const headerCookie = headerCookieDariMint(cookieSesi)
-    await seedAuditUji(apiRequest, JUMLAH_SEED_PAGING)
+    // belum ada) — asersi status seed menjadi kegagalan pertama. Reset
+    // dev-only menjamin paging berakhir tepat (asersi tak diubah).
+    await denganAuditKosong(async () => {
+      await log.step(`GIVEN sesi COO dan seed ${JUMLAH_SEED_PAGING} entry audit (LIMIT + 1)`)
+      const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+      const headerCookie = headerCookieDariMint(cookieSesi)
+      await seedAuditUji(apiRequest, JUMLAH_SEED_PAGING)
 
-    await log.step('WHEN COO membaca halaman 1')
-    const halaman1 = await apiRequest<DaftarAudit>({
-      method: 'GET',
-      path: '/api/audit?page=1',
-      headers: headerCookie,
-    }).validateSchema(SkemaDaftarAudit)
-    expect(halaman1.status).toBe(200)
-    // Spec mem-pin LIMIT konstanta bernama (100); seed LIMIT+1 menjamin
-    // halaman 1 penuh tanpa bergantung jumlah baris lain di DB dev.
-    expect(halaman1.body.data.length).toBe(BATAS_HALAMAN_AUDIT)
-    expect(halaman1.body.nextPage, 'baris > LIMIT → harus ada halaman lanjutan').not.toBeNull()
-
-    await log.step('THEN halaman lanjutan memuat sisa entry tanpa duplikasi halaman 1 sampai nextPage null')
-    const idHalaman1 = new Set(halaman1.body.data.map(entry => entry.id))
-    let nextPage = halaman1.body.nextPage
-    let halamanDilintasi = 1
-    while (nextPage !== null && halamanDilintasi < BATAS_MAKS_HALAMAN_DILINTAS) {
-      const lanjutan = await apiRequest<DaftarAudit>({
+      await log.step('WHEN COO membaca halaman 1')
+      const halaman1 = await apiRequest<DaftarAudit>({
         method: 'GET',
-        path: `/api/audit?page=${String(nextPage)}`,
+        path: '/api/audit?page=1',
         headers: headerCookie,
       }).validateSchema(SkemaDaftarAudit)
-      expect(lanjutan.status).toBe(200)
-      expect(lanjutan.body.data.length, 'halaman lanjutan tidak kosong').toBeGreaterThan(0)
-      for (const entry of lanjutan.body.data) {
-        expect(idHalaman1.has(entry.id), `entry ${entry.id} tidak boleh terulang antar halaman`).toBe(false)
+      expect(halaman1.status).toBe(200)
+      // Spec mem-pin LIMIT konstanta bernama (100); seed LIMIT+1 menjamin
+      // halaman 1 penuh tanpa bergantung jumlah baris lain di DB dev.
+      expect(halaman1.body.data.length).toBe(BATAS_HALAMAN_AUDIT)
+      expect(halaman1.body.nextPage, 'baris > LIMIT → harus ada halaman lanjutan').not.toBeNull()
+
+      await log.step('THEN halaman lanjutan memuat sisa entry tanpa duplikasi halaman 1 sampai nextPage null')
+      const idHalaman1 = new Set(halaman1.body.data.map(entry => entry.id))
+      let nextPage = halaman1.body.nextPage
+      let halamanDilintasi = 1
+      while (nextPage !== null && halamanDilintasi < BATAS_MAKS_HALAMAN_DILINTAS) {
+        const lanjutan = await apiRequest<DaftarAudit>({
+          method: 'GET',
+          path: `/api/audit?page=${String(nextPage)}`,
+          headers: headerCookie,
+        }).validateSchema(SkemaDaftarAudit)
+        expect(lanjutan.status).toBe(200)
+        expect(lanjutan.body.data.length, 'halaman lanjutan tidak kosong').toBeGreaterThan(0)
+        for (const entry of lanjutan.body.data) {
+          expect(idHalaman1.has(entry.id), `entry ${entry.id} tidak boleh terulang antar halaman`).toBe(false)
+        }
+        nextPage = lanjutan.body.nextPage
+        halamanDilintasi += 1
       }
-      nextPage = lanjutan.body.nextPage
-      halamanDilintasi += 1
-    }
-    expect(nextPage, 'paging berakhir: nextPage null bila habis').toBeNull()
+      expect(nextPage, 'paging berakhir: nextPage null bila habis').toBeNull()
+    })
+  })
+})
+
+test.describe('[P1] GET /api/audit sesi unlinked', () => {
+  // Sesi mint TANPA baris owner — akun Google tak terhubung pendaftar mana pun.
+  test.use({ authOptions: { userIdentifier: 'unlinked' } })
+
+  test('[P1] /api/audit me-redirect unlinked ke /login?state=unlinked', async ({ playwright, authToken }) => {
+    await log.step('GIVEN sesi akun Google tanpa baris owner (unlinked)')
+
+    const ctxCookiePerHop = await contextCookiePerHop(playwright, authToken)
+
+    await log.step('WHEN GET /api/audit membawa cookie sesi unlinked (redirect diikuti)')
+    const response = await ctxCookiePerHop.get('/api/audit')
+    await response.text()
+    await ctxCookiePerHop.dispose()
+
+    await log.step('THEN redirect terlayani sampai dokumen /login?state=unlinked')
+    expect(response.status()).toBe(200)
+    expect(response.url()).toContain('/login?state=unlinked')
   })
 })
 
 test.describe('[P1] Guard endpoint seed audit (dev-only)', () => {
-  test.skip('[P1] /api/test/audit-seed menolak tanpa header TEST_AUTH_SECRET', async ({ apiRequest }) => {
+  test('[P1] /api/test/audit-seed menolak tanpa header TEST_AUTH_SECRET', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint seed belum ada. Setelah green-phase,
     // triple-guard (pola server/api/test/login.post.ts) menjawab 401 envelope.
     await log.step('GIVEN POST /api/test/audit-seed TANPA header TEST_AUTH_SECRET')

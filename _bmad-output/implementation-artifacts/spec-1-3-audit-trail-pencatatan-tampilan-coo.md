@@ -2,9 +2,10 @@
 title: 'Audit Trail — Pencatatan & Tampilan COO'
 type: 'feature'
 created: '2026-09-17'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
+baseline_commit: '5aa1ffa53b7e4e5dce7d7a98fec809e134d92999'
 context:
   - '_bmad-output/planning-artifacts/architecture/architecture-snd-dash-2026-09-15/ARCHITECTURE-SPINE.md'
 ---
@@ -67,19 +68,19 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `shared/domain/audit.ts` + `shared/domain/audit.test.ts` -- registry `AUDIT_ACTIONS` (as const, aksi Epic 1 yang disebut epik: pendaftaran/verifikasi/penolakan/kedaluwarsa/kelengkapan/kelola-owner/pergantian-coo + `system` bila perlu), tipe `AuditAction`/`AuditActor`/`AuditEntryInput`, guard `isAuditAction`; unit test guard & kelengkapan union -- kontrak murni lintas lapis (AD-3).
-- [ ] `drizzle/schema.ts` + `npm run db:generate` -- tabel `auditLogs` (`id` uuid pk, `actor_owner_id` uuid null FK `owners.id` — null = system, `action` text notNull, `target` text, `details` jsonb notNull default '{}', `created_at` timestamptz notNull default now(), index `created_at`) -- milik modul AUDIT (AD-5); migrasi baru di-apply (`db:migrate`), jangan sentuh migrasi lama.
-- [ ] `drizzle/runtime-role.sql` + `drizzle/grants.sql` + `README.md` + `.env.example` -- role `app_runtime` + grants append-only (REVOKE UPDATE/DELETE/TRUNCATE; GRANT SELECT/INSERT pada tabel aplikasi) + runbook penerapan & migrasi koneksi `NUXT_DATABASE_URL` ke `app_runtime` -- keputusan penuh 2026-09-17.
-- [ ] `server/domain/audit/audit.repo.ts` -- `insertAuditEntry(tx, row)` INSERT-only; `listAuditEntries(db, { limit, offset })` SELECT urut `created_at` desc; Drizzle hanya di sini -- insert-only adalah separuh penegakan "tanpa jalur UPDATE/DELETE".
-- [ ] `server/domain/audit/audit.service.ts` + `index.ts` + `audit.service.test.ts` + `audit.repo.test.ts` -- `writeAuditEntry(tx, input)` validasi registry + kewajiban `tx` lalu insert; `listForCoo(db, page)` komposisi baca; barrel re-ekspor selektif (pintu lintas modul AD-5); unit test stub-repo (aksi di luar registry, tanpa tx, paging) -- menutup matriks I/O.
-- [ ] `server/utils/api-error.ts` -- tambah `forbidden: 403` pada `HTTP_STATUS` -- bentuk envelope tidak berubah.
-- [ ] `server/api/audit/index.get.ts` -- tipis: `getSessionEmail` → 401; `buildPrincipal` → unlinked redirect `/login?state=unlinked`; role ≠ `coo` → 403; parse `page` → `listForCoo` → `{ data, nextPage }` -- pola `status.get.ts`; penegakan AD-8 per-request.
-- [ ] `app/components/ui/table/` -- generate komponen Table shadcn -- dasar tabel audit.
-- [ ] `app/pages/audit-trail.vue` -- `definePageMeta({ auth: true })`; fetch SSR `/api/audit`; non-COO redirect `LANDING_PATH[role]`; tabel (kolom pertama sticky di mobile, angka `tabular-nums`, waktu id-ID zona Asia/Jakarta, JSON detail terpotong konstan bernama); empty state; paginasi tautan (tanpa infinite scroll) -- AC tampilan COO (FR-12).
-- [ ] `tests/support/helpers/test-ids.ts` -- blok `TEST_IDS` audit (halaman, tabel, paginasi, empty state).
-- [ ] `server/api/test/audit-seed.post.ts` -- seed entry uji dev-only triple-guard (pola `login.post.ts`, email terbatas domain uji) menulis lewat API publik modul audit dalam satu tx -- data uji e2e tanpa menulis tabel tetangga; pembersihan menyusul kontrak 1.4.
-- [ ] `tests/e2e/audit-trail.spec.ts` -- COO: seed → halaman tampil daftar (aktor/waktu/detail); `pemegang-saham`: URL langsung → redirect landing; tanpa sesi → `/login` -- mencakup sisi halaman `1-API-006` + `1-E2E-002`.
-- [ ] `README.md` -- runbook alur audit (endpoint, halaman, penerapan grants) -- tanpa rahasia di repo.
+- [x] `shared/domain/audit.ts` + `shared/domain/audit.test.ts` -- registry `AUDIT_ACTIONS` (as const, aksi Epic 1 yang disebut epik: pendaftaran/verifikasi/penolakan/kedaluwarsa/kelengkapan/kelola-owner/pergantian-coo + `system` bila perlu), tipe `AuditAction`/`AuditActor`/`AuditEntryInput`, guard `isAuditAction`; unit test guard & kelengkapan union -- kontrak murni lintas lapis (AD-3).
+- [x] `drizzle/schema.ts` + `npm run db:generate` -- tabel `auditLogs` (`id` uuid pk, `actor_owner_id` uuid null FK `owners.id` — null = system, `action` text notNull, `target` text, `details` jsonb notNull default '{}', `created_at` timestamptz notNull default now(), index `created_at`) -- milik modul AUDIT (AD-5); migrasi baru di-apply (`db:migrate`), jangan sentuh migrasi lama.
+- [x] `drizzle/runtime-role.sql` + `drizzle/grants.sql` + `README.md` + `.env.example` -- role `app_runtime` + grants append-only (REVOKE UPDATE/DELETE/TRUNCATE; GRANT SELECT/INSERT pada tabel aplikasi) + runbook penerapan & migrasi koneksi `NUXT_DATABASE_URL` ke `app_runtime` -- keputusan penuh 2026-09-17.
+- [x] `server/domain/audit/audit.repo.ts` -- `insertAuditEntry(tx, row)` INSERT-only; `listAuditEntries(db, { limit, offset })` SELECT urut `created_at` desc; Drizzle hanya di sini -- insert-only adalah separuh penegakan "tanpa jalur UPDATE/DELETE".
+- [x] `server/domain/audit/audit.service.ts` + `index.ts` + `audit.service.test.ts` + `audit.repo.test.ts` -- `writeAuditEntry(tx, input)` validasi registry + kewajiban `tx` lalu insert; `listForCoo(db, page)` komposisi baca; barrel re-ekspor selektif (pintu lintas modul AD-5); unit test stub-repo (aksi di luar registry, tanpa tx, paging) -- menutup matriks I/O.
+- [x] `server/utils/api-error.ts` -- tambah `forbidden: 403` pada `HTTP_STATUS` -- bentuk envelope tidak berubah.
+- [x] `server/api/audit/index.get.ts` -- tipis: `getSessionEmail` → 401; `buildPrincipal` → unlinked redirect `/login?state=unlinked`; role ≠ `coo` → 403; parse `page` → `listForCoo` → `{ data, nextPage }` -- pola `status.get.ts`; penegakan AD-8 per-request.
+- [x] `app/components/ui/table/` -- generate komponen Table shadcn -- dasar tabel audit.
+- [x] `app/pages/audit-trail.vue` -- `definePageMeta({ auth: true })`; fetch SSR `/api/audit`; non-COO redirect `LANDING_PATH[role]`; tabel (kolom pertama sticky di mobile, angka `tabular-nums`, waktu id-ID zona Asia/Jakarta, JSON detail terpotong konstanta bernama); empty state; paginasi tautan (tanpa infinite scroll) -- AC tampilan COO (FR-12).
+- [x] `tests/support/helpers/test-ids.ts` -- blok `TEST_IDS` audit (halaman, tabel, paginasi, empty state).
+- [x] `server/api/test/audit-seed.post.ts` -- seed entry uji dev-only triple-guard (pola `login.post.ts`, email terbatas domain uji) menulis lewat API publik modul audit dalam satu tx -- data uji e2e tanpa menulis tabel tetangga; pembersihan menyusul kontrak 1.4.
+- [x] `tests/e2e/audit-trail.spec.ts` -- COO: seed → halaman tampil daftar (aktor/waktu/detail); `pemegang-saham`: URL langsung → redirect landing; tanpa sesi → `/login` -- mencakup sisi halaman `1-API-006` + `1-E2E-002`.
+- [x] `README.md` -- runbook alur audit (endpoint, halaman, penerapan grants) -- tanpa rahasia di repo.
 
 **Acceptance Criteria:**
 - Given modul AUDIT dan tabel `audit_logs` dibuat via migrasi Drizzle, when skema dan grants diterapkan, then tidak ada jalur UPDATE/DELETE pada `audit_logs` (repo INSERT/SELECT saja + REVOKE DB) dan setiap entry ditulis dalam transaksi yang sama dengan aksinya (helper menolak tanpa `tx`) — tidak pernah async.
@@ -102,12 +103,46 @@ context:
 
 ## Review Triage Log
 
+| # | Temuan (layer) | Vonis | Bukti & Rute |
+|---|---|---|---|
+| 1 | Unit fake membuang argumen `orderBy` — urutan newest-first bisa regress tanpa test merah; asersi desc e2e vacuous (seed 1 tx = `now()` identik) (verification-gap) | medium | Pre-terverifikasi + demonstrasi pengreview sah (ubah ke asc → semua hijau). → **patch** #1 |
+| 2 | Branch `unlinked` GET /api/audit & halaman /audit-trail tanpa test (endpoint saudara punya precedent) (verification-gap) | medium | Pre-terverifikasi; redirect salah tak terdeteksi suite. → **patch** #2 |
+| 3 | `idle_timeout: 5` di helper reset dapat menutup koneksi pemegang advisory lock saat body test >5s — lock lepas diam-diam, serialisasi batal (blind-hunter, edge-case) | medium | Terverifikasi: postgres.js menutup koneksi idle; sesi mati = lock lepas. → **patch** #3 |
+| 4 | `parseInt('?page=')` longgar: `'2abc'`→2 (kontrak 400 dilanggar), `1e21`→integer→bind bigint gagal→500; duplikasi parser API vs halaman (blind-hunter, edge-case) | low | Terverifikasi lewat semantik `parseInt`/`Number.isInteger`; hanya COO yang kena, self-inflicted. → **patch** #4 |
+| 5 | "Coba lagi" = NuxtLink ke route aktif → klik tidak me-re-run SSR fetch (no-op) (blind-hunter) | low | Terverifikasi: navigasi same-route tidak me-render ulang setup. → **patch** #5 |
+| 6 | Enforcement append-only (grants/role) hanya via runbook manual; suite berjalan di koneksi admin; tanpa script/ALTER DEFAULT PRIVILEGES; `.env.example` aktif masih superuser (verification-gap defer, blind-hunter, edge-case) | low | Real, TAPI spesifikasi sendiri mem-prescribe verifikasi manual psql; absennya harness DB-assert pre-date story ini; migrasi `.env` = tugas ops terdokumentasi. → **defer** |
+| 7 | State "gagal muat → Coba lagi" tak terjangkau test apa pun (verification-gap defer, blind-hunter) | low | Real; fetch SSR tak bisa dipaksa gagal dari e2e; butuh infra component-test yang belum ada; sudah dicatat sadar di Design Notes. → **defer** |
+| 8 | Import `tripleGuardLolos` dari route `login.post` = kopling antar-route; sebaiknya util (blind-hunter) | low | Pakai ulang predikat = satu sumber kebenaran yang disanksi komentar diff; tak ada kerusakan konkret yang dinamai. → **reject (low)** |
+| 9 | Duplikasi tipe wire `AuditEntryWire` (service) vs `AuditEntryTampil` (app/lib) (blind-hunter) | low | Mengikuti konvensi repo sejak 1.2 (`app/lib/landing.ts` mirror); drift ditambak zod schema e2e. → **reject (low)** |
+| 10 | Divergensi perilaku `parseHalaman` API (400) vs halaman (fallback 1) (blind-hunter, verification-gap other) | low | Divergensi disengaja per-lapisan: kontrak API di-pin matriks; halaman UX. Yang dipatch = ketatnya parsing (baris 4), bukan penyatuan perilaku. → **reject (low)** |
+| 11 | `parseInt('1.5')`→1 diterima, pesan menjanjikan "bilangan bulat" (blind-hunter) | low | Bagian akar sama baris 4 (parser longgar); dilalui patch #4. → **tercakup patch #4** |
+| 12 | Grants tak terotomasi / fresh env superuser (sama akar dengan #6) (blind-hunter, edge-case) | low | Sama akar penyebab baris 6. → **defer** (gabung #6) |
+| 13 | Halaman `?page=` di luar jangkauan render empty state + nav "Halaman 99" — membingungkan (blind-hunter) | low | Tak terjangkau pada skala terpin (22–40 owner, append-only tumbuh); fix menambah branch baru. → **reject (low)** |
+| 14 | Join `owners` langsung dari drizzle/schema — ketegangan AD-5 (blind-hunter) | low | Join baca untuk display disanksi eksplisit spec (Code Map + komentar diff); tanpa jalur tulis. → **reject (low)** |
+| 15 | Tiebreaker `created_at,id` tanpa index komposit (blind-hunter) | low | Skala 22–40 owner; sort murah; menambah index = migrasi baru di luar kebutuhan. → **reject (low)** |
+| 16 | Seed `jumlah` salah tipe diam-diam jadi 1; guard rentang jumlah tanpa test (blind-hunter, edge-case, verification-gap other) | low | Endpoint dev-only; pemanggil (test) selalu kirim number; harm nyaris nol. → **reject (low)** |
+| 17 | Metadata status spec vs sprint-status tidak sinkron + prosa di `last_updated` (blind-hunter) | false | State transien di tengah workflow (step-05 yang menyinkronkan — dihentikan per instruksi user); sync manual dilakukan saat halt step-04. → **reject (false)** |
+| 18 | `AuditEntryWire.action` bertipe `string` padahal `AuditAction` ada (blind-hunter) | low | Kosmetik; nilai divalidasi registry saat tulis; perubahan tipe beriak ke mirror klien. → **reject (low)** |
+| 19 | Tidak ada nav ke /audit-trail (blind-hunter) | false | Intent frozen eksplisit: "Bukan scope: item navigasi & matriks keterbukaan penuh (Story 1.7)". → **reject (out of scope)** |
+| 20 | `listForCoo` tanpa clamp page≤0 via barrel (edge-case) | low | Tak terjangkau: satu-satunya pemanggil (handler) memvalidasi ≥1; state tak didemonstrasikan. → **reject (low)** |
+| 21 | ownerId palsu → FK error me-rollback tx pemanggil (edge-case) | false | Fail-closed justru benar: audit wajib commit bersama aksi; aktor bogus = bug pemanggil yang MEMANG harus gagal keras. Tak terjangkau via jalur app (ownerId dari baris owners sesi). → **reject (false)** |
+| 22 | Offset paging bergeser di bawah tulis konkuren → dup/miss (edge-case) | false | Tradeoff yang didokumentasikan spesifikasi sendiri (Design Notes: paging offset sederhana, "cursor menyusul bila perlu"); skala terpin kecil. → **reject (per spesifikasi)** |
+| 23 | `upsertOwnerByEmail` di luar tx seed → rollback audit meninggalkan owner sintetis (edge-case) | low | Dev-only; owner idempoten; pembersihan menyusul kontrak 1.4 (terdokumentasi di header endpoint). → **reject (low)** |
+| 24 | `DATABASE_URL` rusak → URIError mentah sebelum guard host (edge-case) | low | Helper test dev-only; gagal tetap keras dan jelas lokasinya; pesan kosmetik. → **reject (low)** |
+| 25 | `createdAt` tak ter-parse → RangeError crash SSR (edge-case) | false | Kolom `timestamptz` tidak dapat menyimpan string tidak valid — input `formatWaktuAudit` selalu ISO sah dari DB sendiri; situasi tak terdemonstrasi terjangkau. → **reject (false)** |
+| 26 | `runtime-role.sql` IF NOT EXISTS melewatkan role beratribut salah (edge-case) | low | Konflik role pra-eksisten hipotetis; kegagalan tetap keras saat koneksi runtime. → **reject (low)** |
+| 27 | Klaim README "page invalid → 400" dilanggar `'2abc'`/`1e21` (edge-case claim) | low | Sama akar penyebab baris 4. → **tercakup patch #4** |
+
 ## Design Notes
 
 - **Kolom `action` = `text`, bukan pgEnum:** registry terpusat tetap menutup himpunan di level service; menambah aksi (1.4+) = edit konstanta `shared/domain/audit.ts` tanpa migrasi — pola proyek lama yang terbukti.
 - **`actor_owner_id` null = `system`:** satu kolom memenuhi envelope AD-3; tampilan menampilkan "System" untuk null. Penentu aktor = pemanggil (AD-8: pejabat saat commit).
 - **Grants tidak mengikat superuser:** REVOKE hanya efektif bagi role non-superuser — itulah alasan role `app_runtime` dibuat; lihat proyek lama `drizzle/runtime-role.sql:39-47`.
 - **Paging offset sederhana** (limit 100, `?page=`) memadai untuk skala 22–40 owner; cursor menyusul bila perlu.
+- **Reset dev-only test stateful (keputusan step-03):** tabel append-only tanpa kontrak pembersihan sampai 1.4, sementara test `empty-state`, `baseline seed`, dan `paging` menuntut keadaan terukur. Solusi: `tests/support/helpers/audit-reset.ts` — TRUNCATE via koneksi ADMIN (postgres, bukan jalur aplikasi; grants `app_runtime` tetap menutup UPDATE/DELETE/TRUNCATE bagi runtime) + `pg_advisory_lock` yang digenggam sepanjang test stateful agar TRUNCATE/seed lintas project browser (fullyParallel × 3 browser) tidak saling menyela. Tanpa ini, empty-state flaky dan asersi baseline pecah bila tabel ≥ ~97 baris. Asersi ter-pin tidak diubah.
+- **Gap coverage "gagal muat → Coba lagi" (baris 1 matriks, kolom error-handling):** tidak ada covering test otomatis — fetch halaman terjadi SSR (`useRequestFetch`) sehingga kegagalan `/api/audit` tidak dapat dipaksa dari e2e tanpa infra component-test (belum ada di repo). Empty state (pasangan error-handling pada baris yang sama) ter-cover. Dicatat sadar untuk ditimbang reviewer; opsi menyusul: component test atau story error-state.
+- **Tiebreaker paging:** `ORDER BY created_at DESC, id DESC` — entry dalam satu transaksi berbagi `now()` yang sama; tanpa tiebreaker, paging offset tidak deterministik antar halaman.
+- **Lint branch ini:** branch `feature/story-1-3` belum mewarisi merge develop (penghapusan nested `snd-dash/` ada di `feature/story-1-2`), sehingga `npm run lint` global masih menampilkan 160 problem pre-existing milik nested copy (baseline `5aa1ffa`); seluruh file yang disentuh Story 1.3 lolos eslint nol temuan — memenuhi ekspektasi spec "lint setara baseline".
 
 ## Verification
 

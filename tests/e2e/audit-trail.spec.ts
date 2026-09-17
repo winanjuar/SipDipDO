@@ -1,9 +1,8 @@
 /**
- * ATDD RED-PHASE — Story 1.3 "Audit Trail — Pencatatan & Tampilan COO".
+ * ATDD GREEN-PHASE — Story 1.3 "Audit Trail — Pencatatan & Tampilan COO".
  * Kontrak test design: `1-E2E-002` (sisi halaman) + cerminan `1-API-006`.
- * Seluruh test di-skip (test.skip) sampai developer mengaktifkannya pada
- * tugas green-phase bersama implementasinya; asersi ter-pin dari red-phase
- * tidak berubah.
+ * Test dirancang red-phase (test.skip) lalu diaktifkan pada tugas green-phase
+ * bersama implementasinya; asersi ter-pin dari red-phase tidak berubah.
  *
  * Cakupan OTOMASI (strategi langkah 03, baris 14–17):
  * - [P1] COO melihat daftar entry audit: aktor (email / "System" untuk aktor
@@ -11,7 +10,8 @@
  *   terpotong (elipsis).
  * - [P0] pemegang_saham membuka /audit-trail URL langsung → redirect ke
  *   LANDING_PATH[role] = /dashboard (penegakan AD-8 sisi halaman).
- * - [P1] belum login membuka /audit-trail → middleware auth-guard → /login.
+ * - [P1] belum login membuka /audit-trail → redirect /login (lapis halaman;
+ *   endpoint /api/landing tanpa sesi menjawab 401 → navigateTo('/login')).
  * - [P2] DB tanpa entry → empty state (pola antrian-beli.vue).
  *
  * Catatan mandate playwright-utils:
@@ -31,24 +31,24 @@
  *   non-COO adalah perilaku produk, bukan error tersembunyi) → anotasi
  *   `skipNetworkMonitoring` tidak dipakai.
  *
- * KONTRAK SELEKTOR: blok `TEST_IDS.auditTrail` BELUM ada di
- * tests/support/helpers/test-ids.ts — konstanta rencana kontrak ATDD
- * (audit-trail-halaman / -tabel / -baris / -kosong / -paginasi) akan
- * DITAMBAHKAN ke test-ids.ts oleh agregasi ATDD (bukan oleh scaffold ini);
- * typecheck merah saat red phase adalah bagian dari kontrak merah.
+ * Kontrak selektor: blok `TEST_IDS.auditTrail` di
+ * tests/support/helpers/test-ids.ts (audit-trail-halaman / -tabel / -baris /
+ * -kosong / -paginasi).
  *
- * Kontrak seed: POST /api/test/audit-seed (dev-only triple-guard, pola
- * server/api/test/login.post.ts) BELUM ADA saat red — ASUMSI body
- * `{ jumlah: <n> }`. Bila endpoint menjawab 404 saat green nanti, error
- * jujur dari helper seed adalah bagian kontrak red (bukan skip diam-diam).
- * Pembersihan entry audit TIDAK dilakukan di spec ini — tabel append-only
- * by design (tidak ada jalur delete); kontrak pembersihan data uji menyusul
- * kontrak Story 1.4.
+ * Kontrak seed terwujud: POST /api/test/audit-seed (dev-only triple-guard,
+ * pola server/api/test/login.post.ts) dengan body `{ jumlah: <n> }`; seed
+ * menyertakan entry aktor user (email tampil) DAN aktor system ("System"),
+ * dengan details panjang (JSON terpotong → elipsis). Pembersihan entry audit
+ * TIDAK lewat aplikasi (append-only, tanpa jalur delete) — test empty-state
+ * menjamin prekondisinya sendiri via helper dev-only `denganAuditKosong`
+ * (TRUNCATE koneksi ADMIN + advisory lock, lihat tests/support/helpers/
+ * audit-reset.ts); kontrak pembersihan data uji menyusul kontrak Story 1.4.
  */
 import type { ApiRequestFixtureParams } from '@seontechnologies/playwright-utils/api-request'
 import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
 import { mintSesiPemilik } from '../support/helpers/sesi-minting'
+import { denganAuditKosong } from '../support/helpers/audit-reset'
 
 /** Tanda tangan minimal fixture apiRequest (playwright-utils) untuk helper seed. */
 type ApiRequestUji = <T = unknown>(params: ApiRequestFixtureParams) => Promise<{ status: number, body: T }>
@@ -94,54 +94,58 @@ async function seedEntryAudit(apiRequest: ApiRequestUji, jumlah: number): Promis
 test.describe('E2E Story 1.3 — audit trail khusus COO (1-E2E-002 sisi halaman + 1-API-006)', () => {
   // GAGAL saat red: halaman /audit-trail 404 (belum ada) dan endpoint seed
   // /api/test/audit-seed 404 — goto melempar/merender halaman error sehingga
-  // seluruh aserti testid/tabel/baris merah.
-  test.skip('[P1] COO melihat daftar entry audit: aktor, waktu id-ID, action, detail terpotong', async ({ page, context, apiRequest }) => {
-    await log.step('GIVEN sesi COO sintetis dimintakan lalu diinjeksikan ke context')
-    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
-    await context.addCookies(cookies)
+  // seluruh aserti testid/tabel/baris merah. Kunci advisory digenggam sepanjang
+  // test (lihat tests/support/helpers/audit-reset.ts) agar seed test ini dan
+  // TRUNCATE test lain tidak saling menyela lintas project browser.
+  test('[P1] COO melihat daftar entry audit: aktor, waktu id-ID, action, detail terpotong', async ({ page, context, apiRequest }) => {
+    await denganAuditKosong(async () => {
+      await log.step('GIVEN sesi COO sintetis dimintakan lalu diinjeksikan ke context')
+      const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+      await context.addCookies(cookies)
 
-    await log.step(`AND ${JUMLAH_SEED} entry audit di-seed via endpoint dev-only (ASUMSI kontrak body { jumlah })`)
-    await seedEntryAudit(apiRequest, JUMLAH_SEED)
+      await log.step(`AND ${JUMLAH_SEED} entry audit di-seed via endpoint dev-only (ASUMSI kontrak body { jumlah })`)
+      await seedEntryAudit(apiRequest, JUMLAH_SEED)
 
-    await log.step('WHEN COO membuka /audit-trail (fetch SSR — data hadir di HTML awal, tanpa spy jaringan)')
-    await page.goto('/audit-trail')
+      await log.step('WHEN COO membuka /audit-trail (fetch SSR — data hadir di HTML awal, tanpa spy jaringan)')
+      await page.goto('/audit-trail')
 
-    await log.step('THEN halaman dan tabel audit tampil dengan baris seed')
-    await expect(page.getByTestId(TEST_IDS.auditTrail.halaman)).toBeVisible()
-    const tabelAudit = page.getByTestId(TEST_IDS.auditTrail.tabel)
-    await expect(tabelAudit).toBeVisible()
-    const barisAudit = page.getByTestId(TEST_IDS.auditTrail.baris)
-    await expect(barisAudit.first()).toBeVisible()
-    const jumlahBaris = await barisAudit.count()
-    expect(jumlahBaris).toBeGreaterThanOrEqual(JUMLAH_SEED)
+      await log.step('THEN halaman dan tabel audit tampil dengan baris seed')
+      await expect(page.getByTestId(TEST_IDS.auditTrail.halaman)).toBeVisible()
+      const tabelAudit = page.getByTestId(TEST_IDS.auditTrail.tabel)
+      await expect(tabelAudit).toBeVisible()
+      const barisAudit = page.getByTestId(TEST_IDS.auditTrail.baris)
+      await expect(barisAudit.first()).toBeVisible()
+      const jumlahBaris = await barisAudit.count()
+      expect(jumlahBaris).toBeGreaterThanOrEqual(JUMLAH_SEED)
 
-    await log.step('AND tiap baris memuat 5 kolom matriks I/O (waktu, aktor, action, target, detail)')
-    for (let i = 0; i < Math.min(JUMLAH_SEED, jumlahBaris); i++) {
-      const baris = barisAudit.nth(i)
-      await expect(baris.getByRole('cell')).toHaveCount(5)
-      await expect(baris).toContainText(POLA_AKTOR)
-      await expect(baris).toContainText(POLA_WAKTU_ID_ID)
-    }
+      await log.step('AND tiap baris memuat 5 kolom matriks I/O (waktu, aktor, action, target, detail)')
+      for (let i = 0; i < Math.min(JUMLAH_SEED, jumlahBaris); i++) {
+        const baris = barisAudit.nth(i)
+        await expect(baris.getByRole('cell')).toHaveCount(5)
+        await expect(baris).toContainText(POLA_AKTOR)
+        await expect(baris).toContainText(POLA_WAKTU_ID_ID)
+      }
 
-    await log.step('AND aktor user tampil sebagai email dan aktor sistem tampil sebagai "System"')
-    const teksTabel = (await tabelAudit.textContent()) ?? ''
-    // ASUMSI seed: menyertakan entry aktor user (email) DAN aktor sistem.
-    expect(teksTabel).toMatch(/@[^\s]+/)
-    expect(teksTabel).toContain('System')
+      await log.step('AND aktor user tampil sebagai email dan aktor sistem tampil sebagai "System"')
+      const teksTabel = (await tabelAudit.textContent()) ?? ''
+      // ASUMSI seed: menyertakan entry aktor user (email) DAN aktor sistem.
+      expect(teksTabel).toMatch(/@[^\s]+/)
+      expect(teksTabel).toContain('System')
 
-    await log.step('AND detail JSON terpotong oleh konstanta bernama sisi halaman (teramati: elipsis)')
-    // ASUMSI seed: details jsonb ditulis panjang sehingga melewati batas potong
-    // konstanta bernama di halaman; bentuk teramati di UI = karakter '…'.
-    expect(teksTabel).toContain('…')
+      await log.step('AND detail JSON terpotong oleh konstanta bernama sisi halaman (teramati: elipsis)')
+      // ASUMSI seed: details jsonb ditulis panjang sehingga melewati batas potong
+      // konstanta bernama di halaman; bentuk teramati di UI = karakter '…'.
+      expect(teksTabel).toContain('…')
 
-    // Catatan paginasi: dengan 3 entry (< LIMIT 100) nextPage null — asersi
-    // audit-trail-paginasi tidak dipin di skenario ini; verifikasi paginasi
-    // tautan menyusul bila ada skenario volume > LIMIT (di luar strategi 03).
+      // Catatan paginasi: dengan 3 entry (< LIMIT 100) nextPage null — asersi
+      // audit-trail-paginasi tidak dipin di skenario ini; verifikasi paginasi
+      // tautan menyusul bila ada skenario volume > LIMIT (di luar strategi 03).
+    })
   })
 
   // GAGAL saat red: halaman /audit-trail belum ada → SSR 404 (atau auth-guard
   // global mengantar ke /login), bukan redirect produk ke /dashboard.
-  test.skip('[P0] pemegang saham membuka /audit-trail URL langsung dialihkan ke /dashboard', async ({ page, context, apiRequest }) => {
+  test('[P0] pemegang saham membuka /audit-trail URL langsung dialihkan ke /dashboard', async ({ page, context, apiRequest }) => {
     await log.step('GIVEN sesi pemegang saham (non-COO) sudah diinjeksikan')
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
     await context.addCookies(cookies)
@@ -154,11 +158,11 @@ test.describe('E2E Story 1.3 — audit trail khusus COO (1-E2E-002 sisi halaman 
     await expect(page.getByTestId(TEST_IDS.auditTrail.halaman)).toHaveCount(0)
   })
 
-  // GAGAL saat red: halaman /audit-trail 404. CATATAN JUJUR: middleware
-  // auth-guard Story 1.2 berlaku global (server/middleware) sehingga redirect
-  // ke /login bisa terjadi lebih awal — test ini tetap di-skip mengikuti
-  // siklus ATDD dan diaktifkan bersama implementasi halaman Story 1.3.
-  test.skip('[P1] pengunjung tanpa sesi membuka /audit-trail dialihkan ke /login', async ({ page }) => {
+  // GAGAL saat red: halaman /audit-trail 404. CATATAN: /audit-trail tidak
+  // termasuk himpunan auth-guard server (nilai LANDING_PATH) — proteksi
+  // sesi berlaku via definePageMeta({ auth: true }) + lapis halaman SSR
+  // (api /api/landing tanpa sesi → 401 → navigateTo('/login')).
+  test('[P1] pengunjung tanpa sesi membuka /audit-trail dialihkan ke /login', async ({ page }) => {
     await log.step('GIVEN pengunjung tanpa cookie sesi')
     await log.step('WHEN membuka /audit-trail secara langsung')
     await page.goto('/audit-trail')
@@ -169,22 +173,24 @@ test.describe('E2E Story 1.3 — audit trail khusus COO (1-E2E-002 sisi halaman 
   })
 
   // GAGAL saat red: halaman /audit-trail 404 sehingga testid kosong tidak
-  // pernah tampil. CATATAN: test ini butuh KEPASTIAN DB kosong dari entry
-  // audit — kontrak pembersihan data uji menyusul kontrak Story 1.4 (tabel
-  // append-only, tanpa jalur delete). Bila DB bersama sudah berisi entry,
-  // test ini MERAH JUJUR saat diaktifkan — sinyal menyepakati kontrak
-  // pembersihan, bukan alasan melonggarkan asersi.
-  test.skip('[P2] audit trail tanpa entry menampilkan empty state', async ({ page, context, apiRequest }) => {
-    await log.step('GIVEN sesi COO tanpa seed tambahan (DB diasumsikan kosong dari entry audit)')
-    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
-    await context.addCookies(cookies)
+  // pernah tampil. CATATAN: test ini menjamin sendiri prekondisi DB kosong —
+  // helper dev-only `denganAuditKosong` (TRUNCATE koneksi ADMIN + advisory
+  // lock antar project browser) men-deterministikkan keadaan TANPA mengubah
+  // asersi ter-pin; grants role `app_runtime` tetap menutup jalur tulis
+  // runtime (reset ini bukan jalur aplikasi).
+  test('[P2] audit trail tanpa entry menampilkan empty state', async ({ page, context, apiRequest }) => {
+    await denganAuditKosong(async () => {
+      await log.step('GIVEN sesi COO dan DB dipastikan kosong dari entry audit')
+      const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+      await context.addCookies(cookies)
 
-    await log.step('WHEN COO membuka /audit-trail')
-    await page.goto('/audit-trail')
+      await log.step('WHEN COO membuka /audit-trail')
+      await page.goto('/audit-trail')
 
-    await log.step('THEN empty state tampil (pola antrian-beli) tanpa satu pun baris tabel')
-    await expect(page.getByTestId(TEST_IDS.auditTrail.halaman)).toBeVisible()
-    await expect(page.getByTestId(TEST_IDS.auditTrail.kosong)).toBeVisible()
-    await expect(page.getByTestId(TEST_IDS.auditTrail.baris)).toHaveCount(0)
+      await log.step('THEN empty state tampil (pola antrian-beli) tanpa satu pun baris tabel')
+      await expect(page.getByTestId(TEST_IDS.auditTrail.halaman)).toBeVisible()
+      await expect(page.getByTestId(TEST_IDS.auditTrail.kosong)).toBeVisible()
+      await expect(page.getByTestId(TEST_IDS.auditTrail.baris)).toHaveCount(0)
+    })
   })
 })
