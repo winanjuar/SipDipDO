@@ -64,7 +64,7 @@ function buatDbPalsu(rekaman: RekamanInsert, hasilReturning: unknown[], hasilSel
 }
 
 describe('server/domain/identity/owner.repo — daftarOwnerByEmail (Story 1.4, AD-11)', () => {
-  test('email baru → INSERT satu-satunya jalan; values hanya email; DO NOTHING (bukan DO UPDATE)', async () => {
+  test('email baru → INSERT satu-satunya jalan; values email + kode referral; DO NOTHING (bukan DO UPDATE)', async () => {
     const rekaman: RekamanInsert = { selectDipanggil: 0 }
     const baris = barisOwner('uji.snddash.baru@gmail.com')
     const dbPalsu = buatDbPalsu(rekaman, [baris], [])
@@ -72,8 +72,10 @@ describe('server/domain/identity/owner.repo — daftarOwnerByEmail (Story 1.4, A
     const hasil = await daftarOwnerByEmail(dbPalsu, { email: baris.email })
 
     expect(hasil).toEqual({ rekaman: baris, baru: true })
-    // INSERT-CAS: payload HANYA email — status default 'diajukan' dari DB.
-    expect(rekaman.values).toEqual({ email: baris.email })
+    // INSERT-CAS: payload email + kode referral milik owner (Story 1.4,
+    // keputusan owner 2026-09-18) — status default 'diajukan' dari DB.
+    expect(rekaman.values?.email).toBe(baris.email)
+    expect(String(rekaman.values?.referralCode)).toMatch(/^[A-Z0-9]{8}$/)
     // Konflik = DO NOTHING dengan target email unik — baris existing tidak
     // pernah ditulis-ulang (bukan onConflictDoUpdate).
     expect(rekaman.konflik?.target).toBe(owners.email)
@@ -102,6 +104,58 @@ describe('server/domain/identity/owner.repo — daftarOwnerByEmail (Story 1.4, A
     await expect(
       daftarOwnerByEmail(dbPalsu, { email: 'uji.snddash.hilang@gmail.com' }),
     ).rejects.toThrow('daftarOwnerByEmail')
+  })
+
+  test('tabrakan UNIQUE kode referral (23505) diulang, lalu berhasil — bukan error ke pemanggil', async () => {
+    const rekaman: RekamanInsert = { selectDipanggil: 0 }
+    const baris = barisOwner('uji.snddash.tabrakan@gmail.com')
+    let panggilanInsert = 0
+    const dbTabrakanLaluSukses = {
+      insert: () => {
+        panggilanInsert += 1
+        const rantai = {
+          values: (nilai: Record<string, unknown>) => {
+            if (panggilanInsert === 1) {
+              throw Object.assign(new Error('duplicate key value violates unique constraint "owners_referral_code_unique"'), { code: '23505' })
+            }
+            rekaman.values = nilai
+            return rantai
+          },
+          onConflictDoNothing: (konflik: { target?: unknown }) => {
+            rekaman.konflik = konflik
+            return rantai
+          },
+          returning: async () => [baris],
+        }
+        return rantai
+      },
+      select: () => buatDbPalsu(rekaman, [], []).select(),
+    } as unknown as Parameters<typeof daftarOwnerByEmail>[0]
+
+    const hasil = await daftarOwnerByEmail(dbTabrakanLaluSukses, { email: baris.email })
+
+    expect(panggilanInsert).toBe(2)
+    expect(hasil).toEqual({ rekaman: baris, baru: true })
+    expect(String(rekaman.values?.referralCode)).toMatch(/^[A-Z0-9]{8}$/)
+  })
+
+  test('tabrakan kode referral menetap (sampai batas coba) → error 23505 terakhir diteruskan', async () => {
+    let panggilanInsert = 0
+    const dbSelaluTabrakan = {
+      insert: () => {
+        panggilanInsert += 1
+        return {
+          values: (): never => {
+            throw Object.assign(new Error('duplicate key value violates unique constraint "owners_referral_code_unique"'), { code: '23505' })
+          },
+        }
+      },
+    } as unknown as Parameters<typeof daftarOwnerByEmail>[0]
+
+    await expect(
+      daftarOwnerByEmail(dbSelaluTabrakan, { email: 'uji.snddash.tabrakan.abadi@gmail.com' }),
+    ).rejects.toMatchObject({ code: '23505' })
+    expect(panggilanInsert).toBe(3)
   })
 
   test('permukaan modul mengekspos fungsi CAS pendaftaran (Story 1.4)', async () => {

@@ -21,6 +21,26 @@ export type Role = (typeof ROLES)[number]
 /** Status calon owner — dialandingkan ke halaman status pendaftaran. */
 export const CALON_OWNER_STATUSES: readonly OwnerStatus[] = ['diajukan', 'ditolak', 'kedaluwarsa']
 
+/** Panjang kode referral owner — alfanumerik (keputusan owner 2026-09-18). */
+export const PANJANG_KODE_REFERRAL = 8
+
+/** Himpunan karakter kode referral — huruf besar + digit (alfanumerik). */
+const KARAKTER_KODE_REFERRAL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+
+/**
+ * Buat kode referral MILIK owner — alfanumerik `PANJANG_KODE_REFERRAL`
+ * karakter. MURNI: sumber acak disuntikkan (prasyarat nilai ∈ [0,1)) agar
+ * teruji deterministik. Kolom `owners.referral_code` UNIQUE — tabrakan
+ * ditangani lapis repo dengan retry saat constraint melawan.
+ */
+export function buatKodeReferral(angkaAcak: () => number = Math.random): string {
+  let kode = ''
+  for (let i = 0; i < PANJANG_KODE_REFERRAL; i++) {
+    kode += KARAKTER_KODE_REFERRAL.charAt(Math.floor(angkaAcak() * KARAKTER_KODE_REFERRAL.length))
+  }
+  return kode
+}
+
 /** Peta landing role→route — ter-pin spec Story 1.2 (UX-DR14). */
 export const LANDING_PATH: Record<Role, string> = {
   coo: '/antrian-beli',

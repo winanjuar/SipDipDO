@@ -92,7 +92,8 @@ describe('ajukanPendaftaran (Story 1.4, FR-22/AD-3/AD-11 — matriks I/O spec)',
     expect(tulisan).toHaveLength(2)
     const [insertOwner, insertAudit] = tulisan
     expect(insertOwner.tabel).toBe(owners)
-    expect(insertOwner.baris).toEqual({ email: baris.email })
+    expect(insertOwner.baris?.email).toBe(baris.email)
+    expect(String(insertOwner.baris?.referralCode)).toMatch(/^[A-Z0-9]{8}$/)
 
     // Envelope audit AD-3: aktor user = owner baru, action dari registry,
     // target konvensi `owners:<id>`, details memuat email pendaftar.
@@ -125,6 +126,7 @@ describe('ajukanPendaftaran (Story 1.4, FR-22/AD-3/AD-11 — matriks I/O spec)',
     // TIDAK ada entry audit baru, TIDAK ada penulisan-ulang baris.
     expect(tulisan).toHaveLength(1)
     expect(tulisan[0].tabel).toBe(owners)
-    expect(tulisan[0].baris).toEqual({ email: existing.email })
+    expect(tulisan[0].baris?.email).toBe(existing.email)
+    expect(String(tulisan[0].baris?.referralCode)).toMatch(/^[A-Z0-9]{8}$/)
   })
 })

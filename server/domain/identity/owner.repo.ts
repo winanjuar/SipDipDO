@@ -10,7 +10,7 @@
  */
 import { and, eq, isNull, lte, or, gt, sql } from 'drizzle-orm'
 import { cooTenures, owners } from '../../../drizzle/schema'
-import type { OwnerStatus } from '../../../shared/domain/identity'
+import { buatKodeReferral, type OwnerStatus } from '../../../shared/domain/identity'
 import type { DbClient } from '../../utils/db'
 import type { IdentityRepoPort } from './access.service'
 
@@ -65,38 +65,60 @@ export interface HasilDaftarOwner {
   baru: boolean
 }
 
+/** Batas coba ulang pembuatan kode referral saat tabrakan UNIQUE (peluang
+ *  per-insert ≈ n/36^8 — retry sekadar sengkang, bukan jalur normal). */
+const BATAS_COBA_KODE_REFERRAL = 3
+
+/** true bila error adalah tabrakan UNIQUE kolom referral_code (postgres 23505). */
+function tabrakanKodeReferral(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === '23505'
+}
+
 /**
  * Pendaftaran mandiri CAS idempotent per email (Story 1.4, AD-11): INSERT
  * `ON CONFLICT (email) DO NOTHING` — baris existing TIDAK PERNAH dimutasi
- * (status terverifikasi/keluar tidak pernah tertimpa). Bila insert tidak
- * mengembalikan baris (email sudah ada), baris existing dibaca ulang via
- * SELECT dan dikembalikan apa adanya. `baru` membedakan 201 vs 200 di
- * lapis handler.
+ * (status terverifikasi/keluar tidak pernah tertimpa). Baris baru dibuat
+ * lengkap dengan kode referral miliknya (`buatKodeReferral`, keputusan owner
+ * 2026-09-18 — langsung terisi meski status masih `diajukan`); tabrakan kode
+ * diulang hingga `BATAS_COBA_KODE_REFERRAL`. Bila insert tidak mengembalikan
+ * baris (email sudah ada), baris existing dibaca ulang via SELECT dan
+ * dikembalikan apa adanya. `baru` membedakan 201 vs 200 di lapis handler.
  */
 export async function daftarOwnerByEmail(db: DbClient, input: { email: string }): Promise<HasilDaftarOwner> {
-  const disisipkan = await db
-    .insert(owners)
-    .values({ email: input.email })
-    .onConflictDoNothing({ target: owners.email })
-    .returning({
-      id: owners.id,
-      email: owners.email,
-      status: owners.status,
-      rejectionReason: owners.rejectionReason,
-      firstEffectiveAt: owners.firstEffectiveAt,
-    })
+  for (let percobaan = 1; ; percobaan++) {
+    try {
+      const disisipkan = await db
+        .insert(owners)
+        .values({ email: input.email, referralCode: buatKodeReferral() })
+        .onConflictDoNothing({ target: owners.email })
+        .returning({
+          id: owners.id,
+          email: owners.email,
+          status: owners.status,
+          rejectionReason: owners.rejectionReason,
+          firstEffectiveAt: owners.firstEffectiveAt,
+        })
 
-  const barisBaru = disisipkan[0]
-  if (barisBaru) return { rekaman: barisBaru, baru: true }
+      const barisBaru = disisipkan[0]
+      if (barisBaru) return { rekaman: barisBaru, baru: true }
 
-  const existing = await findOwnerByEmail(db, input.email)
-  if (!existing) {
-    throw new Error('daftarOwnerByEmail: baris owner tidak ditemukan setelah ON CONFLICT DO NOTHING.')
+      const existing = await findOwnerByEmail(db, input.email)
+      if (!existing) {
+        throw new Error('daftarOwnerByEmail: baris owner tidak ditemukan setelah ON CONFLICT DO NOTHING.')
+      }
+      return { rekaman: existing, baru: false }
+    } catch (error) {
+      // Hanya tabrakan kode referral yang diulang — error lain (dan tabrakan
+      // yang bertahan melewati batas) diteruskan apa adanya.
+      if (!tabrakanKodeReferral(error) || percobaan >= BATAS_COBA_KODE_REFERRAL) throw error
+    }
   }
-  return { rekaman: existing, baru: false }
 }
 
-/** Tulis-ulang baris owner berdasar email unik (re-daftar = baris sama, AD-11). */
+/** Tulis-ulang baris owner berdasar email unik (re-daftar = baris sama, AD-11).
+ *  Baris baru juga membawa kode referral (`buatKodeReferral`) — jalur mint/seed
+ *  dev; tabrakan kode tidak di-retry (peluang ≈ 0, pemanggil bisa memanggil
+ *  ulang). */
 export async function upsertOwnerByEmail(
   db: DbClient,
   input: { email: string, status: OwnerStatus, rejectionReason: string | null, firstEffectiveAt: string | null },
@@ -108,6 +130,7 @@ export async function upsertOwnerByEmail(
       status: input.status,
       rejectionReason: input.rejectionReason,
       firstEffectiveAt: input.firstEffectiveAt,
+      referralCode: buatKodeReferral(),
     })
     .onConflictDoUpdate({
       target: owners.email,
