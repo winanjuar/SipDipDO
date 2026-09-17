@@ -61,3 +61,29 @@ const AUDIT_ACTION_SET: ReadonlySet<string> = new Set(AUDIT_ACTIONS)
 export function isAuditAction(value: string): value is AuditAction {
   return AUDIT_ACTION_SET.has(value)
 }
+
+/**
+ * Opsi ukuran halaman baca audit (renegosiasi user 2026-09-17, Spec Change Log
+ * 1.3 — semula 25/50/100 lalu disetel ke 20/40/80): `GET /api/audit?limit=`
+ * menerima anggota `AUDIT_LIMIT_OPSI` saja; di luar itu → 400 envelope.
+ * Murni lintas lapis (AD-6) — dipakai handler, service, dan selector ukuran
+ * halaman.
+ */
+// Tabel data opsi ukuran halaman — angka di sini adalah nilai kontrak bernama,
+// bukan magic number (pola DAYS_IN_MONTH calendar.ts).
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+export const AUDIT_LIMIT_OPSI = [20, 40, 80] as const
+
+/** Ukuran halaman yang sah, diturunkan dari opsi. */
+export type AuditLimit = (typeof AUDIT_LIMIT_OPSI)[number]
+
+/** Ukuran halaman bawaan bila `?limit=` tidak hadir. */
+export const AUDIT_LIMIT_DEFAULT: AuditLimit = 20
+
+/** Set pencarian cepat untuk validasi keanggotaan opsi limit saat runtime. */
+const AUDIT_LIMIT_SET: ReadonlySet<number> = new Set(AUDIT_LIMIT_OPSI)
+
+/** Type guard: apakah `value` anggota opsi ukuran halaman. */
+export function isAuditLimit(value: number): value is AuditLimit {
+  return AUDIT_LIMIT_SET.has(value)
+}

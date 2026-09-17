@@ -94,15 +94,25 @@ describe('server/domain/audit/audit.service — writeAuditEntry (1-UNIT-003)', (
 })
 
 describe('server/domain/audit/audit.service — listForCoo (1-UNIT-003)', () => {
-  test('page 1 → limit 100 offset 0; page 2 → offset 100 (paging offset, limit terpin)', async () => {
+  test('page 1 → limit 20 offset 0; page 2 → offset 20 (paging offset, default renegosiasi 2026-09-17)', async () => {
     const dbPalsu = {}
 
     await listForCoo(dbPalsu, 1)
     await listForCoo(dbPalsu, 2)
 
     expect(rekaman.listMasuk).toEqual([
-      { limit: 100, offset: 0 },
-      { limit: 100, offset: 100 },
+      { limit: 20, offset: 0 },
+      { limit: 20, offset: 20 },
+    ])
+  })
+
+  test('limit eksplisit anggota opsi → offset (page-1)*limit (40 → page 2 = offset 40)', async () => {
+    const dbPalsu = {}
+
+    await listForCoo(dbPalsu, 2, 40)
+
+    expect(rekaman.listMasuk).toEqual([
+      { limit: 40, offset: 40 },
     ])
   })
 })

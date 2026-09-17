@@ -137,9 +137,48 @@ test.describe('E2E Story 1.3 — audit trail khusus COO (1-E2E-002 sisi halaman 
       // konstanta bernama di halaman; bentuk teramati di UI = karakter '…'.
       expect(teksTabel).toContain('…')
 
-      // Catatan paginasi: dengan 3 entry (< LIMIT 100) nextPage null — asersi
-      // audit-trail-paginasi tidak dipin di skenario ini; verifikasi paginasi
-      // tautan menyusul bila ada skenario volume > LIMIT (di luar strategi 03).
+      // Catatan paginasi: dengan 3 entry (< batas default 25) nextPage null —
+      // asersi audit-trail-paginasi tidak dipin di skenario ini; perilaku
+      // paginasi & selector ukuran diverifikasi test khusus di bawah.
+    })
+  })
+
+  // REGRESI (bug report user 2026-09-17): klik "Berikutnya" dulu diam di
+  // halaman 1 — komponen dipakai ulang Nuxt untuk perubahan query saja
+  // sehingga setup/fetch tidak jalan lagi. Fix: definePageMeta key fullPath.
+  // Test ini memastikan klik paginasi BENAR-BENAR berpindah dan selector
+  // ukuran halaman mengubah jumlah baris.
+  test('[P1] paginasi Berikutnya berpindah halaman dan selector ukuran mengubah jumlah baris', async ({ page, context, apiRequest }) => {
+    // 26 entry + default 20/halaman → halaman 1 penuh + sisa 6 di halaman 2.
+    const JUMLAH_SEED_DUA_HALAMAN = 26
+
+    await denganAuditKosong(async () => {
+      await log.step('GIVEN sesi COO dan 26 entry audit (lebih dari batas default 20)')
+      const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+      await context.addCookies(cookies)
+      await seedEntryAudit(apiRequest, JUMLAH_SEED_DUA_HALAMAN)
+
+      await log.step('WHEN COO membuka /audit-trail')
+      await page.goto('/audit-trail')
+
+      await log.step('THEN halaman 1 menampilkan tepat 20 baris dan paginasi tampil')
+      await expect(page.getByTestId(TEST_IDS.auditTrail.paginasi)).toBeVisible()
+      await expect(page.getByTestId(TEST_IDS.auditTrail.baris)).toHaveCount(20)
+
+      await log.step('WHEN "Berikutnya" diklik')
+      await page.getByRole('link', { name: /Berikutnya/ }).click()
+      await expect(page).toHaveURL(/\/audit-trail\?page=2$/)
+
+      await log.step('THEN halaman 2 dirender ulang dengan 6 baris sisa (bukan diam di halaman 1)')
+      await expect(page.getByTestId(TEST_IDS.auditTrail.baris)).toHaveCount(6)
+      await expect(page.getByText('Halaman 2')).toBeVisible()
+
+      await log.step('WHEN selector ukuran "40" dipilih')
+      await page.getByTestId(TEST_IDS.auditTrail.ukuran).getByRole('link', { name: '40' }).click()
+      await expect(page).toHaveURL(/\/audit-trail\?limit=40$/)
+
+      await log.step('THEN seluruh 26 entry tampil dalam satu halaman (ukuran 40)')
+      await expect(page.getByTestId(TEST_IDS.auditTrail.baris)).toHaveCount(JUMLAH_SEED_DUA_HALAMAN)
     })
   })
 

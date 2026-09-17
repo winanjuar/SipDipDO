@@ -38,13 +38,12 @@ useHead({ title: 'Masuk — Sip & Dip' })
     <section class="flex flex-col items-center gap-3">
       <div data-testid="login-brand-logo" class="flex flex-col items-center gap-2">
         <BrandLogo size="login" />
-        <p class="text-xl font-semibold text-primary">Sip &amp; Dip</p>
       </div>
-      <p class="text-sm italic text-muted-foreground">Sip the taste, dip the soul</p>
+      <p class="text-sm italic text-muted-foreground">sip the taste, dip the soul</p>
     </section>
 
     <p class="max-w-sm text-sm text-muted-foreground">
-      Masuk dengan akun Google Anda untuk membuka dashboard kepemilikan saham.
+      Selamat datang, gunakan <b>akun Google</b> Anda.
     </p>
 
     <div class="flex w-full max-w-xs flex-col gap-3">
@@ -54,7 +53,7 @@ useHead({ title: 'Masuk — Sip & Dip' })
         class="h-11 w-full"
         @click="masukGoogle"
       >
-        Masuk dengan Google
+        Masuk
       </Button>
 
       <p

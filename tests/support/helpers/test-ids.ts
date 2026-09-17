@@ -41,5 +41,6 @@ export const TEST_IDS = {
     baris: 'audit-trail-baris',
     kosong: 'audit-trail-kosong',
     paginasi: 'audit-trail-paginasi',
+    ukuran: 'audit-trail-ukuran',
   },
 } as const

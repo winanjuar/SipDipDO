@@ -46,7 +46,7 @@ context:
 | Belum login membuka `/audit-trail` | Tanpa sesi | Middleware `auth-guard` → `/login` | N/A |
 | `GET /api/audit` tanpa sesi | Tanpa cookie | 401 envelope `{ code, message, details }` | N/A |
 | `GET /api/audit` sesi non-COO | Role bukan `coo` | 403 envelope (status baru) | N/A |
-| `GET /api/audit` sesi COO | `?page=N` (default 1) | 200 `{ data: [...], nextPage }`; urut `created_at` desc; `nextPage: null` bila habis; LIMIT konstanta bernama (100) | Query `page` tidak valid → 400 envelope |
+| `GET /api/audit` sesi COO | `?page=N` (default 1), `?limit=` (default 20, opsi 20/40/80) | 200 `{ data: [...], nextPage }`; urut `created_at` desc; `nextPage: null` bila habis | Query `page`/`limit` tidak valid → 400 envelope |
 | `writeAuditEntry` dengan action di luar registry | `action: 'x'` | Ditolak — throw sebelum INSERT | Pesan menyebut registry |
 | `writeAuditEntry` tanpa `tx` | db biasa, bukan transaksi | Ditolak — throw (kontrak in-tx AD-3) | Pesan menyebut kewajiban tx |
 | UPDATE/DELETE `audit_logs` via SQL sebagai role runtime | `SET ROLE app_runtime; UPDATE …` | Ditolak permission denied oleh grants | N/A |
@@ -101,6 +101,12 @@ context:
 
 ## Spec Change Log
 
+- **2026-09-17 — Renegosiasi user pasca-done (bug + improvement):**
+  1. **Bug paginasi:** klik "Berikutnya" diam di halaman 1 — komponen dipakai ulang Nuxt untuk perubahan query sehingga setup/fetch tidak jalan lagi. Fix: `definePageMeta({ key: route => route.fullPath })` di `app/pages/audit-trail.vue`. Keadaan buruk yang dihindari: paginasi mati senyap pada navigasi klien.
+  2. **LIMIT 100 → selectable:** `GET /api/audit?limit=` menerima 20/40/80 (default 20; setelan awal 25/50/100 default 25 direvisi user di hari yang sama karena 25/halaman kurang nyaman), di luar opsi → 400 envelope. Konstanta kontrak pindah ke `shared/domain/audit.ts` (`AUDIT_LIMIT_OPSI`/`AUDIT_LIMIT_DEFAULT`, murni AD-6); `listForCoo(db, page, limit?)`. Menimpa pin matriks "LIMIT 100". Halaman menampilkan selector ukuran (`data-testid=audit-trail-ukuran`); ganti ukuran kembali ke halaman 1.
+  3. **Login:** teks "Sip & Dip" di bawah logo dihapus (permintaan user); tagline + CTA tak berubah.
+  KEEP: enforcement COO per-request (AD-8) dan seluruh bentuk envelope tidak berubah; test stateful tetap memakai `denganAuditKosong`.
+
 ## Review Triage Log
 
 | # | Temuan (layer) | Vonis | Bukti & Rute |
@@ -138,7 +144,8 @@ context:
 - **Kolom `action` = `text`, bukan pgEnum:** registry terpusat tetap menutup himpunan di level service; menambah aksi (1.4+) = edit konstanta `shared/domain/audit.ts` tanpa migrasi — pola proyek lama yang terbukti.
 - **`actor_owner_id` null = `system`:** satu kolom memenuhi envelope AD-3; tampilan menampilkan "System" untuk null. Penentu aktor = pemanggil (AD-8: pejabat saat commit).
 - **Grants tidak mengikat superuser:** REVOKE hanya efektif bagi role non-superuser — itulah alasan role `app_runtime` dibuat; lihat proyek lama `drizzle/runtime-role.sql:39-47`.
-- **Paging offset sederhana** (limit 100, `?page=`) memadai untuk skala 22–40 owner; cursor menyusul bila perlu.
+- **Paging offset sederhana** (limit default 20, opsi 20/40/80 via `?limit=` — renegosiasi 2026-09-17, semula 100; `?page=`) memadai untuk skala 22–40 owner; cursor menyusul bila perlu.
+- **`key: route.fullPath` di halaman audit:** navigasi query-only tanpa key memakai ulang komponen — setup (fetch SSR) tidak jalan ulang; ini akar bug "Berikutnya diam di halaman 1" (lihat Spec Change Log).
 - **Reset dev-only test stateful (keputusan step-03):** tabel append-only tanpa kontrak pembersihan sampai 1.4, sementara test `empty-state`, `baseline seed`, dan `paging` menuntut keadaan terukur. Solusi: `tests/support/helpers/audit-reset.ts` — TRUNCATE via koneksi ADMIN (postgres, bukan jalur aplikasi; grants `app_runtime` tetap menutup UPDATE/DELETE/TRUNCATE bagi runtime) + `pg_advisory_lock` yang digenggam sepanjang test stateful agar TRUNCATE/seed lintas project browser (fullyParallel × 3 browser) tidak saling menyela. Tanpa ini, empty-state flaky dan asersi baseline pecah bila tabel ≥ ~97 baris. Asersi ter-pin tidak diubah.
 - **Gap coverage "gagal muat → Coba lagi" (baris 1 matriks, kolom error-handling):** tidak ada covering test otomatis — fetch halaman terjadi SSR (`useRequestFetch`) sehingga kegagalan `/api/audit` tidak dapat dipaksa dari e2e tanpa infra component-test (belum ada di repo). Empty state (pasangan error-handling pada baris yang sama) ter-cover. Dicatat sadar untuk ditimbang reviewer; opsi menyusul: component test atau story error-state.
 - **Tiebreaker paging:** `ORDER BY created_at DESC, id DESC` — entry dalam satu transaksi berbagi `now()` yang sama; tanpa tiebreaker, paging offset tidak deterministik antar halaman.

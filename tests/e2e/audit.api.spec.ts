@@ -3,12 +3,14 @@
  *
  * Test dirancang red-phase (test.skip) lalu diaktifkan pada tugas green-phase
  * bersama implementasinya; seluruh asersi ter-pin dari red-phase tidak
- * berubah. Kontrak yang diperiksa = matriks I/O spec Story 1.3 (beku):
+ * berubah. Kontrak yang diperiksa = matriks I/O spec Story 1.3 (beku) +
+ * renegosiasi user 2026-09-17 (limit opsional):
  * - GET /api/audit tanpa sesi            → 401 envelope { code, message, details }
  * - GET /api/audit sesi non-COO          → 403 envelope (HTTP_STATUS.forbidden)
  * - GET /api/audit?page=bukan-angka      → 400 envelope
  * - GET /api/audit sesi COO              → 200 { data, nextPage } urut created_at desc,
- *                                          nextPage null bila habis, LIMIT 100
+ *                                          nextPage null bila habis; limit default 20,
+ *                                          opsi 20/40/80, di luar opsi → 400
  * - POST /api/test/audit-seed (dev-only) → triple-guard pola login.post.ts
  *
  * Kontrak seed terwujud: body `{ jumlah: <n> }` + header TEST_AUTH_SECRET
@@ -65,12 +67,14 @@ const contextCookiePerHop = async (
   },
 })
 
-/** LIMIT halaman /api/audit — spec matriks I/O: "LIMIT konstanta bernama (100)". */
-const BATAS_HALAMAN_AUDIT = 100
+/** LIMIT maksimum /api/audit (opsi `?limit=` 20/40/80 — renegosiasi user 2026-09-17). */
+const LIMIT_MAKS_AUDIT = 80
+/** LIMIT default bila `?limit=` tidak hadir (renegosiasi user 2026-09-17). */
+const LIMIT_DEFAULT_AUDIT = 20
 /** Jumlah entry seed untuk test baca dasar (di atas baseline apa pun). */
 const JUMLAH_SEED_DASAR = 3
-/** Jumlah entry seed test paging: LIMIT + 1 agar halaman 2 terisi. */
-const JUMLAH_SEED_PAGING = BATAS_HALAMAN_AUDIT + 1
+/** Jumlah entry seed test paging: LIMIT MAKS + 1 agar halaman 2 (limit maks) terisi. */
+const JUMLAH_SEED_PAGING = LIMIT_MAKS_AUDIT + 1
 /** Jumlah entry seed test guard (nilai tak berpengaruh — guard menolak sebelum seed). */
 const JUMLAH_SEED_GUARD = 1
 /** Pengaman iterasi paging — DB dev dipakai bersama test lain; jangan loop tanpa batas. */
@@ -247,36 +251,66 @@ test.describe('[P1] GET /api/audit sesi COO setelah seed', () => {
 })
 
 test.describe('[P2] Paging GET /api/audit', () => {
-  test('[P2] nextPage non-null meneruskan halaman berikutnya dan null saat habis', async ({ apiRequest }) => {
+  test('[P2] limit default 20, opsi 40/80 dilayani, limit asing 400, nextPage null saat habis', async ({ apiRequest }) => {
     // GAGAL saat red: POST /api/test/audit-seed menjawab 404 (endpoint seed
     // belum ada) — asersi status seed menjadi kegagalan pertama. Reset
     // dev-only menjamin paging berakhir tepat (asersi tak diubah).
+    // Kontrak limit = renegosiasi user 2026-09-17 (default 20, opsi 20/40/80,
+    // di luar opsi → 400) — menimpa pin matriks awal "LIMIT 100".
     await denganAuditKosong(async () => {
-      await log.step(`GIVEN sesi COO dan seed ${JUMLAH_SEED_PAGING} entry audit (LIMIT + 1)`)
+      await log.step(`GIVEN sesi COO dan seed ${JUMLAH_SEED_PAGING} entry audit (LIMIT MAKS + 1)`)
       const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
       const headerCookie = headerCookieDariMint(cookieSesi)
       await seedAuditUji(apiRequest, JUMLAH_SEED_PAGING)
 
-      await log.step('WHEN COO membaca halaman 1')
-      const halaman1 = await apiRequest<DaftarAudit>({
+      await log.step('WHEN COO membaca halaman 1 TANPA query limit')
+      const halaman1Default = await apiRequest<DaftarAudit>({
         method: 'GET',
         path: '/api/audit?page=1',
         headers: headerCookie,
       }).validateSchema(SkemaDaftarAudit)
-      expect(halaman1.status).toBe(200)
-      // Spec mem-pin LIMIT konstanta bernama (100); seed LIMIT+1 menjamin
-      // halaman 1 penuh tanpa bergantung jumlah baris lain di DB dev.
-      expect(halaman1.body.data.length).toBe(BATAS_HALAMAN_AUDIT)
-      expect(halaman1.body.nextPage, 'baris > LIMIT → harus ada halaman lanjutan').not.toBeNull()
+      expect(halaman1Default.status).toBe(200)
+      await log.step(`THEN default = ${LIMIT_DEFAULT_AUDIT} baris dengan halaman lanjutan`)
+      expect(halaman1Default.body.data.length).toBe(LIMIT_DEFAULT_AUDIT)
+      expect(halaman1Default.body.nextPage, 'baris > default → harus ada halaman lanjutan').not.toBeNull()
 
-      await log.step('THEN halaman lanjutan memuat sisa entry tanpa duplikasi halaman 1 sampai nextPage null')
+      await log.step('AND opsi limit 40 dan 80 dilayani sesuai permintaan')
+      const limit40 = await apiRequest<DaftarAudit>({
+        method: 'GET',
+        path: '/api/audit?page=1&limit=40',
+        headers: headerCookie,
+      }).validateSchema(SkemaDaftarAudit)
+      expect(limit40.status).toBe(200)
+      expect(limit40.body.data.length).toBe(40)
+
+      const halaman1 = await apiRequest<DaftarAudit>({
+        method: 'GET',
+        path: '/api/audit?page=1&limit=80',
+        headers: headerCookie,
+      }).validateSchema(SkemaDaftarAudit)
+      expect(halaman1.status).toBe(200)
+      // Seed LIMIT MAKS + 1 menjamin halaman 1 (limit maks) penuh tanpa
+      // bergantung jumlah baris lain di DB dev.
+      expect(halaman1.body.data.length).toBe(LIMIT_MAKS_AUDIT)
+      expect(halaman1.body.nextPage, 'baris > limit → harus ada halaman lanjutan').not.toBeNull()
+
+      await log.step('AND limit di luar opsi ditolak 400 envelope')
+      const limitAsing = await apiRequest<EnvelopeError>({
+        method: 'GET',
+        path: '/api/audit?page=1&limit=30',
+        headers: headerCookie,
+      }).validateSchema(SkemaEnvelopeError)
+      expect(limitAsing.status).toBe(400)
+      expect(limitAsing.body.message.length).toBeGreaterThan(0)
+
+      await log.step('THEN halaman lanjutan (limit maks) memuat sisa entry tanpa duplikasi sampai nextPage null')
       const idHalaman1 = new Set(halaman1.body.data.map(entry => entry.id))
       let nextPage = halaman1.body.nextPage
       let halamanDilintasi = 1
       while (nextPage !== null && halamanDilintasi < BATAS_MAKS_HALAMAN_DILINTAS) {
         const lanjutan = await apiRequest<DaftarAudit>({
           method: 'GET',
-          path: `/api/audit?page=${String(nextPage)}`,
+          path: `/api/audit?page=${String(nextPage)}&limit=80`,
           headers: headerCookie,
         }).validateSchema(SkemaDaftarAudit)
         expect(lanjutan.status).toBe(200)

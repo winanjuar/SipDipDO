@@ -8,24 +8,24 @@
  *       tidak pernah async/batch); `action` divalidasi registry terpusat
  *       `shared/domain/audit.ts` SEBELUM INSERT; aktor `user` wajib membawa
  *       ownerId, `system` tanpa ownerId.
- *   listForCoo(db, page)
- *     — komposisi baca untuk tampilan COO (FR-12): paging offset, limit
- *       konstanta bernama (terpin spec: 100), urut `created_at` desc;
+ *   listForCoo(db, page, limit?)
+ *     — komposisi baca untuk tampilan COO (FR-12): paging offset, ukuran
+ *       halaman dari opsi terkontrak (default 20, opsi 20/40/80 —
+ *       renegosiasi user 2026-09-17), urut `created_at` desc;
  *       `{ data, nextPage }` dengan `nextPage` null bila habis.
  *
  * Penegakan kewenangan COO ada di route handler (AD-8, per-request);
  * modul lain tidak membaca audit untuk keputusan bisnis (AD-3).
  */
 import {
+  AUDIT_LIMIT_DEFAULT,
   isAuditAction,
   type AuditActor,
   type AuditEntryInput,
+  type AuditLimit,
 } from '#shared/domain/audit'
 import type { DbClient } from '../../utils/db'
 import { insertAuditEntry, listAuditEntries, type AuditEntryRecord } from './audit.repo'
-
-/** LIMIT halaman baca audit — terpin spec (matriks I/O): konstanta bernama. */
-export const AUDIT_PAGE_LIMIT = 100
 
 /** Bentuk wire entry audit untuk lapis tampilan (envelope aktor AD-3). */
 export interface AuditEntryWire {
@@ -112,12 +112,13 @@ function mapKeWire(row: AuditEntryRecord): AuditEntryWire {
 }
 
 /**
- * Baca audit trail untuk tampilan COO (FR-12): paging offset dengan limit
- * terpin spec, terbaru lebih dulu, `nextPage` null bila habis. Enforcement
- * kewenangan COO ada di route handler (AD-8).
+ * Baca audit trail untuk tampilan COO (FR-12): paging offset dengan ukuran
+ * halaman dari opsi terkontrak (renegosiasi user 2026-09-17 — default 20,
+ * opsi 20/40/80), terbaru lebih dulu, `nextPage` null bila habis.
+ * Enforcement kewenangan COO ada di route handler (AD-8).
  */
-export async function listForCoo(db: DbClient, page: number): Promise<AuditDaftar> {
-  const offset = (page - 1) * AUDIT_PAGE_LIMIT
-  const hasil = await listAuditEntries(db, { limit: AUDIT_PAGE_LIMIT, offset })
+export async function listForCoo(db: DbClient, page: number, limit: AuditLimit = AUDIT_LIMIT_DEFAULT): Promise<AuditDaftar> {
+  const offset = (page - 1) * limit
+  const hasil = await listAuditEntries(db, { limit, offset })
   return { data: hasil.data.map(mapKeWire), nextPage: hasil.nextPage }
 }

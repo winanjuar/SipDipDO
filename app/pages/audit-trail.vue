@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AUDIT_LIMIT_DEFAULT, AUDIT_LIMIT_OPSI, type AuditLimit } from '#shared/domain/audit'
 import { LANDING_PATH } from '#shared/domain/identity'
 import type { LandingRespons } from '~/lib/landing'
 import { formatWaktuAudit, labelAktor, ringkasDetailJson, TARGET_KOSONG } from '~/lib/audit'
@@ -6,13 +7,18 @@ import type { AuditRespons } from '~/lib/audit'
 
 /**
  * Audit Trail — khusus COO (FR-12, AD-8). Tampilan MINIMAL (keputusan spec
- * 1.3): tabel entry terbaru (aktor, waktu, aksi, target, detail) + paginasi
- * tautan — TANPA filter aktor/aksi/rentang waktu dan TANPA infinite scroll;
- * filter menyusul di story lain saat volume data ada. Non-COO membuka URL
- * langsung → kembali ke landing role-nya (penegakan server di /api/audit;
- * sisi halaman memakai pola status-pendaftaran.vue).
+ * 1.3 + renegosiasi user 2026-09-17): tabel entry terbaru (aktor, waktu,
+ * aksi, target, detail) + paginasi tautan dengan pilihan ukuran halaman
+ * (20/40/80, default 20) — TANPA filter aktor/aksi/rentang waktu dan TANPA
+ * infinite scroll. Non-COO membuka URL langsung → kembali ke landing
+ * role-nya (penegakan server di /api/audit; sisi halaman memakai pola
+ * status-pendaftaran.vue).
+ *
+ * `key: route.fullPath` WAJIB — tanpa itu, klik Berikutnya/Sebelumnya hanya
+ * mengubah query sehingga Nuxt MEMAKAI ULANG komponen: setup (fetch SSR dan
+ * `halamanAktif`) tidak pernah jalan lagi dan tabel diam di halaman 1.
  */
-definePageMeta({ auth: true })
+definePageMeta({ auth: true, key: route => route.fullPath })
 
 const api = useRequestFetch()
 
@@ -26,31 +32,43 @@ if (!landing) {
   await navigateTo(LANDING_PATH[landing.role])
 }
 
-const POLA_HALAMAN = /^\d+$/
-const MAKS_HALAMAN_AMAN = Number.MAX_SAFE_INTEGER
+const POLA_ANGKA = /^\d+$/
+const MAKS_ANGKA_AMAN = Number.MAX_SAFE_INTEGER
 
 /**
- * Parse `?page=` → bilangan bulat ≥ 1; null bila tidak ada/tidak valid.
- * Ketat: `/^\d+$/` + batas MAX_SAFE_INTEGER — '2abc' maupun '1e21' jatuh
- * ke fallback halaman 1 (divergensi lapis: API menjawab 400, halaman fallback).
+ * Parse angka query ketat: `/^\d+$/` + batas MAX_SAFE_INTEGER — '2abc'
+ * maupun '1e21' jatuh ke fallback (divergensi lapis: API menjawab 400,
+ * halaman fallback).
  */
-function parseHalaman(nilai: unknown): number | null {
-  if (typeof nilai !== 'string' || !POLA_HALAMAN.test(nilai)) return null
+function parseAngka(nilai: unknown): number | null {
+  if (typeof nilai !== 'string' || !POLA_ANGKA.test(nilai)) return null
   const hasil = Number.parseInt(nilai, 10)
-  return hasil >= 1 && hasil <= MAKS_HALAMAN_AMAN ? hasil : null
-}
-
-/** Tautan paginasi — halaman 1 tanpa query. */
-function tautanHalaman(halaman: number): string {
-  return halaman <= 1 ? '/audit-trail' : `/audit-trail?page=${halaman}`
+  return hasil >= 1 && hasil <= MAKS_ANGKA_AMAN ? hasil : null
 }
 
 const route = useRoute()
 const HALAMAN_AWAL = 1
-const halamanAktif = parseHalaman(route.query.page) ?? HALAMAN_AWAL
+const halamanAktif = parseAngka(route.query.page) ?? HALAMAN_AWAL
+/** Ukuran halaman aktif — bila `?limit` tidak valid, fallback ke default. */
+const limitAktif = parseAngka(route.query.limit)
+const ukuranAktif = limitAktif !== null && AUDIT_LIMIT_OPSI.includes(limitAktif as AuditLimit)
+  ? (limitAktif as AuditLimit)
+  : AUDIT_LIMIT_DEFAULT
+
+/**
+ * Tautan paginasi/ukuran — kanonik: `page` dihilangkan bila 1, `limit`
+ * dihilangkan bila default. Ganti ukuran KEMBALI ke halaman 1 (offset halaman
+ * lama nyaris pasti di luar jangkauan ukuran baru).
+ */
+function tautanAudit(halaman: number, ukuran: AuditLimit): string {
+  const params: string[] = []
+  if (halaman > 1) params.push(`page=${halaman}`)
+  if (ukuran !== AUDIT_LIMIT_DEFAULT) params.push(`limit=${ukuran}`)
+  return params.length === 0 ? '/audit-trail' : `/audit-trail?${params.join('&')}`
+}
 
 const hasilAudit = landing && !('unlinked' in landing) && landing.role === 'coo'
-  ? await api<AuditRespons>(`/api/audit?page=${halamanAktif}`).catch(() => null)
+  ? await api<AuditRespons>(`/api/audit?page=${halamanAktif}&limit=${ukuranAktif}`).catch(() => null)
   : null
 
 const gagalMuat = hasilAudit === null
@@ -88,6 +106,22 @@ useHead({ title: 'Audit Trail — Sip & Dip' })
     </section>
 
     <template v-else>
+      <div class="flex items-center justify-end" data-testid="audit-trail-ukuran">
+        <span class="text-sm text-muted-foreground">Per halaman:</span>
+        <NuxtLink
+          v-for="opsi in AUDIT_LIMIT_OPSI"
+          :key="opsi"
+          :to="tautanAudit(1, opsi)"
+          class="rounded-md px-2 py-1 text-sm tabular-nums"
+          :class="opsi === ukuranAktif
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-accent'"
+          :aria-current="opsi === ukuranAktif ? 'true' : undefined"
+        >
+          {{ opsi }}
+        </NuxtLink>
+      </div>
+
       <Table data-testid="audit-trail-tabel">
         <TableHeader>
           <TableRow>
@@ -132,7 +166,7 @@ useHead({ title: 'Audit Trail — Sip & Dip' })
       >
         <NuxtLink
           v-if="halamanAktif > 1"
-          :to="tautanHalaman(halamanAktif - 1)"
+          :to="tautanAudit(halamanAktif - 1, ukuranAktif)"
           class="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
         >
           &larr; Sebelumnya
@@ -141,7 +175,7 @@ useHead({ title: 'Audit Trail — Sip & Dip' })
         <span class="text-sm text-muted-foreground tabular-nums">Halaman {{ halamanAktif }}</span>
         <NuxtLink
           v-if="nextPage !== null"
-          :to="tautanHalaman(nextPage)"
+          :to="tautanAudit(nextPage, ukuranAktif)"
           class="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
         >
           Berikutnya &rarr;

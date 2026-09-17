@@ -225,14 +225,15 @@ sama** dengan aksinya lewat pintu modul `server/domain/audit/index.ts`
 registry `shared/domain/audit.ts`). Audit tidak dipakai modul lain untuk
 keputusan bisnis — hanya tampilan COO.
 
-- Endpoint: `GET /api/audit?page=<n>` — khusus COO (role per-request dari
-  `coo_tenures`, AD-8). Tanpa sesi → 401; non-COO → 403; `?page` tidak
-  valid → 400 (envelope `{ code, message, details }`). Respons
-  `{ data, nextPage }` urut `created_at` desc, limit 100, `nextPage` null
-  bila habis.
+- Endpoint: `GET /api/audit?page=<n>&limit=<n>` — khusus COO (role per-request
+  dari `coo_tenures`, AD-8). Tanpa sesi → 401; non-COO → 403; `?page`/`?limit`
+  tidak valid → 400 (envelope `{ code, message, details }`). Respons
+  `{ data, nextPage }` urut `created_at` desc; limit default 20, opsi
+  20/40/80 (renegosiasi user 2026-09-17), `nextPage` null bila habis.
 - Halaman: `/audit-trail` (hanya COO) — tabel aksi terbaru (waktu id-ID zona
   Asia/Jakarta, aktor email/"System", aksi, target, detail JSON terpotong),
-  paginasi tautan, tanpa filter (keputusan spec 1.3: minimal dulu).
+  paginasi tautan + selector ukuran halaman, tanpa filter (keputusan spec
+  1.3: minimal dulu).
 - Endpoint uji dev-only: `POST /api/test/audit-seed` (`{ jumlah: <n> }`,
   triple-guard sama dengan `/api/test/login`) — seed entry audit sintetis
   dalam satu transaksi lewat API publik modul audit.
