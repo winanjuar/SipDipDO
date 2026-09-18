@@ -53,4 +53,9 @@ export const TEST_IDS = {
     paginasi: 'audit-trail-paginasi',
     ukuran: 'audit-trail-ukuran',
   },
+  // Story 1.5 — kelengkapan profile (kontrak ATDD red-phase; region indikator
+  // langkah UX-DR16 diimplementasikan dengan data-testid ini).
+  kelengkapanProfil: {
+    indikator: 'kelengkapan-indikator',
+  },
 } as const
