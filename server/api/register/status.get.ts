@@ -4,7 +4,7 @@ import { useDb } from '../../utils/db'
 import { getSessionEmail } from '../../utils/session'
 
 /**
- * GET /api/pendaftaran/status — data badge halaman status pendaftaran (AD-8):
+ * GET /api/register/status — data badge halaman status pendaftaran (AD-8):
  * khusus calon owner (`diajukan`/`ditolak`/`kedaluwarsa`) →
  * `{ status, rejectionReason }`; non-calon → redirect ke landing role-nya;
  * tanpa sesi → 401 envelope seragam. Route handler tipis — keputusan role dari
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const principal = await buildPrincipal(createIdentityRepo(useDb()), email)
-  if (principal.unlinked) return sendRedirect(event, '/login?state=unlinked')
+  if (principal.unlinked) return sendRedirect(event, '/login?res=unlinked')
   if (principal.role !== 'calon_owner') return sendRedirect(event, LANDING_PATH[principal.role])
 
   return { status: principal.owner.status, rejectionReason: principal.owner.rejectionReason ?? '' }

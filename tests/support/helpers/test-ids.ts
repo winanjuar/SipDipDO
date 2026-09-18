@@ -28,10 +28,20 @@ export const TEST_IDS = {
     brandLogo: 'login-brand-logo',
     ctaGoogle: 'login-cta-google',
     pesanUnlinked: 'login-pesan-unlinked',
+    tautanDaftar: 'login-tautan-daftar',
   },
   statusPendaftaran: {
     badgeStatus: 'status-badge',
     alasanPenolakan: 'status-alasan-penolakan',
+  },
+  // Story 1.4 — halaman pendaftaran (kontrak ATDD green-phase + modal
+  // konfirmasi T&C wajib sebelum aksi daftar/OAuth).
+  pendaftaran: {
+    modalSyarat: 'pendaftaran-modal-syarat',
+    checkboxSyarat: 'pendaftaran-syarat-setuju',
+    tombolLanjut: 'pendaftaran-syarat-lanjut',
+    tombolBatal: 'pendaftaran-syarat-batal',
+    tautanSyarat: 'pendaftaran-tautan-syarat',
   },
   // Story 1.3 — audit trail (kontrak ATDD red-phase; elemen halaman
   // /audit-trail diimplementasikan dengan data-testid ini).

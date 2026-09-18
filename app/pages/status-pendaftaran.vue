@@ -12,6 +12,9 @@ import type { LandingRespons, StatusPendaftaranRespons } from '~/lib/landing'
  */
 definePageMeta({ auth: true })
 
+/** Flag konfirmasi dari hard-navigasi pasca-daftar (pendaftaran.vue). */
+const FLAG_DAFTAR_BERHASIL = 'berhasil'
+
 /** Peta status → badge (teks + varian token semantik UX-DR2/DR4). */
 const PETA_BADGE: Record<OwnerStatus, { label: string, variant: 'warn' | 'success' | 'destructive' | 'muted' }> = {
   diajukan: { label: 'Diajukan', variant: 'warn' },
@@ -27,23 +30,49 @@ const landing = await api<LandingRespons>('/api/landing').catch(() => null)
 if (!landing) {
   await navigateTo('/login')
 } else if ('unlinked' in landing) {
-  await navigateTo('/login?state=unlinked')
+  await navigateTo('/login?res=unlinked')
 } else if (landing.role !== 'calon_owner') {
   // Non-calon membuka URL langsung → kembali ke landing role-nya (UX-DR14).
   await navigateTo(LANDING_PATH[landing.role])
 }
 
 const statusData = landing && !('unlinked' in landing) && landing.role === 'calon_owner'
-  ? await api<StatusPendaftaranRespons>('/api/pendaftaran/status').catch(() => null)
+  ? await api<StatusPendaftaranRespons>('/api/register/status').catch(() => null)
   : null
 
 const badge = statusData ? PETA_BADGE[statusData.status] : null
 const alasanPenolakan = statusData?.rejectionReason ?? ''
 
+/** Alert konfirmasi pasca-daftar (permintaan owner 2026-09-18, direvisi:
+ *  alert di ATAS halaman menggantikan toast bawah — auto-hilang 3 detik):
+ *  flag query dari register.vue → alert SEKALI lalu query dibersihkan agar
+ *  refresh/bagikan URL tidak mengulang konfirmasi. Klien-saja (onMounted).
+ *  Alert "Masuk berhasil." dilewati bila alert daftar tampil. */
+const route = useRoute()
+const router = useRouter()
+const pesanMasuk = useSekaliAlertMasuk()
+const pesanDaftar = ref('')
+onMounted(() => {
+  if (route.query.daftar === FLAG_DAFTAR_BERHASIL) {
+    pesanDaftar.value = 'Pendaftaran berhasil diajukan.'
+    setTimeout(() => {
+      pesanDaftar.value = ''
+    }, DURASI_ALERT_SUKSES_MS)
+    void router.replace({ query: { ...route.query, daftar: undefined } })
+  }
+})
+
 useHead({ title: 'Status Pendaftaran — Sip & Dip' })
 </script>
 
 <template>
+  <div>
+  <Alert v-if="pesanDaftar" variant="success" class="mx-auto max-w-md px-4 pt-4 sm:rounded-lg" aria-live="polite">
+    {{ pesanDaftar }}
+  </Alert>
+  <Alert v-else-if="pesanMasuk" variant="success" class="mx-auto max-w-md px-4 pt-4 sm:rounded-lg" aria-live="polite">
+    {{ pesanMasuk }}
+  </Alert>
   <main class="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-4 py-10">
     <header>
       <h1 class="text-2xl font-semibold">Status Pendaftaran</h1>
@@ -53,7 +82,7 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
     <section v-if="badge" class="flex flex-col gap-4 rounded-lg border p-4">
       <div class="flex items-center gap-3">
         <span class="text-sm text-muted-foreground">Status</span>
-        <Badge data-testid="status-badge" :variant="badge.variant" class="rounded-full">
+        <Badge data-testid="status-badge" aria-live="polite" :variant="badge.variant" class="rounded-full">
           {{ badge.label }}
         </Badge>
       </div>
@@ -73,4 +102,5 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
       <p class="text-sm text-muted-foreground">Status pendaftaran belum tersedia.</p>
     </section>
   </main>
+  </div>
 </template>

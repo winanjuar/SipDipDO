@@ -12,15 +12,17 @@ export type { IdentityRepoPort, OwnerRoleInput } from './access.service'
 export {
   closeActiveCooTenures,
   createIdentityRepo,
+  daftarOwnerByEmail,
   findActiveCooTenure,
   findOwnerByEmail,
   openCooTenure,
   upsertOwnerByEmail,
 } from './owner.repo'
-export type { OwnerRecord } from './owner.repo'
+export type { HasilDaftarOwner, OwnerRecord } from './owner.repo'
 export {
   REGISTRATION_EXPIRY_DAYS,
   REGISTRATION_REMINDER_DAYS_BEFORE,
+  ajukanPendaftaran,
   registrationDeadline,
   runRegistrationDailyJob,
 } from './registration.service'

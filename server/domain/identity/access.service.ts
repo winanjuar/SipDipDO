@@ -3,11 +3,12 @@
  *
  * - `resolveRole(owner, cooAktif)` MURNI (tanpa I/O): precedence landing
  *   ter-pin (design notes spec) — unlinked (tanpa baris owner, ditangani
- *   `buildPrincipal`) → COO aktif (`coo_tenures` berlaku) → `keluar` →
- *   `first_effective_at` terisi (pemegang saham) → `terverifikasi` tanpa
- *   pembelian → calon (`diajukan`/`ditolak`/`kedaluwarsa`). COO aktif menang
- *   di atas pemegang saham (COO umumnya juga pemegang saham). Role TIDAK
- *   PERNAH diturunkan dari `positions.shares` (AD-8/AD-11).
+ *   `buildPrincipal`) → COO aktif (`coo_tenures` berlaku) → calon
+ *   (`diajukan`/`ditolak`/`kedaluwarsa`) → `keluar` → `first_effective_at`
+ *   terisi (pemegang saham) → `terverifikasi` tanpa pembelian. COO aktif
+ *   menang di atas pemegang saham (COO umumnya juga pemegang saham); calon
+ *   menang atas saham (data migrasi). Role TIDAK PERNAH diturunkan dari
+ *   `positions.shares` (AD-8/AD-11).
  * - `buildPrincipal(repo, email)` membaca DB tiap request via repo (DI) —
  *   role dievaluasi per-request, tidak pernah disimpan di JWT/session, sehingga
  *   pergantian COO/status tidak pernah basi.
@@ -41,19 +42,22 @@ export interface IdentityRepoPort {
 
 /**
  * Resolve role dari snapshot owner + status tenure COO — murni, diuji
- * `1-UNIT-001` (subset). Urutan penilaian = precedence landing ter-pin.
+ * `1-UNIT-001` (subset). Urutan penilaian = precedence landing ter-pin:
+ * calon (diajukan/ditolak/kedaluwarsa) MENANG atas saham/keluar — pendaftar
+ * yang punya `first_effective_at` (data migrasi) tetap diarahkan ke status
+ * pendaftaran hingga verifikasi berjalan (keputusan owner, 2026-09-18).
  */
 export function resolveRole(
   owner: Pick<OwnerAccessSnapshot, 'status' | 'firstEffectiveAt'>,
   cooAktif: boolean,
 ): Role {
   if (cooAktif) return 'coo'
+  if (CALON_OWNER_STATUSES.includes(owner.status)) return 'calon_owner'
   if (owner.status === 'keluar') return 'tanpa_saham'
   if (owner.firstEffectiveAt !== null) return 'pemegang_saham'
+  // Cabang final eksplisit — status di luar himpunan yang sudah dinilai
+  // tidak pernah jatuh diam-diam ke tanpa_saham.
   if (owner.status === 'terverifikasi') return 'tanpa_saham'
-  // Cabang final eksplisit — status di luar himpunan calon tidak pernah
-  // jatuh diam-diam ke calon_owner.
-  if (CALON_OWNER_STATUSES.includes(owner.status)) return 'calon_owner'
   throw new Error(`resolveRole: status owner tidak dikenal (${String(owner.status)}).`)
 }
 

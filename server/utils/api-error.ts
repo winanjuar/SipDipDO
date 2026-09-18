@@ -13,6 +13,8 @@ export interface ApiErrorEnvelope {
 
 /** Status HTTP yang dipakai envelope error — satu sumber untuk seluruh route. */
 export const HTTP_STATUS = {
+  ok: 200,
+  created: 201,
   badRequest: 400,
   unauthorized: 401,
   forbidden: 403,

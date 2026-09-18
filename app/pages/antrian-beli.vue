@@ -6,10 +6,16 @@
  */
 definePageMeta({ auth: true })
 
+const pesanMasuk = useSekaliAlertMasuk()
+
 useHead({ title: 'Antrian Beli — Sip & Dip' })
 </script>
 
 <template>
+  <div>
+  <Alert v-if="pesanMasuk" variant="success" class="mx-auto max-w-7xl px-4 pt-4 sm:rounded-lg" aria-live="polite">
+    {{ pesanMasuk }}
+  </Alert>
   <main class="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-4 py-8">
     <header>
       <h1 class="text-2xl font-semibold">Antrian Beli</h1>
@@ -22,4 +28,5 @@ useHead({ title: 'Antrian Beli — Sip & Dip' })
       </p>
     </section>
   </main>
+  </div>
 </template>

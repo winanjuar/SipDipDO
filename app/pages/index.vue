@@ -4,18 +4,25 @@ import { HTTP_SERVER_ERROR, HTTP_UNAUTHORIZED } from '~/lib/landing'
 
 /**
  * Resolver landing SSR (UX-DR14) — redirect murni, tanpa konten:
- * tanpa sesi → `/login`; sesi unlinked → `/login?state=unlinked`; selain itu
- * `navigateTo(path)` dari `/api/landing` (keputusan dievaluasi server-side,
- * AD-8 — klien hanya meneruskan). Kerangka scaffold Story 1.1 digantikan.
+ * tanpa sesi → `/login`; sesi unlinked → `/login?res=unlinked` (pesan
+ * arahan + tautan pendaftaran — ke /pendaftaran HANYA via klik tautan);
+ * selain itu `navigateTo(path)` dari `/api/landing` (keputusan dievaluasi
+ * server-side, AD-8 — klien hanya meneruskan). Kerangka scaffold Story 1.1
+ * digantikan.
  */
 definePageMeta({ auth: false })
 
 const api = useRequestFetch()
 
 try {
-  const landing = await api<LandingRespons>('/api/landing')
+  const landing = await api<LandingRespons>('/api/landing', {
+    // Cegah payload/cache browser mengembalikan hasil lama (mis. unlinked
+    // dari sesi sebelumnya) untuk kunjungan anonim — selalu segar.
+    cache: 'no-store',
+    headers: { 'cache-control': 'no-store' },
+  } as never)
   if ('unlinked' in landing) {
-    await navigateTo('/login?state=unlinked')
+    await navigateTo('/login?res=unlinked')
   } else {
     await navigateTo(landing.path)
   }

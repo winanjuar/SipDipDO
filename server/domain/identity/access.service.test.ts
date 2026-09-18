@@ -7,10 +7,11 @@
  * ada — impor statis biasa (penyempurnaan yang disanksi red-phase), asersi
  * ter-pin tidak berubah.
  *
- * Precedence landing ter-pin (design notes spec): unlinked (tanpa baris) →
- * COO aktif → first_effective_at (pemegang saham) → terverifikasi tanpa
- * pembelian / keluar (tanpa_saham) → diajukan/ditolak/kedaluwarsa
- * (calon_owner). Role TIDAK PERNAH dari positions.shares (AD-8/AD-11).
+ * Precedence landing ter-pin (design notes spec + keputusan owner
+ * 2026-09-18): unlinked (tanpa baris) → COO aktif → calon
+ * (diajukan/ditolak/kedaluwarsa — MENANG atas saham/keluar, data migrasi) →
+ * first_effective_at (pemegang saham) → terverifikasi tanpa pembelian /
+ * keluar (tanpa_saham). Role TIDAK PERNAH dari positions.shares (AD-8/AD-11).
  */
 import { describe, expect, test } from 'vitest'
 import { buildPrincipal, resolveRole } from './access.service'
@@ -52,6 +53,14 @@ describe('server/domain/identity/access.service — resolveRole (1-UNIT-001 subs
 
     for (const status of statusCalon) {
       expect(resolveRole(owner({ status }), false)).toBe('calon_owner')
+    }
+  })
+
+  test('calon owner MENANG atas first_effective_at terisi — pendaftar data migrasi tetap ke status pendaftaran (keputusan owner 2026-09-18)', () => {
+    const statusCalon = ['diajukan', 'ditolak', 'kedaluwarsa'] as const
+
+    for (const status of statusCalon) {
+      expect(resolveRole(owner({ status, firstEffectiveAt: '2025-08-01T00:00:00.000Z' }), false)).toBe('calon_owner')
     }
   })
 })

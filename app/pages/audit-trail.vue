@@ -26,7 +26,7 @@ const landing = await api<LandingRespons>('/api/landing').catch(() => null)
 if (!landing) {
   await navigateTo('/login')
 } else if ('unlinked' in landing) {
-  await navigateTo('/login?state=unlinked')
+  await navigateTo('/login?res=unlinked')
 } else if (landing.role !== 'coo') {
   // Non-COO membuka URL langsung → landing role-nya (UX-DR14).
   await navigateTo(LANDING_PATH[landing.role])

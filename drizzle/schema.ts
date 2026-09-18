@@ -54,8 +54,9 @@ export const ownerStatus = pgEnum('owner_status', OWNER_STATUSES)
 
 /**
  * IDENTITY — owners (AD-5/AD-11): satu baris per email (UNIQUE — re-daftar =
- * baris yang sama, bukan baris baru). Kolom minimal Story 1.2; profile 11 field
- * (Story 1.5) dan kontak (1.8) menyusul lewat migrasi BARU — bukan ALTER ini.
+ * baris yang sama, bukan baris baru). Kolom minimal Story 1.2 + kode referral
+ * (Story 1.4, keputusan owner 2026-09-18); profile 11 field (Story 1.5) dan
+ * kontak (1.8) menyusul lewat migrasi BARU — bukan ALTER ini.
  */
 export const owners = pgTable('owners', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -66,6 +67,13 @@ export const owners = pgTable('owners', {
   rejectionReason: text('rejection_reason'),
   /** Di-set HANYA oleh event Pembelian Pertama efektif (AD-11). */
   firstEffectiveAt: timestamp('first_effective_at', { withTimezone: true, mode: 'string' }),
+  /** Kode referral MILIK owner — alfanumerik 8 karakter, dibuat saat baris
+   *  owner dibuat (dipakai Epic 3); UNIQUE, backfill migrasi dari md5(id). */
+  referralCode: text('referral_code').notNull().unique(),
+  /** Kode referral yang DIPAKAI pendaftar saat mendaftar — DORMANT sampai
+   *  Epic 3 mengimplementasikan param link ?ref= (keputusan owner
+   *  2026-09-18); null = mendaftar tanpa referral. */
+  usedReferralCode: text('used_referral_code'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
 })

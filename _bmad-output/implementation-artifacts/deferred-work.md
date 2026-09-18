@@ -25,3 +25,25 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-audit-trail-pencatatan-tampilan-coo.md`
   summary: Test state "gagal muat → Coba lagi" halaman `/audit-trail` — butuh infra component-test (fetch terjadi SSR sehingga tak bisa dipaksa gagal dari e2e).
   evidence: Dicatat sadar di Design Notes spec saat step-03; dua review layer (verification-gap, blind-hunter) mengonfirmasi gap; component-test belum ada di repo — infrastruktur itu sendiri adalah prasyarat yang di luar scope story ini.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Keluarkan `.opencode/opencode.json` (config tooling lokal) dari commit story 1.4 atau gitignore-kan.
+  evidence: File pre-existing sebelum story (bukan keluaran implementasi), tanpa newline akhir; blind-hunter menandainya scope creep di diff.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Hardening app-wide — envelope error seragam untuk kegagalan infrastruktur (500) di seluruh route handler.
+  evidence: Handler baru mengikuti pola sibling (`status.get.ts`, `audit/index.get.ts`) tanpa catch-all; edge-case-hunter menandai 500 mentah bila service throw — perbaikannya lintas endpoint, bukan satu story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Otomasi inisiasi OAuth CTA anonim di `/pendaftaran` (assert redirect ke Google) bila konvensi smoke manual berubah.
+  evidence: Verification-gap pre-verified — jalur akuisisi utama tak terautomasi; konvensi repo saat ini mem-pin OAuth asli ke smoke manual AR-3 (`auth-landing.spec.ts:73-78`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Keputusan test-design (owner, 2026-09-18): e2e WAJIB menjaga DB dev tetap bersih — data sintetis tidak boleh menumpuk pasca-run.
+  evidence: Pasca-suite 1.4 menumpuk 136 owner `uji.snddash.e2e.*`/re-mint + 87 audit junk; `denganAuditKosong` (TRUNCATE audit) juga menghapus entry audit riil pendaftaran manual owner. Implementasi yang harus dievaluasi: (1) `cleanup.track` untuk tiap mint `mintSesiPemilik`/POST pendaftaran di spec 1.4; (2) script dev purge `uji.snddash.e2e.%` (audit→tenure→owner, FK-aware) sebagai jaring pengaman pasca-suite; (3) pertimbangkan ulang TRUNCATE `denganAuditKosong` vs isolasi per-test agar data riil dev tak ikut terhapus. Kontraindikasi yang harus dijaga: test idempotensi (`EMAIL_IDEMPOTEN_UJI`) sengaja bergantung baris persisten antar-run — rancang cleanup agar kontrak itu tetap sah (atau ubah asersi first-call ke [200,201] dan dokumentasikan).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Input desain Epic 3 (keputusan owner 2026-09-18): referral yang DIPAKAI pendaftar direkam via param link `?ref=<kode8>` — kolom `owners.used_referral_code` sudah tersedia (dormant, migrasi 0003).
+  evidence: Mekanisme disepakati: link pendaftaran publik memuat ?ref opsional (bukan syarat akses, konsisten PRD FR-22/Glossary "referral diajukan saat Pembelian Pertama" — ?ref hanya PRE-rekam pilihan, validasi eligibility tetap di Epic 3); input form referral TETAP DILARANG (asumsi kontrak 1.4: body referral → 400). Yang harus dirancang Epic 3: parsing ?ref di halaman + POST, validasi kode ada & eligibility `pilihanReferral`, relasi ke keputusan MRO cross-referral.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Penyesuaian lanjutan alert sukses (masuk/daftar) — tampilan/posisi/durasi masih perlu dipoles oleh owner.
+  evidence: Owner 2026-09-18 — "secara fungsi sudah jalan, untuk alert masih harus disesuaikan lagi nanti" (pola saat ini: Alert shadcn varian success di atas halaman, auto-hide 3 detik).
