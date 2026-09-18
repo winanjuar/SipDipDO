@@ -84,6 +84,11 @@ const gmail = computed(() => profilTersimpan.value?.gmail ?? '')
 const kodeReferalSaya = computed(() => profilTersimpan.value?.referralCode ?? '')
 const referalDari = computed(() => profilTersimpan.value?.usedReferralCode ?? '')
 
+/** Opsi dropdown terurut alfabetis (re-negotiasi owner 2026-09-18 #5) —
+ *  "Lainnya" tetap di posisi terakhir sebagai opsi khusus (di template). */
+const BANK_TERURUT: readonly string[] = [...DAFTAR_BANK].sort((a, b) => a.localeCompare(b, 'id'))
+const HUBUNGAN_TERURUT: readonly string[] = [...DAFTAR_HUBUNGAN].sort((a, b) => a.localeCompare(b, 'id'))
+
 const isian = reactive(
   Object.fromEntries(
     FIELD_PROFIL_SIMPAN.map((kunci) => [
@@ -269,52 +274,41 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 
         <div class="flex flex-col gap-1">
           <label for="profil-hubunganDenganOwner" class="text-sm font-medium">Hubungan</label>
-          <select
-            id="profil-hubunganDenganOwner"
-            v-model="isian.hubunganDenganOwner"
-            class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
-          >
-            <option value="" disabled>Pilih hubungan…</option>
-            <option v-for="pilihan in DAFTAR_HUBUNGAN" :key="pilihan" :value="pilihan">
-              {{ pilihan }}
-            </option>
-          </select>
+          <Select v-model="isian.hubunganDenganOwner">
+            <SelectTrigger id="profil-hubunganDenganOwner" class="h-11 w-full">
+              <SelectValue placeholder="Pilih hubungan…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem v-for="pilihan in HUBUNGAN_TERURUT" :key="pilihan" :value="pilihan">
+                  {{ pilihan }}
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           <p v-if="salah.hubunganDenganOwner" class="text-xs text-destructive">{{ salah.hubunganDenganOwner }}</p>
         </div>
       </fieldset>
 
-      <!-- Grup 3 — Info Rekening (Lampiran A #8-10); Bank = dropdown (7 +
-           "Lainnya" membuka textbox bankLain). -->
+      <!-- Grup 3 — Info Rekening (Lampiran A #8-10; urutan re-negotiasi owner
+           2026-09-18 #5: No. Rekening → Pemilik → Bank); dropdown shadcn
+           urut alfabetis, opsi "Lainnya" terakhir dan membuka input
+           bankLain DI SEBELAH combobox (maxlength + sanitasi server). -->
       <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
         <legend class="px-1 text-sm font-semibold">Info Rekening</legend>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-namaBank" class="text-sm font-medium">Bank</label>
-          <select
-            id="profil-namaBank"
-            v-model="isian.namaBank"
-            class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
-          >
-            <option value="" disabled>Pilih bank…</option>
-            <option v-for="pilihan in DAFTAR_BANK" :key="pilihan" :value="pilihan">
-              {{ pilihan }}
-            </option>
-            <option :value="BANK_LAINNYA">{{ BANK_LAINNYA }}</option>
-          </select>
-          <p v-if="salah.namaBank" class="text-xs text-destructive">{{ salah.namaBank }}</p>
-        </div>
-
-        <div v-if="isian.namaBank === BANK_LAINNYA" class="flex flex-col gap-1">
-          <label for="profil-bankLain" class="text-sm font-medium">Bank Lainnya</label>
+          <label for="profil-nomorRekening" class="text-sm font-medium">No. Rekening</label>
           <input
-            id="profil-bankLain"
-            v-model="isian.bankLain"
+            id="profil-nomorRekening"
+            v-model="isian.nomorRekening"
             type="text"
-            :maxlength="PANJANG_MAKS_NAMA"
+            inputmode="numeric"
+            :maxlength="PANJANG_MAKS_REKENING"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.bankLain" class="text-xs text-destructive">{{ salah.bankLain }}</p>
+          <p v-if="salah.nomorRekening" class="text-xs text-destructive">{{ salah.nomorRekening }}</p>
         </div>
 
         <div class="flex flex-col gap-1">
@@ -331,17 +325,34 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-nomorRekening" class="text-sm font-medium">No. Rekening</label>
+          <label for="profil-namaBank" class="text-sm font-medium">Bank</label>
+          <Select v-model="isian.namaBank">
+            <SelectTrigger id="profil-namaBank" class="h-11 w-full">
+              <SelectValue placeholder="Pilih bank…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem v-for="pilihan in BANK_TERURUT" :key="pilihan" :value="pilihan">
+                  {{ pilihan }}
+                </SelectItem>
+                <SelectItem :value="BANK_LAINNYA">{{ BANK_LAINNYA }}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <p v-if="salah.namaBank" class="text-xs text-destructive">{{ salah.namaBank }}</p>
+        </div>
+
+        <div v-if="isian.namaBank === BANK_LAINNYA" class="flex flex-col gap-1">
+          <label for="profil-bankLain" class="text-sm font-medium">Bank Lainnya</label>
           <input
-            id="profil-nomorRekening"
-            v-model="isian.nomorRekening"
+            id="profil-bankLain"
+            v-model="isian.bankLain"
             type="text"
-            inputmode="numeric"
-            :maxlength="PANJANG_MAKS_REKENING"
+            :maxlength="PANJANG_MAKS_NAMA"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.nomorRekening" class="text-xs text-destructive">{{ salah.nomorRekening }}</p>
+          <p v-if="salah.bankLain" class="text-xs text-destructive">{{ salah.bankLain }}</p>
         </div>
       </fieldset>
 
