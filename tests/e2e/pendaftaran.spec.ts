@@ -98,6 +98,34 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await expect(page.getByTestId(TEST_IDS.pendaftaran.modalSyarat)).toBeVisible()
   })
 
+  test('[P2] whitelist query param — hanya src & ref sah, key lain dibuang; modal tanpa tombol X', async ({ page, recurse }) => {
+    await log.step('GIVEN /pendaftaran diakses dengan src=fresh, ref=<kode8>, DAN key asing foo=bar')
+    await page.goto(`${HALAMAN_PENDAFTARAN}?src=fresh&ref=ABCDEFGH&foo=bar`)
+
+    await log.step('THEN key asing dibuang — hanya src & ref tersisa (presentasi fresh tetap aktif)')
+    await expect(page).toHaveURL(/\/pendaftaran\?src=fresh&ref=ABCDEFGH$/)
+    await expect(page.getByRole('button', { name: 'Daftar' })).toBeVisible()
+
+    await log.step('WHEN klik CTA membuka modal konfirmasi T&C')
+    await recurse(
+      async () => {
+        if (await page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()) return true
+        try {
+          await page.getByRole('button', { name: 'Daftar' }).click()
+        } catch {
+          // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+        }
+        return page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()
+      },
+      terbuka => terbuka === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: modal konfirmasi T&C terbuka' },
+    )
+
+    await log.step('THEN modal TANPA tombol X bawaan — penutupan hanya via Batalkan/Lanjutkan')
+    await expect(page.getByRole('button', { name: 'Close' })).toHaveCount(0)
+    await expect(page.getByTestId(TEST_IDS.pendaftaran.tombolBatal)).toBeVisible()
+  })
+
   test('[P0] submit pendaftaran via akun Google → POST /api/pendaftaran → redirect status + badge Diajukan', async ({
     page,
     context,

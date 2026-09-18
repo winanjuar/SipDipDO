@@ -222,7 +222,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await page.getByRole('link', { name: 'Lakukan pendaftaran' }).click()
 
       await log.step('THEN mendarat di halaman pendaftaran dengan presentasi FRESH — sesi sisa login gagal dianggap belum pernah OAuth (keputusan owner 2026-09-18)')
-      await expect(page).toHaveURL(/\/pendaftaran\?dari=login$/, { timeout: 15_000 })
+      await expect(page).toHaveURL(/\/pendaftaran\?src=fresh$/, { timeout: 15_000 })
       await expect(page.getByRole('button', { name: 'Daftar' })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toHaveCount(0)
       await expect(page.getByText('Akun Google Anda sudah terhubung')).toHaveCount(0)
@@ -249,7 +249,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       const cookiesSelesai = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
       await context.clearCookies()
       await context.addCookies(cookiesSelesai)
-      // Target callback OAuth = '/pendaftaran' TANPA penanda ?dari=login —
+      // Target callback OAuth = '/pendaftaran' TANPA penanda ?src=fresh —
       // inilah pembeda mode terhubung vs fresh.
       await page.goto('/pendaftaran')
 

@@ -10,7 +10,7 @@ import type { LandingRespons } from '~/lib/landing'
  * Tanpa input referral (referral hanya di Pembelian Pertama, Epic 3).
  *
  * Mesin status halaman (SSR, seperti status-pendaftaran.vue): resolver
- * /api/landing menentukan mode — anonim ATAU kedatangan `?dari=login`
+ * /api/landing menentukan mode — anonim ATAU kedatangan `?src=fresh`
  * (sesi sisa login gagal dianggap fresh, keputusan owner 2026-09-18) =
  * CTA "Daftar" → modal T&C → OAuth Google; setelah OAuth (mode terhubung)
  * = CTA "Selesaikan Pendaftaran" + status "Akun Google terhubung" → modal
@@ -45,14 +45,14 @@ if (landing.value && !('unlinked' in landing.value)) {
 /** Sesi ada (respons { unlinked: true }) → CTA mengajukan pendaftaran; tanpa sesi → OAuth. */
 const denganSesi = computed(() => landing.value !== null)
 
-/** Kedatangan dari pesan login-unlinked (`?dari=login`) → presentasi FRESH:
+/** Kedatangan dari pesan login-unlinked (`?src=fresh`) → presentasi FRESH:
  *  sesi sisa percobaan login dianggap "belum pernah menyentuh OAuth"
  *  (keputusan owner 2026-09-18) — CTA "Daftar" menjalankan OAuth ulang,
  *  pasca-Google barulah mode terhubung tampil. */
-const dariLoginGagal = computed(() => route.query.dari === 'login')
+const srcFresh = computed(() => route.query.src === 'fresh')
 
 /** Mode fresh = anonim ATAU kedatangan dari login gagal. */
-const modeFresh = computed(() => !denganSesi.value || dariLoginGagal.value)
+const modeFresh = computed(() => !denganSesi.value || srcFresh.value)
 
 /** Label CTA — pasca-OAuth halaman tidak tampak identik (laporan owner
  *  2026-09-18): fresh = "Daftar" (→ OAuth), terhubung = "Selesaikan
@@ -96,6 +96,24 @@ function konfirmasiSyarat(): void {
   modalSyaratTerbuka.value = false
   void daftarGoogle()
 }
+
+/** Whitelist query param /pendaftaran (keputusan owner 2026-09-18) —
+ *  HANYA dua ini yang sah, key lain dibuang saat hidrasi:
+ *  - `src=fresh`  : kedatangan dari login gagal → presentasi fresh.
+ *  - `ref=<kode8>`: kode referral pemilik link (DORMANT — dipakai Epic 3;
+ *    kehadirannya dipertahankan apa adanya, validasi menyusul di sana). */
+const QUERY_PARAM_SAH: ReadonlySet<string> = new Set(['src', 'ref'])
+
+const router = useRouter()
+onMounted(() => {
+  const kunciAsing = Object.keys(route.query).filter((kunci) => !QUERY_PARAM_SAH.has(kunci))
+  if (kunciAsing.length === 0) return
+  // Bangun ulang query bersama (tanpa delete dinamis — lint no-dynamic-delete).
+  const bersih = Object.fromEntries(
+    Object.entries(route.query).filter(([kunci]) => QUERY_PARAM_SAH.has(kunci)),
+  )
+  void router.replace({ query: bersih })
+})
 
 /** Pesan error envelope terakhir — region aria-live dekat CTA; state dipertahankan. */
 const pesanError = ref('')
@@ -208,7 +226,9 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
     </div>
 
     <Dialog :open="modalSyaratTerbuka" @update:open="modalSyaratTerbuka = $event">
-      <DialogContent class="max-w-sm" data-testid="pendaftaran-modal-syarat">
+      <!-- Tanpa tombol X bawaan (keputusan owner 2026-09-18): penutupan hanya
+           via Batalkan/Lanjutkan; ESC & klik overlay tetap menutup. -->
+      <DialogContent class="max-w-sm" data-testid="pendaftaran-modal-syarat" :show-close-button="false">
         <DialogHeader>
           <DialogTitle>Konfirmasi Pendaftaran</DialogTitle>
           <DialogDescription>

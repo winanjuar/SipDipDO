@@ -4,7 +4,7 @@
  * SATU CTA Google + tautan pendaftaran (Story 1.4, copy re-negotiasi owner
  * 2026-09-18): "Belum jadi pemilik? Yuk Gabung!" untuk pengunjung anonim;
  * pesan unlinked "Akun tidak ditemukan." + tautan "Lakukan pendaftaran"
- * menaut ke /pendaftaran?dari=login — halaman pendaftaran menyajikan
+ * menaut ke /pendaftaran?src=fresh — halaman pendaftaran menyajikan
  * presentasi FRESH (sesi sisa login gagal dianggap belum pernah OAuth,
  * keputusan owner 2026-09-18). Halaman TIDAK terproteksi (auth: false) — tanpa navigasi app (Story 1.7).
  * Kegagalan/batal OAuth (`?error=…` callback Google) kembali ke halaman ini
@@ -64,7 +64,7 @@ useHead({ title: 'Masuk — Sip & Dip' })
         aria-live="polite"
       >
         Akun tidak ditemukan. <br>
-        <NuxtLink to="/pendaftaran?dari=login" class="font-medium text-primary underline underline-offset-4">Lakukan pendaftaran</NuxtLink>
+        <NuxtLink to="/pendaftaran?src=fresh" class="font-medium text-primary underline underline-offset-4">Lakukan pendaftaran</NuxtLink>
       </p>
 
       <p
