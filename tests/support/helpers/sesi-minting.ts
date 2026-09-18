@@ -25,6 +25,26 @@ type ApiRequestSesi = <T = unknown>(
 /** Secret guard — fallback wajib identik dengan env TEST_AUTH_SECRET server uji lokal. */
 const SECRET_TEST_AUTH = process.env.TEST_AUTH_SECRET ?? 'test-secret-lokal'
 
+/**
+ * Registry email owner sintetis yang di-mint di proses worker ini — dikonsumsi
+ * fixture `cleanup` untuk reset FK-safe pasca-test (laporan owner 2026-09-18:
+ * baris `uji.snddash.e2e.*` menumpuk lintas run karena tak pernah dibersihkan).
+ * Per-proses worker → paralel aman: worker hanya menghapus email yang DIA mint.
+ */
+export const EMAIL_OWNER_UJI_TERDAFTAR = new Set<string>()
+
+/** Normalisasi identifier → bagian-lokal email mint (cermin `lokalIdentifier`
+ *  di server/api/test/login.post.ts — duplikasi terdokumentasi). */
+function lokalIdentifier(identifier: string): string {
+  const lokal = identifier.toLowerCase().replace(/[^a-z0-9]+/g, '.')
+  return lokal.length > 0 ? lokal : 'uji'
+}
+
+/** Email mint bawaan endpoint untuk identifier tanpa override (cermin login.post). */
+export function emailMintDefault(identifier: string): string {
+  return `uji.snddash.e2e.${lokalIdentifier(identifier)}@gmail.com`
+}
+
 /** Fallback domain/path/httpOnly sesuai konvensi cookie NuxtAuth di auth-fixture.ts.
  *  hostname TANPA port — domain cookie tidak boleh memuat port (Firefox/WebKit
  *  menolak cookie ber-domain ber-port; Chromium memaafkannya). Flag secure +
@@ -69,6 +89,10 @@ export async function mintSesiPemilik(
   apiRequest: ApiRequestSesi,
   konfigurasi: KonfigurasiPemilikUji,
 ): Promise<Cookie[]> {
+  // Daftarkan email owner sintetis SEBELUM mint — baris yang dibuat endpoint
+  // direset fixture cleanup pasca-test (lihat EMAIL_OWNER_UJI_TERDAFTAR).
+  EMAIL_OWNER_UJI_TERDAFTAR.add(konfigurasi.email ?? emailMintDefault(konfigurasi.userIdentifier))
+
   const { status, body } = await apiRequest<{ cookies: CookieSesiMint[] }>({
     method: 'POST',
     path: '/api/test/login',
