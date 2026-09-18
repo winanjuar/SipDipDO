@@ -8,7 +8,8 @@
  * lintas run (owners=512). Helper ini menghapus PERSIS email yang terdaftar
  * di registry mint (target eksak → aman terhadap worker paralel), dalam
  * urutan FK-safe yang sama dengan `drizzle/cleanup.ts`:
- * audit_logs -> coo_tenures -> outbox_emails -> owners.
+ * audit_logs -> owner_bank_accounts -> owner_emergency_contacts ->
+ * coo_tenures -> outbox_emails -> owners.
  *
  * Guard host lokal (pola audit-reset.ts/seed.ts): koneksi di luar host lokal
  * TIDAK melempar — reset bersifat pemeliharaan best-effort; suite tetap jalan
@@ -61,6 +62,14 @@ export async function hapusSemuaOwnerUjiSintetis(): Promise<void> {
           OR target IN (SELECT 'owners:' || id FROM owners WHERE email LIKE ${PREFIX_EMAIL_SINTETIS})
       `
       await tx`
+        DELETE FROM owner_bank_accounts
+        WHERE owner_id IN (SELECT id FROM owners WHERE email LIKE ${PREFIX_EMAIL_SINTETIS})
+      `
+      await tx`
+        DELETE FROM owner_emergency_contacts
+        WHERE owner_id IN (SELECT id FROM owners WHERE email LIKE ${PREFIX_EMAIL_SINTETIS})
+      `
+      await tx`
         DELETE FROM coo_tenures
         WHERE owner_id IN (SELECT id FROM owners WHERE email LIKE ${PREFIX_EMAIL_SINTETIS})
       `
@@ -106,6 +115,14 @@ export async function hapusOwnerUji(emails: readonly string[]): Promise<void> {
         DELETE FROM audit_logs
         WHERE actor_owner_id IN (SELECT id FROM owners WHERE email = ANY(${emails}))
           OR target IN (SELECT 'owners:' || id FROM owners WHERE email = ANY(${emails}))
+      `
+      await tx`
+        DELETE FROM owner_bank_accounts
+        WHERE owner_id IN (SELECT id FROM owners WHERE email = ANY(${emails}))
+      `
+      await tx`
+        DELETE FROM owner_emergency_contacts
+        WHERE owner_id IN (SELECT id FROM owners WHERE email = ANY(${emails}))
       `
       await tx`
         DELETE FROM coo_tenures

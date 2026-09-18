@@ -7,9 +7,10 @@
  *
  * Selain disposisi eksplisit, fixture ini me-FLUSH registry email owner
  * sintetis (`EMAIL_OWNER_UJI_TERDAFTAR` — diisi `mintSesiPemilik` dan fixture
- * auth) pasca-test: baris `owners` + jejak FK-nya (audit/coo_tenures/outbox)
- * dihapus FK-safe via `hapusOwnerUji` (laporan owner 2026-09-18 — penumpukan
- * baris `uji.snddash.e2e.*` lintas run). Per-proses worker → paralel aman.
+ * auth) pasca-test: baris `owners` + jejak FK-nya (audit/bank/kontak darurat/
+ * coo_tenures/outbox) dihapus FK-safe via `hapusOwnerUji` (laporan owner
+ * 2026-09-18 — penumpukan baris `uji.snddash.e2e.*` lintas run). Per-proses
+ * worker → paralel aman.
  */
 import { test as base } from '@playwright/test'
 import { EMAIL_OWNER_UJI_TERDAFTAR } from '../helpers/sesi-minting'

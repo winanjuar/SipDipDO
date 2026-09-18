@@ -6,7 +6,8 @@
  * maupun baris uji manual lain. Meniru guard `drizzle/seed.ts`: tolak
  * NODE_ENV=production; host non-lokal butuh --paksa.
  *
- * Urutan hapus FK-safe: audit_logs -> coo_tenures -> outbox_emails -> owners.
+ * Urutan hapus FK-safe: audit_logs -> owner_bank_accounts ->
+ * owner_emergency_contacts -> coo_tenures -> outbox_emails -> owners.
  * audit_logs mencakup actor/target/details yatim; outbox_emails dicocokkan
  * via to_address (tanpa FK) bila ada.
  *
@@ -68,6 +69,12 @@ async function main(): Promise<void> {
     const hapusTenures = await sql`
       DELETE FROM coo_tenures WHERE owner_id IN (SELECT id FROM owners WHERE lower(email) <> ALL(${keepLower}))
     `
+    const hapusRekening = await sql`
+      DELETE FROM owner_bank_accounts WHERE owner_id IN (SELECT id FROM owners WHERE lower(email) <> ALL(${keepLower}))
+    `
+    const hapusKontakDarurat = await sql`
+      DELETE FROM owner_emergency_contacts WHERE owner_id IN (SELECT id FROM owners WHERE lower(email) <> ALL(${keepLower}))
+    `
     const hapusOutbox = await sql`
       DELETE FROM outbox_emails WHERE lower(to_address) <> ALL(${keepLower})
     `
@@ -75,7 +82,7 @@ async function main(): Promise<void> {
       DELETE FROM owners WHERE lower(email) <> ALL(${keepLower})
     `
 
-    console.log(`Terhapus: audit_logs=${hapusAudit.count} coo_tenures=${hapusTenures.count} outbox_emails=${hapusOutbox.count} owners=${hapusOwners.count}`)
+    console.log(`Terhapus: audit_logs=${hapusAudit.count} coo_tenures=${hapusTenures.count} owner_bank_accounts=${hapusRekening.count} owner_emergency_contacts=${hapusKontakDarurat.count} outbox_emails=${hapusOutbox.count} owners=${hapusOwners.count}`)
 
     const sisa = await sql<{ email: string; status: string }[]>`SELECT email, status FROM owners ORDER BY email`
     console.log('Sisa owners:')
