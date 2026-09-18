@@ -139,7 +139,7 @@ inputDocuments:
 2. Mint `/api/test/login` menerima override `diajukanPada` (DayKey Jakarta) untuk seeding backdated.
 3. Endpoint inspeksi dev-only `GET /api/test/outbox?email=` (triple-guard TEST_AUTH_SECRET).
 4. Respons `/api/jobs/daily` `details.jobs.registration` = `{ reminded, expired, remindedEmails[], expiredEmails[] }` — stub lama gagal skema (red jujur).
-5. Route halaman `/kelengkapan-profil`; endpoint simpan POST|PUT (intercept glob tanpa method); label form = nama field Indonesia; Gmail readonly.
+5. Route halaman DIPIN `/profile-completeness` (keputusan owner 2026-09-18, menggantikan asumsi `/kelengkapan-profil`; scaffold diselaraskan); endpoint simpan POST|PUT (intercept glob tanpa method); label form = nama field Indonesia; Gmail readonly.
 6. Unit: signature `runRegistrationDailyJob(today, db)` injectable (cast eksplisit di scaffold); kelengkapan = 10 kolom profil non-null.
 
 ## Next Steps (aktivasi per tugas)

@@ -7,7 +7,7 @@
  * tugas green-phase yang mengimplementasikan halaman + endpoint-nya.
  *
  * ASUMSI KONTRAK UI (red-phase, nyatakan eksplisit — final saat green-phase):
- * - Route halaman: `/kelengkapan-profil` (belum ditetapkan sumber mana pun;
+ * - Route halaman: `/profile-completeness` (belum ditetapkan sumber mana pun;
  *   permukaan #3 EXPERIENCE.md "Kelengkapan Profile").
  * - Endpoint simpan: `/api/profile` (method POST atau PUT — intercept pakai
  *   glob url TANPA method agar tahan keduanya).
@@ -34,8 +34,9 @@ import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
 import { mintSesiPemilik } from '../support/helpers/sesi-minting'
 
-/** Route halaman Kelengkapan Profile — ASUMSI red-phase (lihat header). */
-const HALAMAN_KELENGKAPAN = '/kelengkapan-profil'
+/** Route halaman Kelengkapan Profile — DIPIN owner 2026-09-18 (`/profile-completeness`;
+ *  menggantikan asumsi red-phase `/kelengkapan-profil`). */
+const HALAMAN_KELENGKAPAN = '/profile-completeness'
 
 /** Tempo recurse hidrasi Vue di dev server (pola register.spec.ts). */
 const INTERVAL_RECURSE_MS = 500
@@ -81,7 +82,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     })
     await context.addCookies(cookies)
 
-    await log.step('WHEN membuka /kelengkapan-profil')
+    await log.step('WHEN membuka /profile-completeness')
     await page.goto(HALAMAN_KELENGKAPAN)
 
     await log.step('THEN 10 field Lampiran A tampil by-label')
@@ -107,7 +108,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
   test.skip('[P0] isi 10 field & simpan → indikator lengkap; reload → nilai persisten', async ({ page, context, apiRequest, recurse }) => {
     // GAGAL saat red: halaman belum ada; klik simpan pun tidak akan pernah
     // membawa handler.
-    await log.step('GIVEN sesi calon owner diajukan membuka /kelengkapan-profil')
+    await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
     const cookies = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'tanpa-saham',
       status: 'diajukan',
@@ -220,7 +221,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     await log.step('WHEN membuka /dashboard secara langsung')
     await page.goto('/dashboard')
 
-    await log.step('THEN TIDAK berada di /dashboard — redirect terjadi (kontrak green-phase: ke /kelengkapan-profil atau /status-pendaftaran; pertegas URL eksplisit saat green)')
+    await log.step('THEN TIDAK berada di /dashboard — redirect terjadi (kontrak green-phase: ke /profile-completeness atau /status-pendaftaran; pertegas URL eksplisit saat green)')
     await expect(page).not.toHaveURL(/\/dashboard/)
   })
 })
