@@ -43,3 +43,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
   summary: Input desain Epic 3 (keputusan owner 2026-09-18): referral yang DIPAKAI pendaftar direkam via param link `?ref=<kode8>` — kolom `owners.used_referral_code` sudah tersedia (dormant, migrasi 0003).
   evidence: Mekanisme disepakati: link pendaftaran publik memuat ?ref opsional (bukan syarat akses, konsisten PRD FR-22/Glossary "referral diajukan saat Pembelian Pertama" — ?ref hanya PRE-rekam pilihan, validasi eligibility tetap di Epic 3); input form referral TETAP DILARANG (asumsi kontrak 1.4: body referral → 400). Yang harus dirancang Epic 3: parsing ?ref di halaman + POST, validasi kode ada & eligibility `pilihanReferral`, relasi ke keputusan MRO cross-referral.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
+  summary: Penyesuaian lanjutan alert sukses (masuk/daftar) — tampilan/posisi/durasi masih perlu dipoles oleh owner.
+  evidence: Owner 2026-09-18 — "secara fungsi sudah jalan, untuk alert masih harus disesuaikan lagi nanti" (pola saat ini: Alert shadcn varian success di atas halaman, auto-hide 3 detik).
