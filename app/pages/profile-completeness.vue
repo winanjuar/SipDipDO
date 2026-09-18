@@ -152,7 +152,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-4 py-10">
+  <main class="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-10 lg:max-w-5xl">
     <header>
       <h1 class="text-2xl font-semibold">Kelengkapan Profil</h1>
       <p class="text-sm text-muted-foreground">
@@ -160,30 +160,33 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
       </p>
     </header>
 
-    <Alert v-if="gagalSimpan" variant="destructive" aria-live="polite">
-      {{ PESAN_GAGAL_SIMPAN }}
-    </Alert>
+    <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[340px_1fr] lg:items-start lg:gap-8">
+      <aside class="flex flex-col gap-4 self-start lg:sticky lg:top-10">
+        <Alert v-if="gagalSimpan" variant="destructive" aria-live="polite">
+          {{ PESAN_GAGAL_SIMPAN }}
+        </Alert>
 
-    <p
-      data-testid="kelengkapan-indikator"
-      class="rounded-md border p-3 text-sm leading-relaxed"
-      aria-live="polite"
-    >
-      <template v-if="sisa.length > 0">
-        Profil belum lengkap — field belum diisi: {{ sisa.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
-      </template>
-      <template v-else>
-        Profil lengkap — seluruh field terisi. Menunggu verifikasi.
-      </template>
-    </p>
+        <p
+          data-testid="kelengkapan-indikator"
+          class="rounded-md border p-3 text-sm leading-relaxed"
+          aria-live="polite"
+        >
+          <template v-if="sisa.length > 0">
+            Profil belum lengkap — field belum diisi: {{ sisa.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
+          </template>
+          <template v-else>
+            Profil lengkap — seluruh field terisi. Menunggu verifikasi.
+          </template>
+        </p>
+      </aside>
 
-    <form class="flex flex-col gap-4" @submit.prevent="simpan">
+      <form class="flex flex-col gap-4" @submit.prevent="simpan">
       <!-- Grup 1 — Pribadi (Lampiran A #1-4); Email = email sesi, readonly;
            Nama ter-prefill dari profil Google bila kolom masih kosong. -->
-      <fieldset class="flex flex-col gap-4 rounded-lg border p-4">
+      <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
         <legend class="px-1 text-sm font-semibold">Pribadi</legend>
 
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1 lg:col-span-2">
           <label for="profil-namaLengkap" class="text-sm font-medium">Nama</label>
           <input
             id="profil-namaLengkap"
@@ -209,7 +212,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
           <p v-if="salah.alias" class="text-xs text-destructive">{{ salah.alias }}</p>
         </div>
 
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1 lg:col-span-2">
           <label for="profil-gmail" class="text-sm font-medium">Email</label>
           <input
             id="profil-gmail"
@@ -235,10 +238,10 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
       </fieldset>
 
       <!-- Grup 2 — Info Kontak Darurat (Lampiran A #5-7); Hubungan = dropdown. -->
-      <fieldset class="flex flex-col gap-4 rounded-lg border p-4">
+      <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
         <legend class="px-1 text-sm font-semibold">Info Kontak Darurat</legend>
 
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1 lg:col-span-2">
           <label for="profil-kontakDarurat" class="text-sm font-medium">Nama</label>
           <input
             id="profil-kontakDarurat"
@@ -282,7 +285,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 
       <!-- Grup 3 — Info Rekening (Lampiran A #8-10); Bank = dropdown (7 +
            "Lainnya" membuka textbox bankLain). -->
-      <fieldset class="flex flex-col gap-4 rounded-lg border p-4">
+      <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
         <legend class="px-1 text-sm font-semibold">Info Rekening</legend>
 
         <div class="flex flex-col gap-1">
@@ -344,7 +347,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 
       <!-- Grup 4 — Referal: tampilan ONLY (diluar body PUT); "Referal Dari"
            DORMANT sampai Epic 3 mengaktifkan param link ?ref=. -->
-      <fieldset class="flex flex-col gap-4 rounded-lg border p-4">
+      <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
         <legend class="px-1 text-sm font-semibold">Referal</legend>
 
         <div class="flex flex-col gap-1">
@@ -386,6 +389,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
       >
         Simpan
       </Button>
-    </form>
+      </form>
+    </div>
   </main>
 </template>
