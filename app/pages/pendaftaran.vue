@@ -10,21 +10,22 @@ import type { LandingRespons } from '~/lib/landing'
  * Tanpa input referral (referral hanya di Pembelian Pertama, Epic 3).
  *
  * Mesin status halaman (SSR, seperti status-pendaftaran.vue): resolver
- * /api/landing menentukan mode — tanpa sesi = anonim (CTA "Daftar" → modal
- * T&C → OAuth Google); sesi unlinked = CTA "Selesaikan Pendaftaran" +
- * status "Akun Google terhubung" (pasca-OAuth halaman TIDAK lagi tampak
- * identik — laporan owner 2026-09-18: klik pertama anonim = OAuth, klik
- * kedua = tulis data) → modal T&C wajib dicentang → POST
- * /api/pendaftaran lalu hard-redirect /status-pendaftaran; calon/non-calon
- * = redirect landing role-nya. KLIK CTA + KONFIRMASI MODAL adalah
- * SATU-SATUNYA pemicu tulis data (keputusan owner 2026-09-18: data masuk
- * DB dari aksi pendaftaran eksplisit, bukan sekadar kunjungan); kegagalan
- * menampilkan pesan envelope di region aria-live="polite" dekat CTA
- * dengan state dipertahankan.
+ * /api/landing menentukan mode — anonim ATAU kedatangan `?dari=login`
+ * (sesi sisa login gagal dianggap fresh, keputusan owner 2026-09-18) =
+ * CTA "Daftar" → modal T&C → OAuth Google; setelah OAuth (mode terhubung)
+ * = CTA "Selesaikan Pendaftaran" + status "Akun Google terhubung" → modal
+ * T&C dilewati (persetujuan tersimpan sessionStorage) → POST
+ * /api/pendaftaran lalu hard-redirect /status-pendaftaran; calon/
+ * non-calon = redirect landing role-nya. KLIK CTA + KONFIRMASI MODAL
+ * adalah SATU-SATUNYA pemicu tulis data (keputusan owner 2026-09-18: data
+ * masuk DB dari aksi pendaftaran eksplisit, bukan sekadar kunjungan);
+ * kegagalan menampilkan pesan envelope di region aria-live="polite" dekat
+ * CTA dengan state dipertahankan.
  */
 definePageMeta({ auth: false })
 
 const { signIn } = useAuth()
+const route = useRoute()
 const api = useRequestFetch()
 
 /**
@@ -44,19 +45,42 @@ if (landing.value && !('unlinked' in landing.value)) {
 /** Sesi ada (respons { unlinked: true }) → CTA mengajukan pendaftaran; tanpa sesi → OAuth. */
 const denganSesi = computed(() => landing.value !== null)
 
+/** Kedatangan dari pesan login-unlinked (`?dari=login`) → presentasi FRESH:
+ *  sesi sisa percobaan login dianggap "belum pernah menyentuh OAuth"
+ *  (keputusan owner 2026-09-18) — CTA "Daftar" menjalankan OAuth ulang,
+ *  pasca-Google barulah mode terhubung tampil. */
+const dariLoginGagal = computed(() => route.query.dari === 'login')
+
+/** Mode fresh = anonim ATAU kedatangan dari login gagal. */
+const modeFresh = computed(() => !denganSesi.value || dariLoginGagal.value)
+
 /** Label CTA — pasca-OAuth halaman tidak tampak identik (laporan owner
- *  2026-09-18): anonim = "Daftar" (→ OAuth), unlinked = "Selesaikan
+ *  2026-09-18): fresh = "Daftar" (→ OAuth), terhubung = "Selesaikan
  *  Pendaftaran" (→ POST). */
-const labelCta = computed(() => (denganSesi.value ? 'Selesaikan Pendaftaran' : 'Daftar'))
+const labelCta = computed(() => (modeFresh.value ? 'Daftar' : 'Selesaikan Pendaftaran'))
 
 /** Modal konfirmasi T&C (permintaan owner 2026-09-18): KLIK CTA TIDAK
  *  langsung bereaksi — modal wajib dicentang dulu; Batal/tutup = tidak ada
  *  OAuth, tidak ada tulisan DB. Tautan "Syarat & Ketentuan" membuka modal
- *  yang sama (satu sumber — halaman T&C penuh di luar scope 1.4). */
+ *  yang sama (satu sumber — halaman T&C penuh di luar scope 1.4).
+ *  Persetujuan TERSIMPAN di sessionStorage (laporan owner 2026-09-18:
+ *  modal jangan muncul dua kali — consent sebelum OAuth berlaku saat
+ *  "Selesaikan Pendaftaran" pasca-kembali dari Google; scoping = tab). */
+const KUNCI_SYARAT_DISSETUJUI = 'snd-dash.pendaftaran-syarat-setuju'
 const modalSyaratTerbuka = ref(false)
 const syaratDisetujui = ref(false)
 
+function syaratSudahDisetujui(): boolean {
+  return sessionStorage.getItem(KUNCI_SYARAT_DISSETUJUI) === '1'
+}
+
 function bukaModalSyarat(): void {
+  // Sudah pernah setuju di journey ini (mis. sebelum OAuth) → langsung aksi,
+  // modal tidak mengulang.
+  if (syaratSudahDisetujui()) {
+    void daftarGoogle()
+    return
+  }
   syaratDisetujui.value = false
   modalSyaratTerbuka.value = true
 }
@@ -65,9 +89,10 @@ function tutupModalSyarat(): void {
   modalSyaratTerbuka.value = false
 }
 
-/** Konfirmasi modal → lanjutkan aksi asal (OAuth anonim / POST unlinked). */
+/** Konfirmasi modal → catat persetujuan → lanjutkan aksi asal (OAuth/POST). */
 function konfirmasiSyarat(): void {
   if (!syaratDisetujui.value) return
+  sessionStorage.setItem(KUNCI_SYARAT_DISSETUJUI, '1')
   modalSyaratTerbuka.value = false
   void daftarGoogle()
 }
@@ -94,11 +119,11 @@ async function daftarGoogle() {
   pesanError.value = ''
   let sukses = false
   try {
-    if (denganSesi.value) {
+    if (modeFresh.value) {
+      await signIn('google', { callbackUrl: '/pendaftaran' })
+    } else {
       await $fetch('/api/pendaftaran', { method: 'POST', body: {} })
       sukses = true
-    } else {
-      await signIn('google', { callbackUrl: '/pendaftaran' })
     }
   } catch (error) {
     pesanError.value = ambilPesanError(error)
@@ -131,7 +156,7 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
 
     <div class="mt-6 flex w-full max-w-xs flex-col gap-3">
       <p
-        v-if="denganSesi && !terdaftar"
+        v-if="!modeFresh && !terdaftar"
         class="rounded-md border p-3 text-sm leading-relaxed text-foreground"
         aria-live="polite"
       >

@@ -221,38 +221,59 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await log.step('WHEN menekan tautan "Lakukan pendaftaran" di dalam pesan arahan')
       await page.getByRole('link', { name: 'Lakukan pendaftaran' }).click()
 
-      await log.step('THEN mendarat di halaman pendaftaran TANPA tulisan data — kunjungan tidak pernah membuat baris owner (keputusan owner 2026-09-18)')
-      await expect(page).toHaveURL(/\/pendaftaran$/, { timeout: 15_000 })
-      // Pasca-OAuth halaman TIDAK lagi tampak identik (laporan owner
-      // 2026-09-18): status koneksi + CTA berubah label.
-      await expect(page.getByText('Akun Google Anda sudah terhubung — tinggal satu langkah lagi.')).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toBeVisible()
+      await log.step('THEN mendarat di halaman pendaftaran dengan presentasi FRESH — sesi sisa login gagal dianggap belum pernah OAuth (keputusan owner 2026-09-18)')
+      await expect(page).toHaveURL(/\/pendaftaran\?dari=login$/, { timeout: 15_000 })
+      await expect(page.getByRole('button', { name: 'Daftar' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toHaveCount(0)
+      await expect(page.getByText('Akun Google Anda sudah terhubung')).toHaveCount(0)
 
-      await log.step('THEN mendarat di halaman pendaftaran TANPA tulisan data — kunjungan tidak pernah membuat baris owner (keputusan owner 2026-09-18)')
-      await expect(page).toHaveURL(/\/pendaftaran$/, { timeout: 15_000 })
-      // Pasca-OAuth halaman TIDAK lagi tampak identik (laporan owner
-      // 2026-09-18): status koneksi + CTA berubah label.
-      await expect(page.getByText('Akun Google Anda sudah terhubung — tinggal satu langkah lagi.')).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toBeVisible()
-
-      await log.step('WHEN menekan CTA "Selesaikan Pendaftaran" → modal T&C → centang → "Lanjutkan" (aksi pendaftaran eksplisit)')
-      // Hidrasi Vue di dev server = eventual-consistent → recurse: klik
-      // diulang sampai modal terbuka (klik sebelum hidrasi tanpa handler).
+      await log.step('AND kunjungan tetap TANPA tulisan data — cek CTA membuka modal T&C (tanpa melanjutkan)')
+      // Klik tautan juga menunggu hidrasi → recurse sampai modal terbuka.
       await recurse(
         async () => {
           if (await page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()) return true
           try {
-            await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
+            await page.getByTestId(TEST_IDS.pendaftaran.tautanSyarat).click()
           } catch {
             // Klik kalah race hidrasi — dievaluasi ulang iterasi berikutnya.
           }
           return page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()
         },
         terbuka => terbuka === true,
-        { timeout: BATAS_RECURSE_DAFTAR_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: modal konfirmasi T&C terbuka' },
+        { timeout: BATAS_RECURSE_DAFTAR_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: tautan T&C membuka modal' },
       )
-      await page.getByTestId(TEST_IDS.pendaftaran.checkboxSyarat).check()
-      await page.getByTestId(TEST_IDS.pendaftaran.tombolLanjut).click()
+      await expect(page.getByTestId(TEST_IDS.pendaftaran.tombolLanjut)).toBeDisabled()
+      await page.getByTestId(TEST_IDS.pendaftaran.tombolBatal).click()
+
+      await log.step('WHEN OAuth "selesai" — sesi unlinked di-injeksikan ulang + navigasi ke callback polos (simulasi kembali dari Google; OAuth asli = smoke manual)')
+      const cookiesSelesai = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
+      await context.clearCookies()
+      await context.addCookies(cookiesSelesai)
+      // Target callback OAuth = '/pendaftaran' TANPA penanda ?dari=login —
+      // inilah pembeda mode terhubung vs fresh.
+      await page.goto('/pendaftaran')
+
+      await log.step('THEN kini mode TERHUBUNG: status + CTA "Selesaikan Pendaftaran"')
+      await expect(page.getByText('Akun Google Anda sudah terhubung — tinggal satu langkah lagi.')).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toBeVisible()
+
+      await log.step('WHEN menekan CTA "Selesaikan Pendaftaran" — persetujuan T&C pra-OAuth tersimpan → TANPA modal, langsung POST')
+      // Flag persetujuan = hasil konfirmasi modal yang dilakukan user SEBELUM
+      // OAuth di journey nyata (kunci kontrak pendaftaran.vue).
+      await page.evaluate(() => sessionStorage.setItem('snd-dash.pendaftaran-syarat-setuju', '1'))
+      await recurse(
+        async () => {
+          if (page.url().includes('/status-pendaftaran')) return true
+          try {
+            await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
+          } catch {
+            // Klik kalah race hidrasi — dievaluasi ulang iterasi berikutnya.
+          }
+          return page.url().includes('/status-pendaftaran')
+        },
+        selesai => selesai === true,
+        { timeout: BATAS_RECURSE_DAFTAR_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA mengirim POST lalu redirect' },
+      )
 
       await log.step('THEN dialihkan ke status pendaftaran dengan badge Diajukan (hard navigation + flag toast)')
       await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: 15_000 })
