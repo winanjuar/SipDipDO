@@ -11,24 +11,32 @@
  * sesi Google, tidak dapat diedit via form. Field #11 Referal di luar kontrak
  * ini (FR-22: diajukan saat Pembelian Pertama, Epic 3) — body yang membawanya
  * ditolak handler (400).
+ *
+ * Normalisasi owner 2026-09-18: kunci field English (DB + TS + wire API);
+ * `fullName`/`alias`/`phoneNumber` kolom `owners`, kontak darurat & rekening
+ * di tabel anak 1:1; bank tersimpan satu kolom (lihat derivation di bawah).
  */
 
 /**
- * Kunci field Profil yang tersimpan sebagai kolom `owners` — urutan mengikuti
- * Lampiran A #1–10; `bankLain` menempel pada #8 (wajib hanya bila Bank =
- * "Lainnya"). Gmail (#3) absen di sini secara sengaja.
+ * Kunci field Profil wire (normalisasi owner 2026-09-18: kunci English,
+ * konten/label tetap Indonesia) — urutan mengikuti Lampiran A #1–10;
+ * `otherBankName` menempel pada #8 (wajib hanya bila Bank = "Lainnya").
+ * Gmail (#3) absen di sini secara sengaja. Field kontak darurat & rekening
+ * tersimpan di tabel anak 1:1 (`owner_emergency_contacts`,
+ * `owner_bank_accounts`) — pemetaan kolom ada di repo identity; nilai bank
+ * tunggal via `namaBankKeTersimpan`/`namaBankKeWire` di bawah.
  */
 export const FIELD_PROFIL_SIMPAN = [
-  'namaLengkap',
+  'fullName',
   'alias',
-  'nomorHp',
-  'kontakDarurat',
-  'nomorHpKontakDarurat',
-  'hubunganDenganOwner',
-  'namaBank',
-  'bankLain',
-  'pemilikRekening',
-  'nomorRekening',
+  'phoneNumber',
+  'emergencyContactName',
+  'emergencyContactPhoneNumber',
+  'emergencyContactRelationship',
+  'bankName',
+  'otherBankName',
+  'accountHolderName',
+  'accountNumber',
 ] as const
 
 /** Kunci field Profil yang tersimpan ke kolom DB. */
@@ -46,17 +54,17 @@ export type KunciProfil = KunciFieldProfil | typeof KUNCI_GMAIL
  * by-label E2E dan teks indikator, jangan diubah tanpa menyelaraskan spec).
  */
 export const LABEL_FIELD_PROFIL: Record<KunciProfil, string> = {
-  namaLengkap: 'Nama Lengkap',
+  fullName: 'Nama Lengkap',
   alias: 'Alias',
   gmail: 'Gmail',
-  nomorHp: 'Nomor HP',
-  kontakDarurat: 'Kontak Darurat',
-  nomorHpKontakDarurat: 'Nomor HP Kontak Darurat',
-  hubunganDenganOwner: 'Hubungan dengan Owner',
-  namaBank: 'Nama Bank',
-  bankLain: 'Bank Lainnya',
-  pemilikRekening: 'Pemilik Rekening',
-  nomorRekening: 'Nomor Rekening',
+  phoneNumber: 'Nomor HP',
+  emergencyContactName: 'Kontak Darurat',
+  emergencyContactPhoneNumber: 'Nomor HP Kontak Darurat',
+  emergencyContactRelationship: 'Hubungan dengan Owner',
+  bankName: 'Nama Bank',
+  otherBankName: 'Bank Lainnya',
+  accountHolderName: 'Pemilik Rekening',
+  accountNumber: 'Nomor Rekening',
 }
 
 /* ------------------------------------------------------------------ *
@@ -81,7 +89,7 @@ export const DIGIT_MIN_HP = 9
 /** Jumlah digit maksimum Nomor HP (setelah tanda "-" dibuang). */
 export const DIGIT_MAKS_HP = 15
 
-/** Nilai enum #8 "Lainnya" — membuka field wajib `bankLain`. */
+/** Nilai enum #8 "Lainnya" — membuka field wajib `otherBankName`. */
 export const BANK_LAINNYA = 'Lainnya' as const
 
 /** Daftar bank sah untuk dropdown #8 (keputusan owner 2026-09-18). */
@@ -151,32 +159,54 @@ export interface HasilValidasiProfil {
 
 /**
  * Sisa field WAJIB yang belum terisi — PERSIS kunci field bernilai trim
- * kosong (absen/null/undefined dianggap kosong). `bankLain` hanya wajib bila
- * Bank = "Lainnya" (bila bukan, dianggap TIDAK wajib — tidak pernah muncul).
- * Gmail praktis tak pernah muncul (email sesi selalu terisi).
+ * kosong (absen/null/undefined dianggap kosong). `otherBankName` hanya wajib
+ * bila Bank = "Lainnya" (bila bukan, dianggap TIDAK wajib — tidak pernah
+ * muncul). Gmail praktis tak pernah muncul (email sesi selalu terisi).
  */
 export function sisaFieldKosong(nilai: ProfilNilai): KunciFieldProfil[] {
   return FIELD_PROFIL_SIMPAN.filter((kunci) => {
-    if (kunci === 'bankLain') {
-      return nilai.namaBank === BANK_LAINNYA && (nilai.bankLain ?? '').trim().length === 0
+    if (kunci === 'otherBankName') {
+      return nilai.bankName === BANK_LAINNYA && (nilai.otherBankName ?? '').trim().length === 0
     }
     return (nilai[kunci] ?? '').trim().length === 0
   })
 }
 
 /**
- * Profil lengkap = seluruh field WAJIB terisi (termasuk `bankLain` bila Bank
- * = "Lainnya") — prasyarat verifikasi COO (FR-22). Murni; dipakai service,
- * cron, dan principal.
+ * Profil lengkap = seluruh field WAJIB terisi (termasuk `otherBankName` bila
+ * Bank = "Lainnya") — prasyarat verifikasi COO (FR-22). Murni; dipakai
+ * service, cron, dan principal.
  */
 export function profilLengkap(nilai: ProfilNilai): boolean {
   return sisaFieldKosong(nilai).length === 0
 }
 
+/* ------------------------------------------------------------------ *
+ * Derivation bank tunggal (normalisasi owner 2026-09-18) — DB hanya
+ * punya SATU kolom `bank_name`: nilai combobox (enum 7 bank) ATAU teks
+ * bebas dari input "Bank Lainnya". Wire tetap dua field.
+ * ------------------------------------------------------------------ */
+
+/** Nilai tersimpan untuk kolom `bank_name` dari isian wire Bank. */
+export function namaBankKeTersimpan(bankName: string, otherBankName: string): string {
+  return bankName === BANK_LAINNYA ? otherBankName : bankName
+}
+
+/** Bentuk wire `bankName`/`otherBankName` dari nilai tersimpan `bank_name`:
+ *  anggota DAFTAR_BANK → combobox; selain itu (teks bebas) → "Lainnya" +
+ *  otherBankName; kosong → kosong (dropdown belum dipilih, bukan "Lainnya"). */
+export function namaBankKeWire(tersimpan: string): { bankName: string, otherBankName: string } {
+  if (tersimpan === '') return { bankName: '', otherBankName: '' }
+  if (DAFTAR_BANK.includes(tersimpan as (typeof DAFTAR_BANK)[number])) {
+    return { bankName: tersimpan, otherBankName: '' }
+  }
+  return { bankName: BANK_LAINNYA, otherBankName: tersimpan }
+}
+
 /**
  * Sanitasi + validasi seluruh field Profil (murni):
- * 1. Semua field disanitasi (`sanitasiTeks`); `bankLain` dinormalisasi kosong
- *    bila Bank bukan "Lainnya" (nilai asingnya diabaikan, bukan error).
+ * 1. Semua field disanitasi (`sanitasiTeks`); `otherBankName` dinormalisasi
+ *    kosong bila Bank bukan "Lainnya" (nilai asingnya diabaikan, bukan error).
  * 2. Kelengkapan via `sisaFieldKosong` (envelope PROFILE_INCOMPLETE).
  * 3. Format/enum HANYA dinilai untuk nilai non-kosong (envelope
  *    PROFILE_INVALID): panjang maksimum nama/alias/rekening, pola & jumlah
@@ -186,8 +216,8 @@ export function validasiProfil(nilai: ProfilNilai): HasilValidasiProfil {
   const bersih = Object.fromEntries(
     FIELD_PROFIL_SIMPAN.map((kunci) => [kunci, sanitasiTeks(String(nilai[kunci] ?? ''))]),
   ) as ProfilValues
-  if (bersih.namaBank !== BANK_LAINNYA) {
-    bersih.bankLain = ''
+  if (bersih.bankName !== BANK_LAINNYA) {
+    bersih.otherBankName = ''
   }
 
   const kesalahan: KesalahanFieldProfil[] = []
@@ -203,9 +233,9 @@ export function validasiProfil(nilai: ProfilNilai): HasilValidasiProfil {
     }
   }
 
-  cekPanjang('namaLengkap', PANJANG_MAKS_NAMA)
+  cekPanjang('fullName', PANJANG_MAKS_NAMA)
   cekPanjang('alias', PANJANG_MAKS_ALIAS)
-  cekPanjang('kontakDarurat', PANJANG_MAKS_NAMA)
+  cekPanjang('emergencyContactName', PANJANG_MAKS_NAMA)
 
   const validasiHp = (field: KunciFieldProfil): void => {
     const nilai = bersih[field]
@@ -214,23 +244,23 @@ export function validasiProfil(nilai: ProfilNilai): HasilValidasiProfil {
       kesalahan.push({ field, kode: 'format-salah' })
     }
   }
-  validasiHp('nomorHp')
-  validasiHp('nomorHpKontakDarurat')
+  validasiHp('phoneNumber')
+  validasiHp('emergencyContactPhoneNumber')
 
-  if (bersih.hubunganDenganOwner.length > 0 && !DAFTAR_HUBUNGAN.includes(bersih.hubunganDenganOwner as HubunganDarurat)) {
-    kesalahan.push({ field: 'hubunganDenganOwner', kode: 'di-luar-daftar' })
+  if (bersih.emergencyContactRelationship.length > 0 && !DAFTAR_HUBUNGAN.includes(bersih.emergencyContactRelationship as HubunganDarurat)) {
+    kesalahan.push({ field: 'emergencyContactRelationship', kode: 'di-luar-daftar' })
   }
-  if (bersih.namaBank.length > 0 && !DAFTAR_BANK.includes(bersih.namaBank as (typeof DAFTAR_BANK)[number]) && bersih.namaBank !== BANK_LAINNYA) {
-    kesalahan.push({ field: 'namaBank', kode: 'di-luar-daftar' })
+  if (bersih.bankName.length > 0 && !DAFTAR_BANK.includes(bersih.bankName as (typeof DAFTAR_BANK)[number]) && bersih.bankName !== BANK_LAINNYA) {
+    kesalahan.push({ field: 'bankName', kode: 'di-luar-daftar' })
   }
-  if (bersih.namaBank === BANK_LAINNYA && bersih.bankLain.length > 0) {
-    cekPanjang('bankLain', PANJANG_MAKS_NAMA)
+  if (bersih.bankName === BANK_LAINNYA && bersih.otherBankName.length > 0) {
+    cekPanjang('otherBankName', PANJANG_MAKS_NAMA)
   }
 
-  cekPanjang('pemilikRekening', PANJANG_MAKS_NAMA)
-  if (bersih.nomorRekening.length > 0) {
-    cekNomor('nomorRekening')
-    cekPanjang('nomorRekening', PANJANG_MAKS_REKENING)
+  cekPanjang('accountHolderName', PANJANG_MAKS_NAMA)
+  if (bersih.accountNumber.length > 0) {
+    cekNomor('accountNumber')
+    cekPanjang('accountNumber', PANJANG_MAKS_REKENING)
   }
 
   return { bersih, sisa: sisaFieldKosong(bersih), kesalahan }
