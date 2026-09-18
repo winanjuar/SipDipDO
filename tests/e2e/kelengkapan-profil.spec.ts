@@ -10,6 +10,11 @@
  * Profile" dan teks "belum lengkap" indikator pra-simpan (recurse keluar
  * dini sebelum PUT selesai).
  *
+ * Penambahan PASCA-REVIEW: tautan "Lengkapi Profile" di /status-pendaftaran
+ * (pintu nav tunggal), gerbang calon diajukan LENGKAP (kembali ke landing
+ * calon, bukan /profile-completeness), dan submit PARTIAL 400
+ * PROFILE_INCOMPLETE (alert verbatim TIDAK tampil, isian dipertahankan).
+ *
  * ASUMSI KONTRAK UI (red-phase, nyatakan eksplisit — final saat green-phase):
  * - Route halaman: `/profile-completeness` (belum ditetapkan sumber mana pun;
  *   permukaan #3 EXPERIENCE.md "Kelengkapan Profile").
@@ -37,6 +42,7 @@
  * `skipNetworkMonitoring` hanya untuk scaffold stub 5xx.
  */
 import { faker } from '@faker-js/faker/locale/id_ID'
+import type { Cookie } from '@playwright/test'
 import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
 import { mintSesiPemilik } from '../support/helpers/sesi-minting'
@@ -68,6 +74,30 @@ const NAMA_FIELD_KOSONG_CONTOH = 'Nama Bank'
 
 /** Toast verbatim UX-DR19. */
 const TOAST_GAGAL_SIMPAN = 'Tidak dapat menyimpan — coba lagi.'
+
+/** Status HTTP yang dipakai penambahan pasca-review. */
+const STATUS_BAD_REQUEST = 400
+
+/** Cookie[] hasil mint → header Cookie untuk apiRequest (pola
+ *  profil.api.spec.ts — apiRequest tidak berbagi cookie-jar browser). */
+const headerCookieDariMint = (cookies: Cookie[]): Record<string, string> => ({
+  Cookie: cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '),
+})
+
+/** Factory 9 field profil tersimpan sintetis (endpoint langsung PUT
+ *  /api/profile — pasca-review; pola profil.api.spec.ts, duplikasi
+ *  disengaja agar spec mandiri; Gmail = email sesi, bukan body). */
+const profilLengkapUji = (): Record<string, string> => ({
+  namaLengkap: faker.person.fullName(),
+  alias: faker.person.firstName(),
+  nomorHp: '0812' + faker.string.numeric(8),
+  kontakDarurat: faker.person.fullName(),
+  nomorHpKontakDarurat: '0813' + faker.string.numeric(8),
+  hubunganDenganOwner: 'Saudara',
+  namaBank: 'Bank Uji Sentral',
+  pemilikRekening: faker.person.fullName(),
+  nomorRekening: faker.string.numeric(10),
+})
 
 /** Email sintetis unik pola mint dev-only (prefix terkunci — pola register.spec.ts). */
 const emailSintetisUji = (): string => {
@@ -245,5 +275,123 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
 
     await log.step('THEN dialihkan ke landing role-nya /dashboard')
     await expect(page).toHaveURL(/\/dashboard$/)
+  })
+
+  test('[P1] tautan "Lengkapi Profile" di /status-pendaftaran → menuju /profile-completeness (pasca-review)', async ({ page, context, apiRequest }) => {
+    // Satu-satunya pintu nav fitur (UX-DR14): calon diajukan belum lengkap
+    // melihat tautan di halaman status; klik mengantar ke halaman kelengkapan.
+    await log.step('GIVEN sesi calon owner diajukan dengan Profil belum lengkap')
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /status-pendaftaran lalu mengeklik "Lengkapi Profile"')
+    await page.goto('/status-pendaftaran')
+    const tautan = page.getByRole('link', { name: 'Lengkapi Profile' })
+    await expect(tautan).toBeVisible()
+    await tautan.click()
+
+    await log.step('THEN berpindah ke /profile-completeness')
+    await expect(page).toHaveURL(/\/profile-completeness$/)
+  })
+
+  test('[P1] calon diajukan dengan Profil LENGKAP lolos gerbang → kembali ke landing calon /status-pendaftaran (pasca-review)', async ({ page, context, apiRequest }) => {
+    // Gerbang kelengkapan HANYA untuk belum lengkap: calon lengkap dialihkan
+    // ke landing calonnya (UX-DR14), BUKAN ke /profile-completeness.
+    await log.step('GIVEN sesi calon owner diajukan yang menyimpan profil lengkap via endpoint langsung')
+    const emailCalon = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailCalon,
+    })
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: profilLengkapUji(),
+      headers: headerCookieDariMint(cookies),
+    })
+    expect(simpan.status).toBe(200)
+
+    await log.step('AND sesi yang sama di-mint ulang (baris sama — profil tetap tersimpan)')
+    await context.addCookies(await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailCalon,
+    }))
+
+    await log.step('WHEN membuka /dashboard secara langsung')
+    await page.goto('/dashboard')
+
+    await log.step('THEN dialihkan ke /status-pendaftaran (landing calon), BUKAN /profile-completeness')
+    await expect(page).toHaveURL(/\/status-pendaftaran$/)
+    await expect(page).not.toHaveURL(/profile-completeness/)
+  })
+
+  test(
+    '[P1] submit PARTIAL (400): alert gagal TIDAK tampil, indikator menyebut field kosong, isian dipertahankan (pasca-review)',
+    { annotation: [{ type: 'skipNetworkMonitoring' }] },
+    async ({ page, context, apiRequest, recurse, interceptNetworkCall }) => {
+      // skipNetworkMonitoring: PUT 400 disengaja (cabang validasi kelengkapan
+      // adalah kontrak yang sedang dipin) — bukan bug jaringan.
+    // Cabang 400 PROFILE_INCOMPLETE di-pin: halaman TIDAK menampilkan alert
+    // verbatim (itu khusus gagal non-validasi), indikator tetap menunjuk
+    // field kosong, dan seluruh isian dipertahankan.
+    await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness (tanpa stub)')
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+
+    await log.step('AND PUT /api/profile dipantau (observe — request tetap ke server)')
+    let statusSimpan = 0
+    const terpantau = interceptNetworkCall({ url: '**/api/profile' }).then(
+      (hasil: { status: number }) => {
+        statusSimpan = hasil.status
+        return true
+      },
+      () => false,
+    )
+
+    await page.goto(HALAMAN_KELENGKAPAN)
+
+    await log.step('WHEN 8 dari 9 field diisi — Nama Bank sengaja dikosongkan — lalu simpan diklik')
+    const isian = new Map<string, string>()
+    for (const label of LABEL_FIELD_PROFIL) {
+      if (label === 'Gmail' || label === NAMA_FIELD_KOSONG_CONTOH) continue
+      const nilai = nilaiSintetisUntuk(label)
+      isian.set(label, nilai)
+      await page.getByLabel(label, { exact: true }).fill(nilai)
+    }
+    await recurse(
+      async () => {
+        try {
+          await page.getByRole('button', { name: /simpan/i }).click()
+        } catch {
+          // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+        }
+        return Promise.race([terpantau, Promise.resolve(false)])
+      },
+      terkirim => terkirim === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu PUT profil terpantau' },
+    )
+
+    await log.step('THEN server menjawab 400 (validasi kelengkapan) dan alert verbatim TIDAK tampil')
+    expect(statusSimpan).toBe(STATUS_BAD_REQUEST)
+    await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toHaveCount(0)
+
+    await log.step('AND indikator menyebut field kosong PERSIS (Nama Bank)')
+    const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
+    await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
+
+    await log.step('AND seluruh isian DIPERTAHANKAN')
+    for (const [label, nilai] of isian) {
+      await expect(page.getByLabel(label, { exact: true })).toHaveValue(nilai)
+    }
   })
 })

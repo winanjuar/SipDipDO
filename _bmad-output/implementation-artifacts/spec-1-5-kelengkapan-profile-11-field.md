@@ -3,7 +3,7 @@ title: 'Story 1.5 — Kelengkapan Profile 11 Field'
 type: 'feature'
 created: '2026-09-18'
 baseline_commit: '10da2f0e535f27dd6fcb7184e06d8cf3521a7917'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -109,6 +109,7 @@ context:
 - 2026-09-18 (green-phase, dispatch subagent): seluruh 9 tugas selesai; verifikasi mandiri pasca-review diff — vitest 82/82, ATDD 4 file 57/57 (19 test x 3 browser), regresi register/register.spec/auth-landing/landing 105/105, lint bersih, typecheck exit 0.
 - Penyesuaian scaffold saat green-phase tercatat di Spec Change Log (8 entri) — semuanya penyesuaian kontrak red-phase ke realita repo (`/jobs/daily` terpin nitro.handlers+README, serial-mode cron, `outbox.body.data`, `getByLabel exact`, dsb.), TANPA mengubah ekspektasi matriks I/O.
 - Tambahan pasca-audit matriks: 1 test E2E baru "[P1] non-calon membuka /profile-completeness" (penutup baris matriks "Halaman kelengkapan non-calon") + pengerasan asersi test /dashboard ke URL eksplisit `/profile-completeness` (matriks mem-pin target redirect).
+- 2026-09-18 (pasca-review, 9 patch): (1) `aktifkanKembaliCalon` me-reset `createdAt` — jendela H-3/hari-7 re-daftar dimulai dari nol (CAP-5 tuntas); (2) `simpanProfilCalon` WHERE + `status='diajukan'` (anti-TOCTOU AD-11); (3) predikat pengingat tepat `reminderOn === today` (pengingat H-3 tunggal sesuai matriks); (4) tautan "Lengkapi Profile" disembunyikan saat GET gagal (komentar jadi benar); (5) calon `diajukan` LENGKAP yang membuka permukaan lain dialihkan ke `/status-pendaftaran` di middleware (kontrak UX-DR14 — terungkap oleh test gerbang baru; sebelumnya lolos ke /dashboard); (6-9) 5 test baru: audit profil-kelengkapan, GET 401/403, tautan status-page, calon-lengkap gate, submit partial tanpa alert. Verifikasi penuh: vitest 82, ATDD 72 (24x3), regresi 141, lint, typecheck 0.
 - Dirapikan pasca-review diff: `.opencode/opencode.json` (config tooling lokal) dikeluarkan dari commit story — preseden triage review 1.4; `drizzle/cleanup.ts` (perubahan drive-by di luar spec) dikembalikan.
 
 ## Spec Change Log
@@ -124,6 +125,18 @@ context:
 
 ## Review Triage Log
 
+| Temuan | Verdict | Bukti |
+|--------|---------|-------|
+| blind: re-daftar tidak reset `createdAt` → cron langsung kedaluwarsa ulang (CAP-5 tak terwujud) | high | `aktifkanKembaliCalon` hanya set status+updatedAt; job menurunkan deadline dari `createdAt` — re-daftar hari-8 → `expiresOn` di masa lalu → kedaluwarsa lagi pada run berikutnya; tidak ada test cron-pasca-redaftar |
+| blind+edge: `simpanProfilCalon` tanpa CAS status `diajukan` → TOCTOU tulis profil ke baris `kedaluwarsa` | medium | gate 403 handler dievaluasi di luar transaksi; UPDATE `where email` saja; melanggar disiplin "race dijaga CAS yang sama" (AD-11, frozen) yang ditegakkan `kedaluwarsakanCalon` |
+| blind: cadence pengingat harian H-3..H-1 menyimpang matriks beku `reminderOn === today`, tanpa catatan change-log | medium | `isDayOnOrBefore(reminderOn, today)` + idempoten per-hari = 3 email (H-3/H-2/H-1); matriks I/O mem-pin === ; tidak ada test H-2/H-1; 8 penyesuaian lain tercatat, ini tidak |
+| vgap: audit `profil-kelengkapan` tidak dipin test mana pun | medium | grep hanya kena source; delete `writeAuditEntry` di `simpanProfil` → seluruh suite tetap hijau; baris matriks "PUT lengkap + audit in-tx" |
+| blind: tautan "Lengkapi Profile" TAMPIL saat GET profil gagal (`!undefined = true`) | low | `.catch(() => null)` → `?.profileComplete` undefined → `!undefined` true — kontra komentar "gagal baca = disembunyikan"; hanya pada kegagalan API; fix langsung |
+| vgap: tautan "Lengkapi Profile" tanpa test (satu-satunya pintu nav ke fitur) | low | grep `Lengkapi` nol kena di tests/; delete NuxtLink → tidak ada test gagal |
+| vgap: cabang calon `diajukan` LENGKAP lolos gate middleware tidak teruji | low | drop `if (profilLengkap) return` → tidak ada test gagal (test redirect memakai belum-lengkap) |
+| vgap: GET /api/profile 401/403 tanpa test (PUT punya kembaran) | low | GET hanya diuji happy-path persistensi; delete gate status GET → tidak ada test gagal |
+| vgap: cabang UI 400 PROFILE_INCOMPLETE (alert disembunyikan) tidak dipin | low | delete kondisi `code !== 'PROFILE_INCOMPLETE'` → test 5xx tetap lulus; tidak ada test partial-submit |
+| blind: idempotensi pengingat tanpa unique index (TOCTOU dobel-insert saat dua run beriraman) | low (ditolak) | real, tapi butuh dua run cron beriraman di produksi (satu trigger/hari); frozen spec memang memilih mekanisme cek-then-insert; fix = migrasi index baru (bukan koreksi langsung) — ditolak per aturan low |
 ## Design Notes
 
 - **Deadline dari `createdAt`:** `registrationDeadline(jakartaDayKey(new Date(owners.createdAt)))` — hari kalender Jakarta dari instant pendaftaran; TIDAK ada kolom tanggal-submit baru (keputusan desain: satu sumber waktu pendaftaran).

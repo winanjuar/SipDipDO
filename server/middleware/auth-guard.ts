@@ -40,6 +40,9 @@ export default defineEventHandler(async (event) => {
   if (principal.unlinked) return
   if (principal.role !== 'calon_owner') return
   if (principal.owner.status !== 'diajukan') return
-  if (principal.owner.profilLengkap) return
+  // Calon `diajukan` Lengkap lolos gerbang kelengkapan — kembali ke landing
+  // calonnya (UX-DR14: calon tetap di /status-pendaftaran), bukan ke
+  // /profile-completeness.
+  if (principal.owner.profilLengkap) return sendRedirect(event, LANDING_PATH.calon_owner)
   return sendRedirect(event, PATH_KELENGKAPAN_PROFIL)
 })

@@ -3,7 +3,8 @@
  *
  * Tests DIAKTIFKAN pada tugas green-phase endpoint Profil (spec:
  * _bmad-output/specs/spec-story-1-5-kelengkapan-profile-11-field/SPEC.md,
- * CAP-1/CAP-2).
+ * CAP-1/CAP-2). Penambahan PASCA-REVIEW: pin audit `profil-kelengkapan`
+ * pada test persistensi + kembaran GET 401/403 (paritas gerbang PUT).
  *
  * ASUMSI KONTRAK Profil (red-phase, nyatakan eksplisit):
  * - Endpoint: PUT /api/profile (simpan) + GET /api/profile (baca) — keduanya
@@ -106,6 +107,26 @@ const SkemaProfilBaca = z.object({
   profileComplete: z.boolean(),
   remainingFields: z.array(z.string()),
 })
+
+/** Bentuk wire entry audit — disalin dari redaftar.api.spec.ts (duplikasi
+ *  disengaja agar spec mandiri); penambahan pasca-review: pin audit
+ *  `profil-kelengkapan` (baris matriks "PUT lengkap + audit in-tx"). */
+const SkemaEntryAudit = z.object({
+  id: z.uuid(),
+  action: z.string().min(1),
+  actor: z.object({
+    kind: z.enum(['user', 'system']),
+    ownerId: z.uuid().nullish(),
+  }),
+  target: z.string().nullish(),
+  details: z.record(z.string(), z.unknown()),
+  createdAt: z.string().min(1),
+})
+const SkemaDaftarAudit = z.object({
+  data: z.array(SkemaEntryAudit),
+  nextPage: z.union([z.number().int().positive(), z.string().min(1), z.null()]),
+})
+type DaftarAudit = z.infer<typeof SkemaDaftarAudit>
 
 /**
  * Factory 10 field Profil sintetis (data-factories: overrides menunjukkan
@@ -250,14 +271,15 @@ test.describe('[P1] PUT /api/profile gerbang non-calon (CAP-3, AD-8)', () => {
   })
 })
 
-test.describe('[P1] Persistensi profil — PUT lalu GET identik (CAP-1)', () => {
+test.describe('[P1] Persistensi profil — PUT lalu GET identik (CAP-1) + audit in-tx', () => {
   test('[P1] nilai yang disimpan terbaca kembali utuh saat GET /api/profile', async ({ apiRequest }) => {
     // GAGAL saat red: PUT menjawab 404 sebelum GET mana pun dieksekusi.
     await log.step('GIVEN sesi calon owner berstatus diajukan menyimpan profil lengkap')
+    const emailCalon = emailSintetisUji()
     const cookieSesi = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'tanpa-saham',
       status: 'diajukan',
-      email: emailSintetisUji(),
+      email: emailCalon,
     })
     const profil = profilLengkapUji()
     const simpan = await apiRequest<Profil>({
@@ -282,5 +304,56 @@ test.describe('[P1] Persistensi profil — PUT lalu GET identik (CAP-1)', () => 
     expect(body.profileComplete).toBe(true)
     expect(body.remainingFields).toHaveLength(0)
     expect(Object.keys(profil)).toHaveLength(JUMLAH_FIELD_PROFIL)
+
+    // Penambahan pasca-review — pin audit in-tx (matriks: PUT lengkap +
+    // audit `profil-kelengkapan`): entry terbaca COO via GET /api/audit.
+    await log.step('AND COO membaca GET /api/audit — entry profil memuat email pendaftar')
+    const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    const audit = await apiRequest<DaftarAudit>({
+      method: 'GET',
+      path: '/api/audit',
+      headers: headerCookieDariMint(cookieCoo),
+    }).validateSchema(SkemaDaftarAudit)
+    expect(audit.status).toBe(STATUS_OK)
+    expect(JSON.stringify(audit.body.data)).toContain(emailCalon)
+  })
+})
+
+test.describe('[P0] GET /api/profile tanpa sesi (AD-8 wajib auth — kembaran PUT, pasca-review)', () => {
+  test('[P0] GET tanpa cookie sesi ditolak 401 envelope seragam', async ({ apiRequest }) => {
+    await log.step('GIVEN permintaan GET /api/profile tanpa cookie sesi')
+
+    await log.step('WHEN route handler wajib auth menilai permintaan anonim')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'GET',
+      path: PATH_PROFIL,
+    }).validateSchema(SkemaEnvelopeError)
+
+    await log.step('THEN 401 dengan envelope { code, message, details } seragam')
+    expect(status).toBe(STATUS_UNAUTHORIZED)
+    expect(body.code.length).toBeGreaterThan(0)
+    expect(body.message.length).toBeGreaterThan(0)
+  })
+})
+
+test.describe('[P1] GET /api/profile gerbang non-calon (CAP-3, AD-8 — kembaran PUT, pasca-review)', () => {
+  test('[P1] owner terverifikasi membaca profil → 403 envelope', async ({ apiRequest }) => {
+    await log.step("GIVEN sesi owner berstatus 'terverifikasi' (bukan calon)")
+    const cookieSesi = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'terverifikasi',
+      email: emailSintetisUji(),
+    })
+
+    await log.step('WHEN GET /api/profile')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'GET',
+      path: PATH_PROFIL,
+      headers: headerCookieDariMint(cookieSesi),
+    }).validateSchema(SkemaEnvelopeError)
+
+    await log.step('THEN 403 envelope — akses bukan calon ditolak di server')
+    expect(status).toBe(STATUS_FORBIDDEN)
+    expect(body.message.length).toBeGreaterThan(0)
   })
 })

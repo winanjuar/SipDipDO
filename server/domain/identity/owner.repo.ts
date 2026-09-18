@@ -249,7 +249,9 @@ export async function simpanProfilCalon(db: DbClient, email: string, nilai: Prof
       ...nilai,
       updatedAt: new Date().toISOString(),
     })
-    .where(eq(owners.email, email))
+    // CAS status (pasca-review): TOCTOU vs cron kedaluwarsa — profil tidak
+    // pernah tertulis ke baris yang sudah bukan `diajukan`.
+    .where(and(eq(owners.email, email), eq(owners.status, 'diajukan')))
     .returning({
       id: owners.id,
       email: owners.email,
@@ -259,7 +261,9 @@ export async function simpanProfilCalon(db: DbClient, email: string, nilai: Prof
       ...KOLOM_PROFIL,
     })
   const written = rows[0]
-  if (!written) throw new Error('simpanProfilCalon: baris owner tidak ditemukan untuk email tersebut.')
+  if (!written) {
+    throw new Error('simpanProfilCalon: baris owner tidak ditemukan atau tidak berstatus diajukan.')
+  }
   return written
 }
 
@@ -281,12 +285,20 @@ export async function kedaluwarsakanCalon(db: DbClient, id: string): Promise<{ i
 /**
  * CAS re-daftar (Story 1.5, CAP-5, AD-11): `kedaluwarsa → diajukan` pada
  * baris YANG SAMA (id tetap) HANYA bila status masih `kedaluwarsa` — status
- * lain tidak pernah tersentuh (kontrak hijau Story 1.4). Null = kalah race.
+ * lain tidak pernah tersentuh (kontrak hijau Story 1.4). `createdAt` ikut
+ * di-reset (pasca-review): re-daftar = pendaftaran baru pada baris yang sama
+ * — satu sumber waktu pendaftaran yang dipakai `runRegistrationDailyJob`
+ * menurunkan `registrationDeadline` (jendela H-3/hari-7 mulai dari nol).
+ * Null = kalah race.
  */
 export async function aktifkanKembaliCalon(db: DbClient, id: string): Promise<OwnerRecord | null> {
   const rows = await db
     .update(owners)
-    .set({ status: 'diajukan', updatedAt: new Date().toISOString() })
+    .set({
+      status: 'diajukan',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
     .where(and(eq(owners.id, id), eq(owners.status, 'kedaluwarsa')))
     .returning({
       id: owners.id,

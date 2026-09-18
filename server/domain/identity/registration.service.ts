@@ -3,9 +3,10 @@
  * (AD-8), OTP MFA (AD-8), pergantian COO (FR-17).
  *
  * Cron harian pendaftaran (dipanggil server/jobs/daily.post.ts, Story 1.5):
- * - Pengingat H-3 (kalender Asia/Jakarta, FR-22): email ditulis sebagai baris
- *   outbox proofs DI DALAM transaksi job (AR-6); idempoten per hari — cek
- *   baris outbox (kind + penerima + payload.hari) sebelum insert.
+ * - Pengingat H-3 (kalender Asia/Jakarta, FR-22) TUNGGAL pada hari
+ *   `reminderOn` (matriks I/O beku): email ditulis sebagai baris outbox
+ *   proofs DI DALAM transaksi job (AR-6); idempoten per hari — cek baris
+ *   outbox (kind + penerima + payload.hari) sebelum insert.
  * - Kedaluwarsa hari ke-7: CAS `diajukan -> kedaluwarsa` + entry audit
  *   `pendaftaran-kedaluwarsa` (aktor system) in-tx, hanya bila baris
  *   ter-update; race vs simpan profil/verifikasi COO dijaga CAS yang sama
@@ -82,7 +83,7 @@ const JENIS_PENGINGAT_PROFIL = 'pengingat-kelengkapan-profil'
  * AD-11/AR-6). `today` disuntikkan endpoint (AD-9: batas hari dihitung di
  * dalam, bukan jam trigger); `submittedOn` diturunkan dari `createdAt` baris
  * (hari kalender Jakarta — tanpa kolom tanggal-submit). Pengingat hanya pada
- * hari `reminderOn` hingga jatuh tempo; idempoten per hari via cek baris
+ * hari `reminderOn` saja (pengingat tunggal); idempoten per hari via cek baris
  * outbox. Kedaluwarsa menang atas pengingat bila keduanya relevan.
  */
 export async function runRegistrationDailyJob(today: DayKey, db: Db): Promise<HasilJobHarianPendaftaran> {
@@ -112,10 +113,11 @@ export async function runRegistrationDailyJob(today: DayKey, db: Db): Promise<Ha
         continue
       }
 
-      if (isDayOnOrBefore(deadline.reminderOn, today)) {
-        // Idempoten per hari: baris outbox (kind + penerima + payload.hari)
-        // dicek DI DALAM transaksi sebelum insert — dua run di hari sama
-        // menghasilkan satu baris (AR-6).
+      if (deadline.reminderOn === today) {
+        // Pengingat H-3 TUNGGAL — matriks I/O beku mem-pin reminderOn ===
+        // today (bukan harian sejak H-3); idempoten per hari via cek baris
+        // outbox (kind + penerima + payload.hari) DI DALAM transaksi sebelum
+        // insert — dua run di hari sama menghasilkan satu baris (AR-6).
         const sudahDiingatkan = await adaOutboxEmail(tx, {
           kind: OUTBOX_KIND_NOTIFIKASI,
           to: baris.email,

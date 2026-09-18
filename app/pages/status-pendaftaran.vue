@@ -49,9 +49,10 @@ const alasanPenolakan = statusData?.rejectionReason ?? ''
  * maupun status lain tidak melihatnya. Kelengkapan dibaca dari GET
  * /api/profile (kanonik kontrak wire); gagal baca = tautan disembunyikan.
  */
-const perluLengkapiProfil = statusData?.status === 'diajukan'
-  ? !(await api<{ profileComplete: boolean }>('/api/profile').catch(() => null))?.profileComplete
-  : false
+const hasilProfil = statusData?.status === 'diajukan'
+  ? await api<{ profileComplete: boolean }>('/api/profile').catch(() => null)
+  : null
+const perluLengkapiProfil = hasilProfil !== null && hasilProfil.profileComplete === false
 
 /** Alert konfirmasi pasca-daftar (permintaan owner 2026-09-18, direvisi:
  *  alert di ATAS halaman menggantikan toast bawah — auto-hilang 3 detik):
