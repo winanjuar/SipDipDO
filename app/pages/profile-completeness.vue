@@ -183,6 +183,38 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             Profil lengkap — seluruh field terisi. Menunggu verifikasi.
           </template>
         </p>
+
+        <!-- Referal: tampilan ONLY (DI LUAR body PUT dan DI LUAR kelengkapan —
+             relokasi owner 2026-09-18 #6: menempel rail di bawah indikator);
+             "Referal Dari" DORMANT sampai Epic 3 mengaktifkan param link ?ref=. -->
+        <fieldset class="flex flex-col gap-4 rounded-lg border p-4">
+          <legend class="px-1 text-sm font-semibold">Referal</legend>
+
+          <div class="flex flex-col gap-1">
+            <label for="profil-referral-code" class="text-sm font-medium">Kode Referal Saya</label>
+            <input
+              id="profil-referral-code"
+              :value="kodeReferalSaya"
+              type="text"
+              disabled
+              class="flex h-11 w-full rounded-md border bg-muted px-3 py-1 font-mono text-sm text-muted-foreground opacity-80"
+            >
+            <p class="text-xs text-muted-foreground">Kode referal milik Anda — bagikan saat teman mendaftar.</p>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label for="profil-referal-dari" class="text-sm font-medium">Referal Dari</label>
+            <input
+              id="profil-referal-dari"
+              :value="referalDari"
+              type="text"
+              disabled
+              placeholder="Belum ada"
+              class="flex h-11 w-full rounded-md border bg-muted px-3 py-1 text-sm text-muted-foreground opacity-80"
+            >
+            <p class="text-xs text-muted-foreground">Diisi saat Pembelian Pertama (menyusul).</p>
+          </div>
+        </fieldset>
       </aside>
 
       <form class="flex flex-col gap-4" @submit.prevent="simpan">
@@ -356,36 +388,6 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         </div>
       </fieldset>
 
-      <!-- Grup 4 — Referal: tampilan ONLY (diluar body PUT); "Referal Dari"
-           DORMANT sampai Epic 3 mengaktifkan param link ?ref=. -->
-      <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
-        <legend class="px-1 text-sm font-semibold">Referal</legend>
-
-        <div class="flex flex-col gap-1">
-          <label for="profil-referral-code" class="text-sm font-medium">Kode Referal Saya</label>
-          <input
-            id="profil-referral-code"
-            :value="kodeReferalSaya"
-            type="text"
-            disabled
-            class="flex h-11 w-full rounded-md border bg-muted px-3 py-1 font-mono text-sm text-muted-foreground opacity-80"
-          >
-          <p class="text-xs text-muted-foreground">Kode referal milik Anda — bagikan saat teman mendaftar.</p>
-        </div>
-
-        <div class="flex flex-col gap-1">
-          <label for="profil-referal-dari" class="text-sm font-medium">Referal Dari</label>
-          <input
-            id="profil-referal-dari"
-            :value="referalDari"
-            type="text"
-            disabled
-            placeholder="Belum ada"
-            class="flex h-11 w-full rounded-md border bg-muted px-3 py-1 text-sm text-muted-foreground opacity-80"
-          >
-          <p class="text-xs text-muted-foreground">Diisi saat Pembelian Pertama (menyusul).</p>
-        </div>
-      </fieldset>
 
       <!-- type="button": klik pra-hidrasi harus INERT — tombol submit native
            memicu navigasi GET form yang me-reset isian sebelum handler Vue

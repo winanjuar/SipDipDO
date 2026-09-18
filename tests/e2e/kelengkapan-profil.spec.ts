@@ -99,6 +99,10 @@ const PANJANG_MAKS_NAMA_UJI = 25
 /** Pesan inline kode format-salah (verbatim halaman). */
 const PESAN_FORMAT_SALAH = 'Hanya angka dan tanda "-".'
 
+/** Batas recurse test format-HP: cold-start compile Vite webkit pada eksekusi
+ *  pertama file bisa melebihi 30s standar (flaky teramati 2026-09-18). */
+const BATAS_RECURSE_FORMAT_MS = 45_000
+
 /** Nama field Lampiran A penuh yang dipakai indikator (UX-DR16 persis). */
 const NAMA_FIELD_KOSONG_CONTOH = 'Nama Bank'
 
@@ -140,10 +144,11 @@ async function tungguHidrasi(page: Page): Promise<void> {
 }
 
 /**
- * Isi satu field ter-scope. Input teks memakai fill; SELECT dibungkus recurse
- * verifikasi — nilai selectOption yang dipasang PRA-hidrasi Vue ter-reset
- * oleh hidrasi (snapshot debug 2026-09-18: dua select kosong walau sudah
- * dipilih), jadi pemilihan diulang sampai benar-benar menempel pasca-hidrasi.
+ * Isi satu field ter-scope. Input teks memakai fill; SELECT kini komponen
+ * shadcn (reka-ui: trigger button + listbox, re-negotiasi owner #5) — pilih
+ * lewat klik trigger lalu klik opsi by-role, dibungkus recurse verifikasi
+ * teks trigger (nilai pra-hidrasi bisa ter-reset oleh hidrasi; pola lama
+ * selectOption tidak berlaku untuk komponen non-native).
  */
 async function isiField(recurse: RecurseSesi, page: Page, legend: string, label: string, jenis: 'input' | 'select', nilai: string): Promise<void> {
   const lokasi = locatorField(page, legend, label)
@@ -151,11 +156,12 @@ async function isiField(recurse: RecurseSesi, page: Page, legend: string, label:
     await recurse(
       async () => {
         try {
-          await lokasi.selectOption(nilai)
+          await lokasi.click()
+          await page.getByRole('option', { name: nilai, exact: true }).click()
         } catch {
-          // Pra-hidrasi tanpa handler penuh — dievaluasi ulang iterasi berikutnya.
+          // Pra-hidrasi/dropdown belum terbuka — dievaluasi ulang iterasi berikutnya.
         }
-        return (await lokasi.inputValue()) === nilai
+        return ((await lokasi.textContent()) ?? '').trim() === nilai
       },
       menempel => menempel === true,
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: `Menunggu pilihan ${label} menempel pasca-hidrasi` },
@@ -510,8 +516,13 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
 
       await log.step('AND seluruh isian DIPERTAHANKAN')
-      for (const { legend, label, nilai } of isian) {
-        await expect(locatorField(page, legend, label)).toHaveValue(nilai)
+      for (const { legend, label, jenis, nilai } of isian) {
+        const lokasi = locatorField(page, legend, label)
+        if (jenis === 'select') {
+          await expect(lokasi).toContainText(nilai)
+        } else {
+          await expect(lokasi).toHaveValue(nilai)
+        }
       }
     },
   )
@@ -551,7 +562,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
           return page.getByText(PESAN_FORMAT_SALAH).isVisible()
         },
         tampil => tampil === true,
-        { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu error inline format No HP' },
+        { timeout: BATAS_RECURSE_FORMAT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu error inline format No HP' },
       )
 
       await log.step('THEN pesan inline format tampil DI BAWAH No HP (scoped grup Pribadi)')
@@ -561,8 +572,13 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toHaveCount(0)
 
       await log.step('AND seluruh isian dipertahankan')
-      for (const { legend, label, kunci } of FIELD_EDITABLE) {
-        await expect(locatorField(page, legend, label)).toHaveValue(nilaiSesuai.get(kunci) ?? '')
+      for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
+        const lokasi = locatorField(page, legend, label)
+        if (jenis === 'select') {
+          await expect(lokasi).toContainText(nilaiSesuai.get(kunci) ?? '')
+        } else {
+          await expect(lokasi).toHaveValue(nilaiSesuai.get(kunci) ?? '')
+        }
       }
     },
   )
@@ -623,7 +639,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
     await log.step('THEN reload — dropdown tetap "Lainnya" dan bankLain persisten')
     await page.reload()
-    await expect(locatorField(page, LEGEND_REKENING, 'Bank')).toHaveValue('Lainnya')
+    await tungguHidrasi(page)
+    await expect(locatorField(page, LEGEND_REKENING, 'Bank')).toContainText('Lainnya')
     await expect(locatorField(page, LEGEND_REKENING, 'Bank Lainnya')).toHaveValue('SeaBank')
     },
   )
