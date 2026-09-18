@@ -1,1 +1,0 @@
-ALTER TABLE "owners" ADD COLUMN "bank_lain" text;
