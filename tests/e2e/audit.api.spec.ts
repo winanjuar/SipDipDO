@@ -46,7 +46,7 @@ const NAMA_COOKIE_SESSION = COOKIE_AMAN ? '__Secure-next-auth.session-token' : '
 
 /** Context request ber-cookie sesi yang ikut dikirim di SETIAP hop — dipakai
  *  test yang menyangkut redirect (Cookie manual tidak di-replay antar hop;
- *  pola /api/pendaftaran/status di landing.api.spec.ts). */
+ *  pola /api/register/status di landing.api.spec.ts). */
 const contextCookiePerHop = async (
   playwright: Playwright,
   token: string,
@@ -330,7 +330,7 @@ test.describe('[P1] GET /api/audit sesi unlinked', () => {
   // Sesi mint TANPA baris owner — akun Google tak terhubung pendaftar mana pun.
   test.use({ authOptions: { userIdentifier: 'unlinked' } })
 
-  test('[P1] /api/audit me-redirect unlinked ke /login?state=unlinked', async ({ playwright, authToken }) => {
+  test('[P1] /api/audit me-redirect unlinked ke /login?res=unlinked', async ({ playwright, authToken }) => {
     await log.step('GIVEN sesi akun Google tanpa baris owner (unlinked)')
 
     const ctxCookiePerHop = await contextCookiePerHop(playwright, authToken)
@@ -340,9 +340,9 @@ test.describe('[P1] GET /api/audit sesi unlinked', () => {
     await response.text()
     await ctxCookiePerHop.dispose()
 
-    await log.step('THEN redirect terlayani sampai dokumen /login?state=unlinked')
+    await log.step('THEN redirect terlayani sampai dokumen /login?res=unlinked')
     expect(response.status()).toBe(200)
-    expect(response.url()).toContain('/login?state=unlinked')
+    expect(response.url()).toContain('/login?res=unlinked')
   })
 })
 

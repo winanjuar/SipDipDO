@@ -15,7 +15,7 @@ import type { LandingRespons } from '~/lib/landing'
  * CTA "Daftar" → modal T&C → OAuth Google; setelah OAuth (mode terhubung)
  * = CTA "Selesaikan Pendaftaran" + status "Akun Google terhubung" → modal
  * T&C dilewati (persetujuan tersimpan sessionStorage) → POST
- * /api/pendaftaran lalu hard-redirect /status-pendaftaran; calon/
+ * /api/register lalu hard-redirect /status-pendaftaran; calon/
  * non-calon = redirect landing role-nya. KLIK CTA + KONFIRMASI MODAL
  * adalah SATU-SATUNYA pemicu tulis data (keputusan owner 2026-09-18: data
  * masuk DB dari aksi pendaftaran eksplisit, bukan sekadar kunjungan);
@@ -97,7 +97,7 @@ function konfirmasiSyarat(): void {
   void daftarGoogle()
 }
 
-/** Whitelist query param /pendaftaran (keputusan owner 2026-09-18) —
+/** Whitelist query param /register (keputusan owner 2026-09-18) —
  *  HANYA dua ini yang sah, key lain dibuang saat hidrasi:
  *  - `src=fresh`  : kedatangan dari login gagal → presentasi fresh.
  *  - `ref=<kode8>`: kode referral pemilik link (DORMANT — dipakai Epic 3;
@@ -138,9 +138,9 @@ async function daftarGoogle() {
   let sukses = false
   try {
     if (modeFresh.value) {
-      await signIn('google', { callbackUrl: '/pendaftaran' })
+      await signIn('google', { callbackUrl: '/register' })
     } else {
-      await $fetch('/api/pendaftaran', { method: 'POST', body: {} })
+      await $fetch('/api/register', { method: 'POST', body: {} })
       sukses = true
     }
   } catch (error) {
@@ -165,10 +165,12 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
   <main class="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-10 text-center">
     <section class="flex flex-col items-center gap-3">
       <h1 class="text-lg font-semibold">Jadilah Pemilik</h1>
-      <BrandLogo size="login" />
+      <div data-testid="login-brand-logo" class="flex flex-col items-center gap-2">
+        <BrandLogo size="login" />
+      </div>
       <p class="text-sm italic text-muted-foreground">sip the taste, dip the soul</p>
       <p class="text-sm text-muted-foreground">
-        dengan <b>akun Google</b> Anda.
+        dengan <b>akun Google</b> Anda
       </p>
     </section>
 
@@ -190,7 +192,7 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
         {{ labelCta }}
       </Button>
 
-      <p class="text-xs text-muted-foreground">
+      <p class="text-sm text-muted-foreground">
         Dengan mendaftar Anda menyetujui
         <button
           type="button"
@@ -200,7 +202,6 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
         >
           Syarat &amp; Ketentuan
         </button>
-        .
       </p>
 
       <p
@@ -231,9 +232,6 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
       <DialogContent class="max-w-sm" data-testid="pendaftaran-modal-syarat" :show-close-button="false">
         <DialogHeader>
           <DialogTitle>Konfirmasi Pendaftaran</DialogTitle>
-          <DialogDescription>
-            Sebelum melanjutkan, mohon setujui hal berikut:
-          </DialogDescription>
         </DialogHeader>
 
         <label class="flex min-h-11 cursor-pointer items-start gap-3 text-left text-sm leading-relaxed">
@@ -243,7 +241,7 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
             data-testid="pendaftaran-syarat-setuju"
             class="mt-0.5 size-4 shrink-0"
           >
-          <span>Saya sudah memahami aturan main owner dan risiko yang mungkin harus ditanggung.</span>
+          <span class="text-justify">Saya sudah membaca dan memahami syarat dan ketentuan yang berlaku, termasuk risiko yang harus ditanggung sebagai pemilik.</span>
         </label>
 
         <DialogFooter class="gap-2 sm:justify-center">

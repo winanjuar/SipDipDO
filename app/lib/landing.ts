@@ -11,7 +11,7 @@ export const HTTP_SERVER_ERROR = 500
  */
 export type LandingRespons = { path: string, role: Role } | { unlinked: true }
 
-/** Kontrak respons GET /api/pendaftaran/status (khusus calon owner). */
+/** Kontrak respons GET /api/register/status (khusus calon owner). */
 export interface StatusPendaftaranRespons {
   status: 'diajukan' | 'ditolak' | 'kedaluwarsa'
   rejectionReason: string

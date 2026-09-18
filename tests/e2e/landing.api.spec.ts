@@ -74,7 +74,7 @@ const SkemaLanding = z.union([
 ])
 type Landing = z.infer<typeof SkemaLanding>
 
-/** Respons GET /api/pendaftaran/status khusus calon owner. */
+/** Respons GET /api/register/status khusus calon owner. */
 const SkemaStatusPendaftaran = z.object({
   status: z.enum(['diajukan', 'ditolak', 'kedaluwarsa']),
   rejectionReason: z.string(),
@@ -115,13 +115,13 @@ test.describe('[P0] API tanpa sesi (AD-8 wajib auth)', () => {
     expect(body.message.length).toBeGreaterThan(0)
   })
 
-  test('[P0] /api/pendaftaran/status menolak tanpa sesi dengan envelope 401 seragam', async ({ apiRequest }) => {
-    await log.step('GIVEN permintaan GET /api/pendaftaran/status tanpa cookie sesi')
+  test('[P0] /api/register/status menolak tanpa sesi dengan envelope 401 seragam', async ({ apiRequest }) => {
+    await log.step('GIVEN permintaan GET /api/register/status tanpa cookie sesi')
 
     await log.step('WHEN route handler khusus calon owner menilai permintaan anonim')
     const { status, body } = await apiRequest<EnvelopeError>({
       method: 'GET',
-      path: '/api/pendaftaran/status',
+      path: '/api/register/status',
       validateSchema: SkemaEnvelopeError,
     })
 
@@ -179,16 +179,16 @@ test.describe('[P1] API /api/landing dengan sesi email tak terhubung owner', () 
   })
 })
 
-test.describe('[P1] API /api/pendaftaran/status calon owner ditolak', () => {
+test.describe('[P1] API /api/register/status calon owner ditolak', () => {
   test.use({ authOptions: { userIdentifier: 'calon-ditolak' } })
 
-  test('[P1] /api/pendaftaran/status mengembalikan status dan alasan untuk calon owner ditolak', async ({ apiRequest, authToken }) => {
+  test('[P1] /api/register/status mengembalikan status dan alasan untuk calon owner ditolak', async ({ apiRequest, authToken }) => {
     await log.step('GIVEN sesi calon owner dengan pendaftaran berstatus ditolak')
 
-    await log.step('WHEN GET /api/pendaftaran/status membawa cookie sesi')
+    await log.step('WHEN GET /api/register/status membawa cookie sesi')
     const { status, body } = await apiRequest<StatusPendaftaran>({
       method: 'GET',
-      path: '/api/pendaftaran/status',
+      path: '/api/register/status',
       headers: headerCookieSesi(authToken),
       validateSchema: SkemaStatusPendaftaran,
     })
@@ -200,10 +200,10 @@ test.describe('[P1] API /api/pendaftaran/status calon owner ditolak', () => {
   })
 })
 
-test.describe('[P1] API /api/pendaftaran/status non-calon owner', () => {
+test.describe('[P1] API /api/register/status non-calon owner', () => {
   test.use({ authOptions: { userIdentifier: 'pemegang-saham' } })
 
-  test('[P1] /api/pendaftaran/status me-redirect non-calon ke landing role-nya', async ({ playwright, authToken }) => {
+  test('[P1] /api/register/status me-redirect non-calon ke landing role-nya', async ({ playwright, authToken }) => {
     // Deviasi transport (tercatat sejak red-phase, diputuskan saat green):
     // apiRequest TIDAK mengekspos header `location` dan Cookie manual tidak
     // di-replay antar hop redirect — pakai context ber-cookie per-hop.
@@ -213,8 +213,8 @@ test.describe('[P1] API /api/pendaftaran/status non-calon owner', () => {
 
     const ctxCookiePerHop = await contextCookiePerHop(playwright, authToken)
 
-    await log.step('WHEN GET /api/pendaftaran/status membawa cookie sesi (redirect diikuti)')
-    const response = await ctxCookiePerHop.get('/api/pendaftaran/status')
+    await log.step('WHEN GET /api/register/status membawa cookie sesi (redirect diikuti)')
+    const response = await ctxCookiePerHop.get('/api/register/status')
     const body = await response.text()
     await ctxCookiePerHop.dispose()
 
@@ -225,22 +225,22 @@ test.describe('[P1] API /api/pendaftaran/status non-calon owner', () => {
   })
 })
 
-test.describe('[P1] API /api/pendaftaran/status unlinked', () => {
+test.describe('[P1] API /api/register/status unlinked', () => {
   test.use({ authOptions: { userIdentifier: 'unlinked' } })
 
-  test('[P1] /api/pendaftaran/status me-redirect unlinked ke /login?state=unlinked', async ({ playwright, authToken }) => {
+  test('[P1] /api/register/status me-redirect unlinked ke /login?res=unlinked', async ({ playwright, authToken }) => {
     await log.step('GIVEN sesi akun Google tanpa baris owner (unlinked)')
 
     const ctxCookiePerHop = await contextCookiePerHop(playwright, authToken)
 
-    await log.step('WHEN GET /api/pendaftaran/status membawa cookie sesi (redirect diikuti)')
-    const response = await ctxCookiePerHop.get('/api/pendaftaran/status')
+    await log.step('WHEN GET /api/register/status membawa cookie sesi (redirect diikuti)')
+    const response = await ctxCookiePerHop.get('/api/register/status')
     const body = await response.text()
     await ctxCookiePerHop.dispose()
 
-    await log.step('THEN redirect ke /login?state=unlinked dengan pesan arahan verbatim')
+    await log.step('THEN redirect ke /login?res=unlinked dengan pesan arahan verbatim')
     expect(response.status()).toBe(200)
-    expect(response.url()).toContain('/login?state=unlinked')
+    expect(response.url()).toContain('/login?res=unlinked')
     // Copy pesan re-negotiasi owner 2026-09-18 ("Akun tidak ditemukan." +
     // tautan inline "Lakukan pendaftaran") — normalisasi tag HTML sebelum
     // mem-pin substring.

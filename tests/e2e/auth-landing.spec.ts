@@ -24,7 +24,7 @@
  * tidak dipakai; asersi web-first (toHaveURL / toBeVisible / toContainText)
  * auto-retry. Pengecualian [P2] tautan pendaftaran: klik CTA "Daftar" di
  * dev server menunggu hidrasi Vue → `recurse`, dan navigasi klien anonim
- * ke /pendaftaran menghasilkan 401 /api/landing yang SAH (ditangkap
+ * ke /register menghasilkan 401 /api/landing yang SAH (ditangkap
  * halaman) → anotasi `skipNetworkMonitoring`; tanpa waitForTimeout.
  */
 import { faker } from '@faker-js/faker/locale/id_ID'
@@ -109,6 +109,9 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await log.step('AND pemberitahuan netral tampil tanpa pesan arahan unlinked yang menyesatkan')
     await expect(page.getByText('Percobaan masuk belum selesai — silakan coba lagi.')).toBeVisible()
     await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked)).toHaveCount(0)
+
+    await log.step('AND penanda ?error= ditranslasi menjadi res=error (query param paten hanya res)')
+    await expect(page).toHaveURL(/\/login\?res=error$/)
   })
 
   test('[P1] login COO dialandingkan ke antrian beli', async ({ page, context, apiRequest }) => {
@@ -186,8 +189,8 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await context.addCookies(cookies)
     await log.step('WHEN membuka root aplikasi')
     await page.goto('/')
-    await log.step('THEN kembali ke /login?state=unlinked dengan pesan arahan (copy re-negotiasi owner 2026-09-18)')
-    await expect(page).toHaveURL(/\/login\?state=unlinked/)
+    await log.step('THEN kembali ke /login?res=unlinked dengan pesan arahan (copy re-negotiasi owner 2026-09-18)')
+    await expect(page).toHaveURL(/\/login\?res=unlinked/)
     await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked)).toContainText('Akun tidak ditemukan.')
     await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked).getByRole('link', { name: 'Lakukan pendaftaran' })).toBeVisible()
   })
@@ -196,7 +199,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     '[P2] tautan pendaftaran dari login — anonim "Yuk Gabung!" & unlinked "Lakukan pendaftaran"',
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
     async ({ page, context, apiRequest, recurse }) => {
-      // skipNetworkMonitoring: klik tautan = navigasi klien ke /pendaftaran —
+      // skipNetworkMonitoring: klik tautan = navigasi klien ke /register —
       // resolver /api/landing di browser anonim menjawab 401 envelope yang
       // DITANGKAP halaman (useAsyncData catch → mode anonim); 401 ini produk
       // sah, bukan bug jaringan.
@@ -207,7 +210,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await page.getByTestId(TEST_IDS.login.tautanDaftar).click()
 
       await log.step('THEN mendarat di halaman pendaftaran publik')
-      await expect(page).toHaveURL(/\/pendaftaran$/)
+      await expect(page).toHaveURL(/\/register$/)
 
       // Email unik WAJIB: email mint deterministik persona 'unlinked' dipakai
       // bersama test lain — test ini MENGKLIK CTA "Daftar" (Story 1.4) yang
@@ -216,13 +219,13 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await log.step("GIVEN sesi 'unlinked' dengan email sintetis UNIK kembali ke login dengan pesan arahan")
       const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
       await context.addCookies(cookies)
-      await page.goto('/login?state=unlinked')
+      await page.goto('/login?res=unlinked')
 
       await log.step('WHEN menekan tautan "Lakukan pendaftaran" di dalam pesan arahan')
       await page.getByRole('link', { name: 'Lakukan pendaftaran' }).click()
 
       await log.step('THEN mendarat di halaman pendaftaran dengan presentasi FRESH — sesi sisa login gagal dianggap belum pernah OAuth (keputusan owner 2026-09-18)')
-      await expect(page).toHaveURL(/\/pendaftaran\?src=fresh$/, { timeout: 15_000 })
+      await expect(page).toHaveURL(/\/register\?src=fresh$/, { timeout: 15_000 })
       await expect(page.getByRole('button', { name: 'Daftar' })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toHaveCount(0)
       await expect(page.getByText('Akun Google Anda sudah terhubung')).toHaveCount(0)
@@ -249,9 +252,9 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       const cookiesSelesai = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
       await context.clearCookies()
       await context.addCookies(cookiesSelesai)
-      // Target callback OAuth = '/pendaftaran' TANPA penanda ?src=fresh —
+      // Target callback OAuth = '/register' TANPA penanda ?src=fresh —
       // inilah pembeda mode terhubung vs fresh.
-      await page.goto('/pendaftaran')
+      await page.goto('/register')
 
       await log.step('THEN kini mode TERHUBUNG: status + CTA "Selesaikan Pendaftaran"')
       await expect(page.getByText('Akun Google Anda sudah terhubung — tinggal satu langkah lagi.')).toBeVisible()
@@ -297,16 +300,16 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     }
   })
 
-  test('[P2] toast "Masuk berhasil." tampil SEKALI di landing pertama (permintaan owner: toast di halaman berikutnya)', async ({ page, context, apiRequest }) => {
-    // Kontrak flag: kunci sessionStorage milik app/composables/useSekaliToast.ts
+  test('[P2] alert "Masuk berhasil." tampil SEKALI di ATAS landing pertama, auto-hilang 3 detik (permintaan owner)', async ({ page, context, apiRequest }) => {
+    // Kontrak flag: kunci sessionStorage milik app/composables/useSekaliAlert.ts
     // (halaman login menandai sebelum signIn; landing pertama mengonsumsi).
-    const KUNCI_FLAG_MASUK = 'snd-dash.toast-masuk-berhasil'
+    const KUNCI_FLAG_MASUK = 'snd-dash.alert-masuk-berhasil'
     await log.step("GIVEN sesi COO sudah diinjeksikan di landing /antrian-beli")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
     await context.addCookies(cookies)
     await page.goto('/antrian-beli')
 
-    await log.step('AND flag toast masuk ditandai (simulasi halaman login pre-signIn)')
+    await log.step('AND flag alert masuk ditandai (simulasi halaman login pre-signIn)')
     await page.evaluate(kunci => sessionStorage.setItem(kunci, '1'), KUNCI_FLAG_MASUK)
 
     await log.step('WHEN halaman landing dimuat ulang (mount pertama dengan flag)')
@@ -316,7 +319,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await log.step('WHEN reload kedua (flag sudah dikonsumsi)')
     await page.reload()
 
-    await log.step('THEN toast TIDAK muncul lagi')
+    await log.step('THEN alert TIDAK muncul lagi')
     await expect(page.getByText('Masuk berhasil.')).toHaveCount(0)
   })
 

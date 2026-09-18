@@ -8,11 +8,11 @@ import { getSessionEmail } from '../../utils/session'
 /**
  * GET /api/audit — daftar audit trail khusus COO (FR-12, AD-8): sesi →
  * `buildPrincipal` (role per-request dari `coo_tenures` berlaku) → non-COO
- * 403 envelope; unlinked → redirect `/login?state=unlinked`; tanpa sesi →
+ * 403 envelope; unlinked → redirect `/login?res=unlinked`; tanpa sesi →
  * 401 envelope. Query `page` (default 1) dan `limit` (default 20, opsi
  * 20/40/80 — renegosiasi user 2026-09-17) — tidak valid → 400 envelope.
  * Respons `{ data, nextPage }` urut `created_at` desc. Route handler TIPIS —
- * pola `server/api/pendaftaran/status.get.ts`; keputusan kewenangan di
+ * pola `server/api/register/status.get.ts`; keputusan kewenangan di
  * server, tidak pernah di klien (AD-8).
  */
 
@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const principal = await buildPrincipal(createIdentityRepo(useDb()), email)
-  if (principal.unlinked) return sendRedirect(event, '/login?state=unlinked')
+  if (principal.unlinked) return sendRedirect(event, '/login?res=unlinked')
   if (principal.role !== 'coo') {
     return sendApiError(event, HTTP_STATUS.forbidden, {
       code: 'FORBIDDEN',

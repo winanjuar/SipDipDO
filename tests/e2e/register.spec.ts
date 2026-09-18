@@ -9,7 +9,7 @@
  * (re-negotiasi copy manual oleh owner pasca-uji manual, 2026-09-18 —
  * judul "Jadilah Pemilik" + sub-copy baru + footer disembunyikan).
  *
- * Non-negotiable tetap dari kontrak UX: route halaman = `/pendaftaran`;
+ * Non-negotiable tetap dari kontrak UX: route halaman = `/register`;
  * TANPA textbox /referral/i; sukses submit → redirect `/status-pendaftaran`
  * + badge by-text "Diajukan".
  *
@@ -37,7 +37,7 @@ import { TEST_IDS } from '../support/helpers/test-ids'
 import { mintSesiPemilik } from '../support/helpers/sesi-minting'
 
 /** Route halaman pendaftaran publik — terpin UX (mockup key-pendaftaran-profile). */
-const HALAMAN_PENDAFTARAN = '/pendaftaran'
+const HALAMAN_PENDAFTARAN = '/register'
 
 /** Status HTTP yang dipakai file ini — tanpa magic number (gaya pendaftaran.api.spec.ts). */
 const STATUS_CREATED = 201
@@ -89,8 +89,8 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await log.step('WHEN Batal menutup modal')
     await page.getByTestId(TEST_IDS.pendaftaran.tombolBatal).click()
 
-    await log.step('THEN tetap di /pendaftaran — tanpa OAuth, tanpa efek')
-    await expect(page).toHaveURL(/\/pendaftaran$/)
+    await log.step('THEN tetap di /register — tanpa OAuth, tanpa efek')
+    await expect(page).toHaveURL(/\/register$/)
     await expect(page.getByTestId(TEST_IDS.pendaftaran.modalSyarat)).toHaveCount(0)
 
     await log.step('AND tautan "Syarat & Ketentuan" membuka modal yang sama')
@@ -99,11 +99,11 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
   })
 
   test('[P2] whitelist query param — hanya src & ref sah, key lain dibuang; modal tanpa tombol X', async ({ page, recurse }) => {
-    await log.step('GIVEN /pendaftaran diakses dengan src=fresh, ref=<kode8>, DAN key asing foo=bar')
+    await log.step('GIVEN /register diakses dengan src=fresh, ref=<kode8>, DAN key asing foo=bar')
     await page.goto(`${HALAMAN_PENDAFTARAN}?src=fresh&ref=ABCDEFGH&foo=bar`)
 
     await log.step('THEN key asing dibuang — hanya src & ref tersisa (presentasi fresh tetap aktif)')
-    await expect(page).toHaveURL(/\/pendaftaran\?src=fresh&ref=ABCDEFGH$/)
+    await expect(page).toHaveURL(/\/register\?src=fresh&ref=ABCDEFGH$/)
     await expect(page.getByRole('button', { name: 'Daftar' })).toBeVisible()
 
     await log.step('WHEN klik CTA membuka modal konfirmasi T&C')
@@ -126,7 +126,7 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await expect(page.getByTestId(TEST_IDS.pendaftaran.tombolBatal)).toBeVisible()
   })
 
-  test('[P0] submit pendaftaran via akun Google → POST /api/pendaftaran → redirect status + badge Diajukan', async ({
+  test('[P0] submit pendaftaran via akun Google → POST /api/register → redirect status + badge Diajukan', async ({
     page,
     context,
     apiRequest,
@@ -139,8 +139,8 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
     await context.addCookies(cookies)
 
-    await log.step('AND spy POST /api/pendaftaran dideklarasikan SEBELUM navigasi (network-first)')
-    const pendaftaranCall = interceptNetworkCall({ url: '**/api/pendaftaran', method: 'POST' })
+    await log.step('AND spy POST /api/register dideklarasikan SEBELUM navigasi (network-first)')
+    const pendaftaranCall = interceptNetworkCall({ url: '**/api/register', method: 'POST' })
     // Redam penolakan dini spy (timeout waitForRequest saat hidrasi lambat)
     // agar tidak jadi unhandled rejection — await asli tetap melempar bila
     // POST benar-benar tidak pernah terkirim.
@@ -182,8 +182,9 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: BATAS_RECURSE_SUBMIT_MS })
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
 
-    await log.step('AND toast sukses tampil di halaman BERIKUTNYA (bukan halaman yang tertimpa redirect)')
+    await log.step('AND alert sukses tampil di ATAS halaman BERIKUTNYA lalu auto-hilang (3 detik)')
     await expect(page.getByText('Pendaftaran berhasil diajukan.')).toBeVisible()
+    await expect(page.getByText('Pendaftaran berhasil diajukan.')).toBeHidden({ timeout: 5_000 })
   })
 
   test('[P0] badge Diajukan tampil dengan aria-live polite di halaman status', async ({
@@ -224,7 +225,7 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
 
       await log.step('AND stub konflik duplikat dideklarasikan SEBELUM navigasi (network-first)')
       const duplikatCall = interceptNetworkCall({
-        url: '**/api/pendaftaran',
+        url: '**/api/register',
         method: 'POST',
         fulfillResponse: { status: 409, body: { message: 'Email ini sudah terdaftar' } },
       })
@@ -266,14 +267,14 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     apiRequest,
   }) => {
     // Cakupan matriks I/O spec (baris redirect): "Sesi calon buka
-    // /pendaftaran → redirect /status-pendaftaran" dan "Sesi owner/COO →
+    // /register → redirect /status-pendaftaran" dan "Sesi owner/COO →
     // redirect LANDING_PATH[role]" — keputusan resolver /api/landing
     // dikonsumsi halaman saat SSR.
     await log.step('GIVEN sesi calon owner (diajukan) sudah diinjeksikan')
     const cookieCalon = await mintSesiPemilik(apiRequest, { userIdentifier: 'calon-diajukan', status: 'diajukan' })
     await context.addCookies(cookieCalon)
 
-    await log.step('WHEN membuka /pendaftaran')
+    await log.step('WHEN membuka /register')
     await page.goto(HALAMAN_PENDAFTARAN)
 
     await log.step('THEN dialihkan ke /status-pendaftaran (LANDING_PATH calon)')
@@ -285,7 +286,7 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await context.clearCookies()
     await context.addCookies(cookieCoo)
 
-    await log.step('WHEN membuka /pendaftaran')
+    await log.step('WHEN membuka /register')
     await page.goto(HALAMAN_PENDAFTARAN)
 
     await log.step('THEN dialihkan ke landing role COO (/antrian-beli)')

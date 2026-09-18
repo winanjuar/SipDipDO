@@ -1,17 +1,17 @@
 /**
  * ATDD GREEN-PHASE — Story 1.4 "Pendaftaran Owner Mandiri & Status" (API only).
  *
- * Cakupan file ini = POST /api/pendaftaran. Test red-phase telah diaktifkan
+ * Cakupan file ini = POST /api/register. Test red-phase telah diaktifkan
  * (un-skip) pada tugas green-phase bersama implementasinya (spec Story 1.4).
  *
  * TIDAK diduplikasi di sini (sudah hijau):
- * - GET /api/pendaftaran/status + varian 401/non-calon/unlinked
+ * - GET /api/register/status + varian 401/non-calon/unlinked
  *   → tests/e2e/landing.api.spec.ts (referensi pola envelope + cookie).
  * - GET /api/audit (kontrak baca) → tests/e2e/audit.api.spec.ts.
  * - Varian badge Ditolak (UI) → tests/e2e/auth-landing.spec.ts.
  *
- * ASUMSI KONTRAK POST /api/pendaftaran (red-phase, nyatakan eksplisit):
- * - Endpoint: POST /api/pendaftaran; auth WAJIB (tanpa sesi → 401 envelope
+ * ASUMSI KONTRAK POST /api/register (red-phase, nyatakan eksplisit):
+ * - Endpoint: POST /api/register; auth WAJIB (tanpa sesi → 401 envelope
  *   seragam server/utils/api-error.ts { code, message, details }).
  * - Body TANPA referral — minimal {} karena email diambil dari sesi Google.
  * - Sukses → 200/201 { id, email, status: 'diajukan', ... } TANPA field
@@ -61,7 +61,7 @@ const SkemaEnvelopeError = z.object({
 type EnvelopeError = z.infer<typeof SkemaEnvelopeError>
 
 /**
- * ASUMSI bentuk wire POST /api/pendaftaran sukses (flat, bukan { data }).
+ * ASUMSI bentuk wire POST /api/register sukses (flat, bukan { data }).
  * - `status` di-pin literal 'diajukan' (enum AD-11 untuk baris baru).
  * - `id` sengaja longgar string non-kosong (konvensi repo uuid — jangan
  *   over-pin saat red; selaraskan green-phase bila handler memakai kontrak lain).
@@ -128,17 +128,17 @@ const emailSintetisUji = (): string => {
   return `uji.snddash.e2e.${lokalUji}@gmail.com`
 }
 
-test.describe('[P0] POST /api/pendaftaran terautentikasi → diajukan tanpa referral', () => {
+test.describe('[P0] POST /api/register terautentikasi → diajukan tanpa referral', () => {
   test('[P0] akun Google baru mendaftar → baris owner diajukan tanpa field referral', async ({ apiRequest }) => {
-    // GAGAL saat red: 404 — POST /api/pendaftaran belum ada; validasi
+    // GAGAL saat red: 404 — POST /api/register belum ada; validasi
     // SkemaPendaftaran melempar sebelum asersi status tercapai.
     await log.step('GIVEN sesi akun Google tanpa baris owner (unlinked)')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
 
-    await log.step('WHEN POST /api/pendaftaran dengan body minimal {} (email dari sesi Google)')
+    await log.step('WHEN POST /api/register dengan body minimal {} (email dari sesi Google)')
     const { status, body } = await apiRequest<Pendaftaran>({
       method: 'POST',
-      path: '/api/pendaftaran',
+      path: '/api/register',
       body: {},
       headers: headerCookieDariMint(cookieSesi),
     }).validateSchema(SkemaPendaftaran)
@@ -150,16 +150,16 @@ test.describe('[P0] POST /api/pendaftaran terautentikasi → diajukan tanpa refe
   })
 })
 
-test.describe('[P0] POST /api/pendaftaran tanpa sesi (AD-8 wajib auth)', () => {
-  test('[P0] POST /api/pendaftaran tanpa sesi ditolak 401 envelope seragam', async ({ apiRequest }) => {
+test.describe('[P0] POST /api/register tanpa sesi (AD-8 wajib auth)', () => {
+  test('[P0] POST /api/register tanpa sesi ditolak 401 envelope seragam', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada; validasi SkemaEnvelopeError
     // melempar sebelum asersi status tercapai.
-    await log.step('GIVEN permintaan POST /api/pendaftaran tanpa cookie sesi')
+    await log.step('GIVEN permintaan POST /api/register tanpa cookie sesi')
 
     await log.step('WHEN route handler wajib auth menilai permintaan anonim')
     const { status, body } = await apiRequest<EnvelopeError>({
       method: 'POST',
-      path: '/api/pendaftaran',
+      path: '/api/register',
       body: {},
     }).validateSchema(SkemaEnvelopeError)
 
@@ -170,7 +170,7 @@ test.describe('[P0] POST /api/pendaftaran tanpa sesi (AD-8 wajib auth)', () => {
   })
 })
 
-test.describe('[P0] POST /api/pendaftaran idempotent per email (AD-11 unique)', () => {
+test.describe('[P0] POST /api/register idempotent per email (AD-11 unique)', () => {
   test('[P0] pendaftaran 2x email sama tetap satu baris — 200 idempotent, bukan 409', async ({ apiRequest }) => {
     // GAGAL saat red: POST pertama menjawab 404 (endpoint belum ada) —
     // validasi skema menjadi kegagalan pertama yang menjelaskan diri sendiri.
@@ -178,16 +178,16 @@ test.describe('[P0] POST /api/pendaftaran idempotent per email (AD-11 unique)', 
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: EMAIL_IDEMPOTEN_UJI })
     const headerCookie = headerCookieDariMint(cookieSesi)
 
-    await log.step('WHEN POST /api/pendaftaran dikirim dua kali dengan email sesi yang sama')
+    await log.step('WHEN POST /api/register dikirim dua kali dengan email sesi yang sama')
     const pertama = await apiRequest<Pendaftaran>({
       method: 'POST',
-      path: '/api/pendaftaran',
+      path: '/api/register',
       body: {},
       headers: headerCookie,
     }).validateSchema(SkemaPendaftaran)
     const kedua = await apiRequest<Pendaftaran>({
       method: 'POST',
-      path: '/api/pendaftaran',
+      path: '/api/register',
       body: {},
       headers: headerCookie,
     }).validateSchema(SkemaPendaftaran)
@@ -214,10 +214,10 @@ test.describe('[P0] POST /api/pendaftaran idempotent per email (AD-11 unique)', 
       status: 'terverifikasi',
     })
 
-    await log.step('WHEN POST /api/pendaftaran dengan email yang sudah terdaftar non-diajukan')
+    await log.step('WHEN POST /api/register dengan email yang sudah terdaftar non-diajukan')
     const { status, body } = await apiRequest<PendaftaranExisting>({
       method: 'POST',
-      path: '/api/pendaftaran',
+      path: '/api/register',
       body: {},
       headers: headerCookieDariMint(cookieSesi),
     }).validateSchema(SkemaPendaftaranExisting)
@@ -228,7 +228,7 @@ test.describe('[P0] POST /api/pendaftaran idempotent per email (AD-11 unique)', 
   })
 })
 
-test.describe('[P1] POST /api/pendaftaran menolak field referral', () => {
+test.describe('[P1] POST /api/register menolak field referral', () => {
   test('[P1] body berisi referral ditolak 400 envelope — referral diajukan saat Pembelian Pertama', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada; validasi envelope gagal
     // lebih dulu. ASUMSI YANG DIPILIH: server MENOLAK unknown field referral
@@ -237,10 +237,10 @@ test.describe('[P1] POST /api/pendaftaran menolak field referral', () => {
     await log.step('GIVEN sesi akun Google tanpa baris owner (unlinked)')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
 
-    await log.step('WHEN POST /api/pendaftaran membawa body berisi referral')
+    await log.step('WHEN POST /api/register membawa body berisi referral')
     const { status, body } = await apiRequest<EnvelopeError>({
       method: 'POST',
-      path: '/api/pendaftaran',
+      path: '/api/register',
       body: { referral: KODE_REFERRAL_UJI },
       headers: headerCookieDariMint(cookieSesi),
     }).validateSchema(SkemaEnvelopeError)
@@ -251,19 +251,19 @@ test.describe('[P1] POST /api/pendaftaran menolak field referral', () => {
   })
 })
 
-test.describe('[P1] POST /api/pendaftaran mencatat audit FR-22 in-tx', () => {
+test.describe('[P1] POST /api/register mencatat audit FR-22 in-tx', () => {
   test('[P1] pendaftaran berhasil tercatat di audit trail dan terbaca COO via GET /api/audit', async ({ apiRequest }) => {
-    // GAGAL saat red: POST /api/pendaftaran menjawab 404 sebelum seed audit
+    // GAGAL saat red: POST /api/register menjawab 404 sebelum seed audit
     // maupun asersi baca COO mana pun. GET /api/audit sendiri sudah hijau
     // (audit.api.spec.ts) — yang merah di sini adalah sisi tulis in-tx.
     await log.step('GIVEN sesi akun Google baru yang akan mendaftar')
     const emailPendaftar = emailSintetisUji()
     const cookiePendaftar = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailPendaftar })
 
-    await log.step('WHEN POST /api/pendaftaran berhasil (200/201 diajukan)')
+    await log.step('WHEN POST /api/register berhasil (200/201 diajukan)')
     const daftar = await apiRequest<Pendaftaran>({
       method: 'POST',
-      path: '/api/pendaftaran',
+      path: '/api/register',
       body: {},
       headers: headerCookieDariMint(cookiePendaftar),
     }).validateSchema(SkemaPendaftaran)

@@ -5,7 +5,7 @@ import { getSessionEmail } from '../../utils/session'
 import { readBody, setResponseStatus } from 'h3'
 
 /**
- * POST /api/pendaftaran — pendaftaran owner mandiri (Story 1.4, FR-22):
+ * POST /api/register — pendaftaran owner mandiri (Story 1.4, FR-22):
  * email diambil dari sesi Google (BUKAN dari body); body TIDAK menerima
  * field referral (referral hanya di Pembelian Pertama, Epic 3) → 400
  * envelope. Idempotent per email: 201 saat baris `diajukan` baru dibuat

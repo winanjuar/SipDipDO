@@ -4,7 +4,7 @@ import { HTTP_SERVER_ERROR, HTTP_UNAUTHORIZED } from '~/lib/landing'
 
 /**
  * Resolver landing SSR (UX-DR14) — redirect murni, tanpa konten:
- * tanpa sesi → `/login`; sesi unlinked → `/login?state=unlinked` (pesan
+ * tanpa sesi → `/login`; sesi unlinked → `/login?res=unlinked` (pesan
  * arahan + tautan pendaftaran — ke /pendaftaran HANYA via klik tautan);
  * selain itu `navigateTo(path)` dari `/api/landing` (keputusan dievaluasi
  * server-side, AD-8 — klien hanya meneruskan). Kerangka scaffold Story 1.1
@@ -22,7 +22,7 @@ try {
     headers: { 'cache-control': 'no-store' },
   } as never)
   if ('unlinked' in landing) {
-    await navigateTo('/login?state=unlinked')
+    await navigateTo('/login?res=unlinked')
   } else {
     await navigateTo(landing.path)
   }

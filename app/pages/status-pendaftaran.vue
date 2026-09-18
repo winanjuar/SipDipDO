@@ -2,7 +2,6 @@
 import type { OwnerStatus } from '#shared/domain/identity'
 import { LANDING_PATH } from '#shared/domain/identity'
 import type { LandingRespons, StatusPendaftaranRespons } from '~/lib/landing'
-import { toast } from 'vue-sonner'
 
 /**
  * Status Pendaftaran — khusus calon owner `diajukan`/`ditolak`/`kedaluwarsa`
@@ -31,30 +30,34 @@ const landing = await api<LandingRespons>('/api/landing').catch(() => null)
 if (!landing) {
   await navigateTo('/login')
 } else if ('unlinked' in landing) {
-  await navigateTo('/login?state=unlinked')
+  await navigateTo('/login?res=unlinked')
 } else if (landing.role !== 'calon_owner') {
   // Non-calon membuka URL langsung → kembali ke landing role-nya (UX-DR14).
   await navigateTo(LANDING_PATH[landing.role])
 }
 
 const statusData = landing && !('unlinked' in landing) && landing.role === 'calon_owner'
-  ? await api<StatusPendaftaranRespons>('/api/pendaftaran/status').catch(() => null)
+  ? await api<StatusPendaftaranRespons>('/api/register/status').catch(() => null)
   : null
 
 const badge = statusData ? PETA_BADGE[statusData.status] : null
 const alasanPenolakan = statusData?.rejectionReason ?? ''
 
-/** Toast konfirmasi pasca-daftar (permintaan owner 2026-09-18): flag query
- *  dari pendaftaran.vue → toast SEKALI berdurasi panjang lalu query
- *  dibersihkan agar refresh/bagikan URL tidak mengulang konfirmasi.
- *  Klien-saja (onMounted). Toast "Masuk berhasil." dilewati di sini bila
- *  toast daftar tampil (jangan dua toast bertumpuk). */
+/** Alert konfirmasi pasca-daftar (permintaan owner 2026-09-18, direvisi:
+ *  alert di ATAS halaman menggantikan toast bawah — auto-hilang 3 detik):
+ *  flag query dari register.vue → alert SEKALI lalu query dibersihkan agar
+ *  refresh/bagikan URL tidak mengulang konfirmasi. Klien-saja (onMounted).
+ *  Alert "Masuk berhasil." dilewati bila alert daftar tampil. */
 const route = useRoute()
 const router = useRouter()
-useSekaliToastMasuk()
+const pesanMasuk = useSekaliAlertMasuk()
+const pesanDaftar = ref('')
 onMounted(() => {
   if (route.query.daftar === FLAG_DAFTAR_BERHASIL) {
-    toast.success('Pendaftaran berhasil diajukan.', { duration: DURASI_TOAST_SUKSES_MS })
+    pesanDaftar.value = 'Pendaftaran berhasil diajukan.'
+    setTimeout(() => {
+      pesanDaftar.value = ''
+    }, DURASI_ALERT_SUKSES_MS)
     void router.replace({ query: { ...route.query, daftar: undefined } })
   }
 })
@@ -63,6 +66,13 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
 </script>
 
 <template>
+  <div>
+  <Alert v-if="pesanDaftar" variant="success" class="mx-auto max-w-md px-4 pt-4 sm:rounded-lg" aria-live="polite">
+    {{ pesanDaftar }}
+  </Alert>
+  <Alert v-else-if="pesanMasuk" variant="success" class="mx-auto max-w-md px-4 pt-4 sm:rounded-lg" aria-live="polite">
+    {{ pesanMasuk }}
+  </Alert>
   <main class="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-4 py-10">
     <header>
       <h1 class="text-2xl font-semibold">Status Pendaftaran</h1>
@@ -92,4 +102,5 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
       <p class="text-sm text-muted-foreground">Status pendaftaran belum tersedia.</p>
     </section>
   </main>
+  </div>
 </template>
