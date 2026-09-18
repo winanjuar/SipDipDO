@@ -69,6 +69,23 @@ export async function findOwnerByEmail(db: DbClient, email: string): Promise<Own
   return rows[0] ?? null
 }
 
+/** Referensi referral owner — tampilan Kelengkapan Profile (Story 1.5,
+ *  permintaan owner 2026-09-18); `usedReferralCode` DORMANT sampai Epic 3. */
+export interface ReferralOwner {
+  referralCode: string
+  usedReferralCode: string | null
+}
+
+/** Baca referensi referral owner berdasar email — dipakai GET /api/profile. */
+export async function bacaReferralOwner(db: DbClient, email: string): Promise<ReferralOwner | null> {
+  const rows = await db
+    .select({ referralCode: owners.referralCode, usedReferralCode: owners.usedReferralCode })
+    .from(owners)
+    .where(eq(owners.email, email))
+    .limit(1)
+  return rows[0] ?? null
+}
+
 /**
  * true bila owner punya tenure COO yang BERLAKU pada `now` — started_at <= now
  * DAN (ended_at IS NULL OR ended_at > now). Sumber otoritas kewenangan COO

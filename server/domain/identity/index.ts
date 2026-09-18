@@ -10,6 +10,7 @@ export {
 } from './access.service'
 export type { IdentityRepoPort, OwnerRoleInput } from './access.service'
 export {
+  bacaReferralOwner,
   closeActiveCooTenures,
   createIdentityRepo,
   daftarOwnerByEmail,
@@ -21,7 +22,7 @@ export {
   simpanProfilCalon,
   upsertOwnerByEmail,
 } from './owner.repo'
-export type { BarisCalonJob, HasilDaftarOwner, OwnerRecord } from './owner.repo'
+export type { BarisCalonJob, HasilDaftarOwner, OwnerRecord, ReferralOwner } from './owner.repo'
 export {
   REGISTRATION_EXPIRY_DAYS,
   REGISTRATION_REMINDER_DAYS_BEFORE,

@@ -1,5 +1,5 @@
 import { profilLengkap, sisaFieldKosong } from '#shared/domain/profil'
-import { findOwnerByEmail } from '../../domain/identity'
+import { bacaReferralOwner, findOwnerByEmail } from '../../domain/identity'
 import { HTTP_STATUS, sendApiError } from '../../utils/api-error'
 import { useDb } from '../../utils/db'
 import { getSessionEmail } from '../../utils/session'
@@ -9,7 +9,10 @@ import { getSessionEmail } from '../../utils/session'
  * CAP-2). Handler tipis: sesi → 401; selain calon `diajukan` → 403 (CAP-3).
  * Respons `{ ...field, gmail = email sesi, profileComplete, remainingFields }`
  * — nilai persisten antar-panggilan; `remainingFields` PERSIS kunci field
- * kosong (indikator langkah UX-DR16 dipin di kontrak wire).
+ * kosong (indikator langkah UX-DR16 dipin di kontrak wire). Termasuk
+ * `referralCode` (kode milik owner — readonly di tampilan) dan
+ * `usedReferralCode` (DORMANT null sampai Epic 3 — permintaan owner
+ * 2026-09-18: label & kotak tampilan disiapkan dulu).
  */
 export default defineEventHandler(async (event) => {
   const email = await getSessionEmail(event)
@@ -30,6 +33,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const referral = await bacaReferralOwner(useDb(), email)
+
   return {
     namaLengkap: owner.namaLengkap ?? '',
     alias: owner.alias ?? '',
@@ -43,5 +48,7 @@ export default defineEventHandler(async (event) => {
     nomorRekening: owner.nomorRekening ?? '',
     profileComplete: profilLengkap(owner),
     remainingFields: sisaFieldKosong(owner),
+    referralCode: referral?.referralCode ?? '',
+    usedReferralCode: referral?.usedReferralCode ?? null,
   }
 })

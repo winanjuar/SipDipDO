@@ -1,76 +1,88 @@
 /**
- * ATDD RED-PHASE — Story 1.5 "Kelengkapan Profile 11 Field" (E2E UI —
- * CAP-1/2/3/6: halaman Kelengkapan Profile, indikator langkah, gerbang
- * navigasi, toast gagal non-validasi).
+ * ATDD — Story 1.5 "Kelengkapan Profile 11 Field" (E2E UI — CAP-1/2/3/6:
+ * halaman Kelengkapan Profile, indikator langkah, gerbang navigasi, toast
+ * gagal non-validasi).
  *
- * Tests DIAKTIFKAN pada tugas green-phase yang mengimplementasikan halaman +
- * endpoint-nya. Penyesuaian green-phase (alasan tercatat di Spec Change Log):
- * predikat recurse memakai /profil lengkap/i (kontrak teks indikator saat
- * LENGKAP) — /lengkap/i vakum karena juga mencocokkan H1 "Kelengkapan
- * Profile" dan teks "belum lengkap" indikator pra-simpan (recurse keluar
- * dini sebelum PUT selesai).
+ * RENEGOSIASI UI OWNER 2026-09-18 (pasca-review manual — alasan tercatat di
+ * Spec Change Log spec 1-5): form dikelompokkan per fieldset ber-legend
+ * (Pribadi / Info Kontak Darurat / Info Rekening / Referal), input dijabarkan
+ * eksplisit dengan LABEL SINGKAT per grup, Email setelah Alias, plus section
+ * Referal (kode milik owner readonly + "Referal Dari" disabled — DORMANT
+ * sampai Epic 3). Konsekuensi selector: label singkat duplikat antar grup
+ * ("Nama", "No HP") → SEMUA locator input di-scope ke fieldset
+ * `getByRole('group', { name: <legend> })` sebelum `getByLabel` exact.
+ * Indikator langkah TETAP memakai nama field Lampiran A PENUH (UX-DR16
+ * "persis"; satu sumber shared/domain/profil) — asersi indikator tak berubah.
  *
- * Penambahan PASCA-REVIEW: tautan "Lengkapi Profile" di /status-pendaftaran
- * (pintu nav tunggal), gerbang calon diajukan LENGKAP (kembali ke landing
- * calon, bukan /profile-completeness), dan submit PARTIAL 400
- * PROFILE_INCOMPLETE (alert verbatim TIDAK tampil, isian dipertahankan).
+ * Penambahan PASCA-REVIEW sebelumnya: tautan "Lengkapi Profile" di
+ * /status-pendaftaran (pintu nav tunggal), gerbang calon diajukan LENGKAP,
+ * dan submit PARTIAL 400 PROFILE_INCOMPLETE (alert verbatim TIDAK tampil,
+ * isian dipertahankan).
  *
- * ASUMSI KONTRAK UI (red-phase, nyatakan eksplisit — final saat green-phase):
- * - Route halaman: `/profile-completeness` (belum ditetapkan sumber mana pun;
- *   permukaan #3 EXPERIENCE.md "Kelengkapan Profile").
- * - Endpoint simpan: `/api/profile` (method POST atau PUT — intercept pakai
- *   glob url TANPA method agar tahan keduanya).
- * - 10 field memakai <label> terasosiasi (getByLabel exact — nama Indonesia,
- *   profile-fields.md); Gmail prefilled email sesi dan TIDAK dapat diedit.
- *   Penyesuaian green-phase: matching `exact: true` — substring membuat
- *   getByLabel('Nomor HP')/'Kontak Darurat' ambigu terhadap label wajib
- *   'Nomor HP Kontak Darurat' (strict mode violation).
- * - Indikator langkah (UX-DR16) hidup di region `data-testid=
- *   kelengkapan-indikator` (kontrak TEST_IDS baru — fixture_needs); dia
- *   menyebut PERSIS field yang belum lengkap per nama fieldnya.
- * - Toast gagal non-validasi verbatim: "Tidak dapat menyimpan — coba lagi."
- *   (UX-DR19); isian dipertahankan.
- *
- * GAGAL SAAT RED: halaman belum ada (404) dan endpoint belum ada — semua
- * asersi gagal sebelum fitur ada.
+ * Kontrak wire: GET/PUT `/api/profile`; PUT body = PERSIS 9 kunci kontrak
+ * (field referral TIDAK PERNAH ikut body — dipin via requestJson intercept).
  *
  * Mandate playwright-utils: `test` HANYA dari merged-fixtures; observasi/
  * stub via `interceptNetworkCall` (dideklarasikan SEBELUM page.goto —
  * network-first); klik yang bergantung hidrasi Vue dibungkus `recurse`
- * (pola register.spec.ts — dev server menghidrasi belakangan); `log.step`
- * bukan console.log; tanpa waitForTimeout; tanpa page.route;
- * `skipNetworkMonitoring` hanya untuk scaffold stub 5xx.
+ * (pola register.spec.ts); `log.step` bukan console.log; tanpa
+ * waitForTimeout; tanpa page.route; `skipNetworkMonitoring` hanya untuk
+ * scaffold stub 4xx/5xx.
  */
 import { faker } from '@faker-js/faker/locale/id_ID'
-import type { Cookie } from '@playwright/test'
+import type { Cookie, Locator, Page } from '@playwright/test'
 import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
 import { mintSesiPemilik } from '../support/helpers/sesi-minting'
 
-/** Route halaman Kelengkapan Profile — DIPIN owner 2026-09-18 (`/profile-completeness`;
- *  menggantikan asumsi red-phase `/kelengkapan-profil`). */
+/** Route halaman Kelengkapan Profile — DIPIN owner 2026-09-18. */
 const HALAMAN_KELENGKAPAN = '/profile-completeness'
 
 /** Tempo recurse hidrasi Vue di dev server (pola register.spec.ts). */
 const INTERVAL_RECURSE_MS = 500
 const BATAS_RECURSE_SUBMIT_MS = 30_000
 
-/** Daftar 10 field Lampiran A #1-10 — label form Indonesia (profile-fields.md);
- *  Gmail = field #3 (prefilled sesi, readonly). */
-const LABEL_FIELD_PROFIL = [
-  'Nama Lengkap',
-  'Alias',
-  'Gmail',
-  'Nomor HP',
-  'Kontak Darurat',
-  'Nomor HP Kontak Darurat',
-  'Hubungan dengan Owner',
-  'Nama Bank',
-  'Pemilik Rekening',
-  'Nomor Rekening',
+/** Legenda grup form (re-negotiasi owner 2026-09-18). */
+const LEGEND_PRIBADI = 'Pribadi'
+const LEGEND_KONTAK_DARURAT = 'Info Kontak Darurat'
+const LEGEND_REKENING = 'Info Rekening'
+const LEGEND_REFERAL = 'Referal'
+
+/**
+ * Peta grup → field editable: pasangan [label singkat, kunci kontrak wire].
+ * Urutan mengikuti halaman; label duplikat antar grup ("Nama", "No HP")
+ * aman karena locator selalu di-scope ke fieldset.
+ */
+const FIELD_EDITABLE: readonly { legend: string, label: string, kunci: string }[] = [
+  { legend: LEGEND_PRIBADI, label: 'Nama', kunci: 'namaLengkap' },
+  { legend: LEGEND_PRIBADI, label: 'Alias', kunci: 'alias' },
+  { legend: LEGEND_PRIBADI, label: 'No HP', kunci: 'nomorHp' },
+  { legend: LEGEND_KONTAK_DARURAT, label: 'Nama', kunci: 'kontakDarurat' },
+  { legend: LEGEND_KONTAK_DARURAT, label: 'No HP', kunci: 'nomorHpKontakDarurat' },
+  { legend: LEGEND_KONTAK_DARURAT, label: 'Hubungan', kunci: 'hubunganDenganOwner' },
+  { legend: LEGEND_REKENING, label: 'Bank', kunci: 'namaBank' },
+  { legend: LEGEND_REKENING, label: 'Pemilik', kunci: 'pemilikRekening' },
+  { legend: LEGEND_REKENING, label: 'No. Rekening', kunci: 'nomorRekening' },
+]
+
+/** 9 kunci kontrak PUT — dipin terurut; field referral TIDAK boleh ikut. */
+const KUNCI_KONTRAK_PUT = [
+  'alias',
+  'hubunganDenganOwner',
+  'kontakDarurat',
+  'namaBank',
+  'namaLengkap',
+  'nomorHp',
+  'nomorHpKontakDarurat',
+  'nomorRekening',
+  'pemilikRekening',
 ] as const
 
+/** Nama field Lampiran A penuh yang dipakai indikator (UX-DR16 persis). */
 const NAMA_FIELD_KOSONG_CONTOH = 'Nama Bank'
+
+/** Panjang kode referral owner (paritas PANJANG_KODE_REFERRAL shared/domain). */
+const PANJANG_KODE_REFERRAL = 8
 
 /** Toast verbatim UX-DR19. */
 const TOAST_GAGAL_SIMPAN = 'Tidak dapat menyimpan — coba lagi.'
@@ -84,9 +96,13 @@ const headerCookieDariMint = (cookies: Cookie[]): Record<string, string> => ({
   Cookie: cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '),
 })
 
+/** Locator input ter-scope: fieldset (role group ber-legend) → getByLabel exact.
+ *  Label singkat duplikat antar grup aman karena scope grup. */
+const locatorField = (page: Page, legend: string, label: string): Locator =>
+  page.getByRole('group', { name: legend }).getByLabel(label, { exact: true })
+
 /** Factory 9 field profil tersimpan sintetis (endpoint langsung PUT
- *  /api/profile — pasca-review; pola profil.api.spec.ts, duplikasi
- *  disengaja agar spec mandiri; Gmail = email sesi, bukan body). */
+ *  /api/profile — pasca-review; pola profil.api.spec.ts). */
 const profilLengkapUji = (): Record<string, string> => ({
   namaLengkap: faker.person.fullName(),
   alias: faker.person.firstName(),
@@ -105,33 +121,46 @@ const emailSintetisUji = (): string => {
   return `uji.snddash.e2e.${lokalUji}@gmail.com`
 }
 
-/** Nilai sintetis untuk satu label field (Gmail ditangani khusus — sesi). */
-const nilaiSintetisUntuk = (label: string): string => `Uji ${label} ${faker.string.alphanumeric(6)}`
+/** Nilai sintetis untuk satu field (kunci kontrak — bukan label). */
+const nilaiSintetisUntuk = (kunci: string): string => `Uji ${kunci} ${faker.string.alphanumeric(6)}`
 
-test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
-  test('[P0] halaman Kelengkapan Profile: 10 field, Gmail readonly, indikator menyebut field kosong, tanpa nav lain', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: 404 — halaman belum ada.
+test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => {
+  test('[P0] halaman Kelengkapan Profile: 4 grup field, Email readonly, referal tampil, indikator menyebut field kosong, tanpa nav lain', async ({ page, context, apiRequest }) => {
     await log.step('GIVEN sesi calon owner berstatus diajukan terinjeksikan')
+    const emailSesi = emailSintetisUji()
     const cookies = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'tanpa-saham',
       status: 'diajukan',
-      email: emailSintetisUji(),
+      email: emailSesi,
     })
     await context.addCookies(cookies)
 
     await log.step('WHEN membuka /profile-completeness')
     await page.goto(HALAMAN_KELENGKAPAN)
 
-    await log.step('THEN 10 field Lampiran A tampil by-label')
-    for (const label of LABEL_FIELD_PROFIL) {
-      await expect(page.getByLabel(label, { exact: true })).toBeVisible()
+    await log.step('THEN 4 grup fieldset ber-legend tampil (re-negotiasi owner)')
+    for (const legend of [LEGEND_PRIBADI, LEGEND_KONTAK_DARURAT, LEGEND_REKENING, LEGEND_REFERAL]) {
+      await expect(page.getByRole('group', { name: legend })).toBeVisible()
     }
 
-    await log.step('AND Gmail prefilled email sesi dan tidak dapat diedit')
-    const gmail = page.getByLabel('Gmail', { exact: true })
-    await expect(gmail).not.toBeEditable()
+    await log.step('AND 9 field editable tampil by-label ter-scope grup + Email di grup Pribadi')
+    for (const { legend, label } of FIELD_EDITABLE) {
+      await expect(locatorField(page, legend, label)).toBeVisible()
+    }
+    await expect(locatorField(page, LEGEND_PRIBADI, 'Email')).toBeVisible()
 
-    await log.step('AND indikator langkah menyebut PERSIS field yang belum diisi (semua masih kosong)')
+    await log.step('AND Email prefilled email sesi dan tidak dapat diedit')
+    const emailInput = locatorField(page, LEGEND_PRIBADI, 'Email')
+    await expect(emailInput).not.toBeEditable()
+    await expect(emailInput).toHaveValue(emailSesi)
+
+    await log.step('AND Kode Referal Saya tampil terisi (readonly) dan Referal Dari disabled')
+    const kodeReferal = locatorField(page, LEGEND_REFERAL, 'Kode Referal Saya')
+    await expect(kodeReferal).not.toBeEditable()
+    expect((await kodeReferal.inputValue()).length).toBe(PANJANG_KODE_REFERRAL)
+    await expect(locatorField(page, LEGEND_REFERAL, 'Referal Dari')).toBeDisabled()
+
+    await log.step('AND indikator langkah menyebut PERSIS field yang belum diisi (nama Lampiran A penuh)')
     const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
     await expect(indikator).toBeVisible()
     await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
@@ -142,9 +171,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     await expect(page.getByRole('link', { name: /antrian/i })).toHaveCount(0)
   })
 
-  test('[P0] isi 10 field & simpan → indikator lengkap; reload → nilai persisten', async ({ page, context, apiRequest, recurse }) => {
-    // GAGAL saat red: halaman belum ada; klik simpan pun tidak akan pernah
-    // membawa handler.
+  test('[P0] isi seluruh field & simpan → body PUT persis 9 kunci, indikator lengkap; reload → nilai persisten', async ({ page, context, apiRequest, recurse, interceptNetworkCall }) => {
     await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
     const cookies = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'tanpa-saham',
@@ -152,16 +179,19 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
       email: emailSintetisUji(),
     })
     await context.addCookies(cookies)
+
+    // Observe PUT (network-first, sebelum goto) — body wajib PERSIS 9 kunci
+    // kontrak; field referral tampilan tidak pernah ikut terkirim.
+    const simpanCall = interceptNetworkCall({ url: '**/api/profile', method: 'PUT' })
+
     await page.goto(HALAMAN_KELENGKAPAN)
 
-    await log.step('WHEN seluruh 10 field diisi nilai sintetis dan tombol simpan diklik')
+    await log.step('WHEN seluruh 9 field editable diisi nilai sintetis dan tombol simpan diklik')
     const nilaiField = new Map<string, string>()
-    for (const label of LABEL_FIELD_PROFIL) {
-      const nilai = label === 'Gmail' ? await page.getByLabel('Gmail', { exact: true }).inputValue() : nilaiSintetisUntuk(label)
-      nilaiField.set(label, nilai)
-      if (label !== 'Gmail') {
-        await page.getByLabel(label, { exact: true }).fill(nilai)
-      }
+    for (const { legend, label, kunci } of FIELD_EDITABLE) {
+      const nilai = nilaiSintetisUntuk(kunci)
+      nilaiField.set(kunci, nilai)
+      await locatorField(page, legend, label).fill(nilai)
     }
     await recurse(
       async () => {
@@ -176,15 +206,19 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu simpan profil + indikator lengkap' },
     )
 
-    await log.step('THEN indikator menyatakan Profil lengkap (prasyarat verifikasi COO terpenuhi)')
+    await log.step('THEN body PUT persis 9 kunci kontrak (tanpa field referral/Email)')
+    const { requestJson } = await simpanCall
+    expect(Object.keys(requestJson as Record<string, unknown>).sort()).toEqual([...KUNCI_KONTRAK_PUT])
+
+    await log.step('AND indikator menyatakan Profil lengkap (prasyarat verifikasi COO terpenuhi)')
     await expect(page.getByText(/profil lengkap/i).first()).toBeVisible()
 
     await log.step('WHEN halaman dimuat ulang')
     await page.reload()
 
     await log.step('THEN nilai field pertama & terakhir tersimpan persisten (CAP-1)')
-    await expect(page.getByLabel('Nama Lengkap', { exact: true })).toHaveValue(nilaiField.get('Nama Lengkap') ?? '')
-    await expect(page.getByLabel('Nomor Rekening', { exact: true })).toHaveValue(nilaiField.get('Nomor Rekening') ?? '')
+    await expect(locatorField(page, LEGEND_PRIBADI, 'Nama')).toHaveValue(nilaiField.get('namaLengkap') ?? '')
+    await expect(locatorField(page, LEGEND_REKENING, 'No. Rekening')).toHaveValue(nilaiField.get('nomorRekening') ?? '')
   })
 
   test(
@@ -192,8 +226,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
     async ({ page, context, apiRequest, recurse, interceptNetworkCall }) => {
       // skipNetworkMonitoring: stub 500 disengaja untuk mensimulasikan
-      // gangguan non-validasi — bukan bug jaringan. GAGAL saat red: halaman
-      // belum ada sehingga intercept tak pernah terpicu.
+      // gangguan non-validasi — bukan bug jaringan.
       await log.step('GIVEN sesi calon owner diajukan; endpoint profil DI-STUB 500 (gangguan non-validasi)')
       const cookies = await mintSesiPemilik(apiRequest, {
         userIdentifier: 'tanpa-saham',
@@ -212,13 +245,13 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
       await page.goto(HALAMAN_KELENGKAPAN)
 
       await log.step('WHEN 3 field diisi lalu tombol simpan diklik (dibungkus recurse hidrasi)')
-      const isian = new Map<string, string>([
-        ['Nama Lengkap', nilaiSintetisUntuk('Nama Lengkap')],
-        ['Alias', nilaiSintetisUntuk('Alias')],
-        ['Nomor HP', nilaiSintetisUntuk('Nomor HP')],
-      ])
-      for (const [label, nilai] of isian) {
-        await page.getByLabel(label, { exact: true }).fill(nilai)
+      const isian: readonly { legend: string, label: string, nilai: string }[] = [
+        { legend: LEGEND_PRIBADI, label: 'Nama', nilai: nilaiSintetisUntuk('namaLengkap') },
+        { legend: LEGEND_PRIBADI, label: 'Alias', nilai: nilaiSintetisUntuk('alias') },
+        { legend: LEGEND_PRIBADI, label: 'No HP', nilai: nilaiSintetisUntuk('nomorHp') },
+      ]
+      for (const { legend, label, nilai } of isian) {
+        await locatorField(page, legend, label).fill(nilai)
       }
       await recurse(
         async () => {
@@ -238,15 +271,13 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
       await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toBeVisible()
 
       await log.step('AND seluruh isian DIPERTAHANKAN — tanpa pengisian ulang dari nol')
-      for (const [label, nilai] of isian) {
-        await expect(page.getByLabel(label, { exact: true })).toHaveValue(nilai)
+      for (const { legend, label, nilai } of isian) {
+        await expect(locatorField(page, legend, label)).toHaveValue(nilai)
       }
     },
   )
 
   test('[P1] URL langsung /dashboard oleh calon belum lengkap → dialihkan di batas server (AD-8)', async ({ page, context, apiRequest }) => {
-    // GAGAL saat red: gerbang redirect calon belum lengkap belum
-    // diimplementasikan — /dashboard masih terjangkau untuk sesi diajukan.
     await log.step('GIVEN sesi calon owner berstatus diajukan (Profile belum lengkap)')
     const cookies = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'tanpa-saham',
@@ -337,61 +368,62 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     async ({ page, context, apiRequest, recurse, interceptNetworkCall }) => {
       // skipNetworkMonitoring: PUT 400 disengaja (cabang validasi kelengkapan
       // adalah kontrak yang sedang dipin) — bukan bug jaringan.
-    // Cabang 400 PROFILE_INCOMPLETE di-pin: halaman TIDAK menampilkan alert
-    // verbatim (itu khusus gagal non-validasi), indikator tetap menunjuk
-    // field kosong, dan seluruh isian dipertahankan.
-    await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness (tanpa stub)')
-    const cookies = await mintSesiPemilik(apiRequest, {
-      userIdentifier: 'tanpa-saham',
-      status: 'diajukan',
-      email: emailSintetisUji(),
-    })
-    await context.addCookies(cookies)
+      // Cabang 400 PROFILE_INCOMPLETE di-pin: halaman TIDAK menampilkan alert
+      // verbatim (itu khusus gagal non-validasi), indikator tetap menunjuk
+      // field kosong, dan seluruh isian dipertahankan.
+      await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness (tanpa stub)')
+      const cookies = await mintSesiPemilik(apiRequest, {
+        userIdentifier: 'tanpa-saham',
+        status: 'diajukan',
+        email: emailSintetisUji(),
+      })
+      await context.addCookies(cookies)
 
-    await log.step('AND PUT /api/profile dipantau (observe — request tetap ke server)')
-    let statusSimpan = 0
-    const terpantau = interceptNetworkCall({ url: '**/api/profile' }).then(
-      (hasil: { status: number }) => {
-        statusSimpan = hasil.status
-        return true
-      },
-      () => false,
-    )
+      await log.step('AND PUT /api/profile dipantau (observe — request tetap ke server)')
+      let statusSimpan = 0
+      const terpantau = interceptNetworkCall({ url: '**/api/profile' }).then(
+        (hasil: { status: number }) => {
+          statusSimpan = hasil.status
+          return true
+        },
+        () => false,
+      )
 
-    await page.goto(HALAMAN_KELENGKAPAN)
+      await page.goto(HALAMAN_KELENGKAPAN)
 
-    await log.step('WHEN 8 dari 9 field diisi — Nama Bank sengaja dikosongkan — lalu simpan diklik')
-    const isian = new Map<string, string>()
-    for (const label of LABEL_FIELD_PROFIL) {
-      if (label === 'Gmail' || label === NAMA_FIELD_KOSONG_CONTOH) continue
-      const nilai = nilaiSintetisUntuk(label)
-      isian.set(label, nilai)
-      await page.getByLabel(label, { exact: true }).fill(nilai)
-    }
-    await recurse(
-      async () => {
-        try {
-          await page.getByRole('button', { name: /simpan/i }).click()
-        } catch {
-          // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
-        }
-        return Promise.race([terpantau, Promise.resolve(false)])
-      },
-      terkirim => terkirim === true,
-      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu PUT profil terpantau' },
-    )
+      await log.step('WHEN 8 dari 9 field diisi — Bank sengaja dikosongkan — lalu simpan diklik')
+      const isian: { legend: string, label: string, nilai: string }[] = []
+      for (const { legend, label, kunci } of FIELD_EDITABLE) {
+        if (kunci === 'namaBank') continue
+        const nilai = nilaiSintetisUntuk(kunci)
+        isian.push({ legend, label, nilai })
+        await locatorField(page, legend, label).fill(nilai)
+      }
+      await recurse(
+        async () => {
+          try {
+            await page.getByRole('button', { name: /simpan/i }).click()
+          } catch {
+            // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+          }
+          return Promise.race([terpantau, Promise.resolve(false)])
+        },
+        terkirim => terkirim === true,
+        { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu PUT profil terpantau' },
+      )
 
-    await log.step('THEN server menjawab 400 (validasi kelengkapan) dan alert verbatim TIDAK tampil')
-    expect(statusSimpan).toBe(STATUS_BAD_REQUEST)
-    await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toHaveCount(0)
+      await log.step('THEN server menjawab 400 (validasi kelengkapan) dan alert verbatim TIDAK tampil')
+      expect(statusSimpan).toBe(STATUS_BAD_REQUEST)
+      await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toHaveCount(0)
 
-    await log.step('AND indikator menyebut field kosong PERSIS (Nama Bank)')
-    const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
-    await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
+      await log.step('AND indikator menyebut field kosong PERSIS (nama Lampiran A penuh: Nama Bank)')
+      const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
+      await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
 
-    await log.step('AND seluruh isian DIPERTAHANKAN')
-    for (const [label, nilai] of isian) {
-      await expect(page.getByLabel(label, { exact: true })).toHaveValue(nilai)
-    }
-  })
+      await log.step('AND seluruh isian DIPERTAHANKAN')
+      for (const { legend, label, nilai } of isian) {
+        await expect(locatorField(page, legend, label)).toHaveValue(nilai)
+      }
+    },
+  )
 })

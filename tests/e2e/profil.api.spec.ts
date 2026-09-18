@@ -43,6 +43,9 @@ const STATUS_FORBIDDEN = 403
 /** Jumlah field Profil Lampiran A #1-10 yang diminta form (Referal = #11, non-goal). */
 const JUMLAH_FIELD_PROFIL = 10
 
+/** Panjang kode referral owner (paritas PANJANG_KODE_REFERRAL shared/domain). */
+const PANJANG_KODE_REFERRAL = 8
+
 const PATH_PROFIL = '/api/profile'
 
 /** Cookie[] hasil mintSesiPemilik → header Cookie untuk apiRequest (pola
@@ -92,7 +95,9 @@ const SkemaProfil = z.object({
 type Profil = z.infer<typeof SkemaProfil>
 
 /** Skema GET (baca) — nilai field boleh kosong saat belum lengkap; bentuk
- *  kelengkapan tetap dipin supaya CAP-2 teruji di level wire. */
+ *  kelengkapan tetap dipin supaya CAP-2 teruji di level wire. Termasuk
+ *  referensi referral tampilan (re-negotiasi owner 2026-09-18): kode milik
+ *  owner selalu terisi; `usedReferralCode` DORMANT null sampai Epic 3. */
 const SkemaProfilBaca = z.object({
   namaLengkap: z.string(),
   alias: z.string(),
@@ -106,6 +111,8 @@ const SkemaProfilBaca = z.object({
   nomorRekening: z.string(),
   profileComplete: z.boolean(),
   remainingFields: z.array(z.string()),
+  referralCode: z.string().min(1),
+  usedReferralCode: z.string().nullable(),
 })
 
 /** Bentuk wire entry audit — disalin dari redaftar.api.spec.ts (duplikasi
@@ -304,6 +311,10 @@ test.describe('[P1] Persistensi profil — PUT lalu GET identik (CAP-1) + audit 
     expect(body.profileComplete).toBe(true)
     expect(body.remainingFields).toHaveLength(0)
     expect(Object.keys(profil)).toHaveLength(JUMLAH_FIELD_PROFIL)
+
+    await log.step('AND referensi referral tampilan tersedia (kode milik owner terisi; referal-dari DORMANT null)')
+    expect(body.referralCode.length).toBe(PANJANG_KODE_REFERRAL)
+    expect(body.usedReferralCode).toBeNull()
 
     // Penambahan pasca-review — pin audit in-tx (matriks: PUT lengkap +
     // audit `profil-kelengkapan`): entry terbaca COO via GET /api/audit.
