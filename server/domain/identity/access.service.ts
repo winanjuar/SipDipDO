@@ -21,23 +21,25 @@ export { LANDING_PATH }
 
 /**
  * Baris owner minimal untuk keputusan role. Repo nyata (`createIdentityRepo`)
- * selalu mengisi `id`, `rejectionReason`, dan kolom Profil (Story 1.5); stub
- * repo uji boleh minimal — service hanya membaca yang tersedia (kolom Profil
- * absen dinilai kosong oleh predikat `profilLengkap`).
+ * selalu mengisi `id`, `rejectionReason`, dan field Profil wire (Story 1.5,
+ * kunci English — normalisasi owner 2026-09-18); stub repo uji boleh
+ * minimal — service hanya membaca yang tersedia (field Profil absen dinilai
+ * kosong oleh predikat `profilLengkap`).
  */
 export interface OwnerRoleInput extends OwnerAccessSnapshot {
   id?: string
   email: string
   rejectionReason?: string | null
-  namaLengkap?: string | null
+  fullName?: string | null
   alias?: string | null
-  nomorHp?: string | null
-  kontakDarurat?: string | null
-  nomorHpKontakDarurat?: string | null
-  hubunganDenganOwner?: string | null
-  namaBank?: string | null
-  pemilikRekening?: string | null
-  nomorRekening?: string | null
+  phoneNumber?: string | null
+  emergencyContactName?: string | null
+  emergencyContactPhoneNumber?: string | null
+  emergencyContactRelationship?: string | null
+  bankName?: string | null
+  otherBankName?: string | null
+  accountHolderName?: string | null
+  accountNumber?: string | null
 }
 
 /**

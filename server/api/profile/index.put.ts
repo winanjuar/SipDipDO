@@ -21,7 +21,7 @@ import { readBody, setResponseStatus } from 'h3'
  * (re-negotiasi owner 2026-09-18 — sanitasi, panjang maksimum, pola nomor,
  * enum Bank/Hubungan):
  * - field wajib kosong → 400 `PROFILE_INCOMPLETE` + `details.remainingFields`
- *   (termasuk `bankLain` bila Bank "Lainnya" tanpa nama bank lain);
+ *   (termasuk `otherBankName` bila Bank "Lainnya" tanpa nama bank lain);
  * - format/enum salah → 400 `PROFILE_INVALID` + `details.invalidFields`
  *   `[{ field, kode }]`;
  * keduanya TANPA tulisan DB. Sukses → 200 nilai BERSIH (hasil sanitasi) +

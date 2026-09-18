@@ -9,12 +9,14 @@ import { getSessionEmail, getSessionNama } from '../../utils/session'
  * CAP-2). Handler tipis: sesi → 401; selain calon `diajukan` → 403 (CAP-3).
  * Respons `{ ...field, gmail = email sesi, profileComplete, remainingFields }`
  * — nilai persisten antar-panggilan; `remainingFields` PERSIS kunci field
- * wajib yang kosong (indikator UX-DR16 dipin di kontrak wire; `bankLain`
- * hanya wajib bila Bank "Lainnya"). Termasuk `referralCode` (kode milik
- * owner — readonly di tampilan), `usedReferralCode` (DORMANT null sampai
- * Epic 3), dan `namaDariGoogle` (nama profil akun Google sesi — prefill
- * AWAL field Nama di halaman bila kolom masih kosong; tidak pernah menimpa
- * data tersimpan).
+ * wajib yang kosong (indikator UX-DR16 dipin di kontrak wire; `otherBankName`
+ * hanya wajib bila Bank "Lainnya"). Kunci wire English (normalisasi owner
+ * 2026-09-18): bank diurai dari nilai tunggal `bank_name` oleh repo
+ * (`namaBankKeWire`) — "Lainnya" + `otherBankName` untuk teks bebas. Termasuk
+ * `referralCode` (kode milik owner — readonly di tampilan), `usedReferralCode`
+ * (DORMANT null sampai Epic 3), dan `namaDariGoogle` (nama profil akun Google
+ * sesi — prefill AWAL field Nama di halaman bila kolom masih kosong; tidak
+ * pernah menimpa data tersimpan).
  */
 export default defineEventHandler(async (event) => {
   const email = await getSessionEmail(event)
@@ -39,17 +41,17 @@ export default defineEventHandler(async (event) => {
   const namaDariGoogle = await getSessionNama(event)
 
   return {
-    namaLengkap: owner.namaLengkap ?? '',
+    fullName: owner.fullName ?? '',
     alias: owner.alias ?? '',
     gmail: owner.email,
-    nomorHp: owner.nomorHp ?? '',
-    kontakDarurat: owner.kontakDarurat ?? '',
-    nomorHpKontakDarurat: owner.nomorHpKontakDarurat ?? '',
-    hubunganDenganOwner: owner.hubunganDenganOwner ?? '',
-    namaBank: owner.namaBank ?? '',
-    bankLain: owner.bankLain ?? '',
-    pemilikRekening: owner.pemilikRekening ?? '',
-    nomorRekening: owner.nomorRekening ?? '',
+    phoneNumber: owner.phoneNumber ?? '',
+    emergencyContactName: owner.emergencyContactName ?? '',
+    emergencyContactPhoneNumber: owner.emergencyContactPhoneNumber ?? '',
+    emergencyContactRelationship: owner.emergencyContactRelationship ?? '',
+    bankName: owner.bankName ?? '',
+    otherBankName: owner.otherBankName ?? '',
+    accountHolderName: owner.accountHolderName ?? '',
+    accountNumber: owner.accountNumber ?? '',
     profileComplete: profilLengkap(owner),
     remainingFields: sisaFieldKosong(owner),
     referralCode: referral?.referralCode ?? '',

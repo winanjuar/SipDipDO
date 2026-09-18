@@ -10,11 +10,11 @@
  * - Signature: `runRegistrationDailyJob(today: DayKey, db)` — db injectable
  *   seperti `ajukanPendaftaran` (pola service ini); pemanggilan memakai cast
  *   agar scaffold tetap terkompilasi sebelum signature baru ada.
- * - Kelengkapan Profil = 10 kolom profil owners non-null (gmail = kolom
- *   email sesi): namaLengkap, alias, nomorHp, kontakDarurat,
- *   nomorHpKontakDarurat, hubunganDenganOwner, namaBank, pemilikRekening,
- *   nomorRekening — BUKAN bagian dari kontrak wire di sini, hanya bentuk
- *   baris palsu.
+ * - Kelengkapan Profil = field profil wire English non-null (gmail = kolom
+ *   email sesi): fullName, alias, phoneNumber, emergencyContactName,
+ *   emergencyContactPhoneNumber, emergencyContactRelationship, bankName,
+ *   otherBankName, accountHolderName, accountNumber — BUKAN bagian dari
+ *   kontrak wire di sini, hanya bentuk baris palsu.
  * - Pengingat H-3 → INSERT outboxEmails (in-tx, modul proofs via API publik);
  *   kedaluwarsa → CAS UPDATE owners (status diajukan → kedaluwarsa) + INSERT
  *   auditLogs — semuanya dalam transaksi yang sama (AD-3/AD-5/AD-11).
@@ -40,21 +40,22 @@ const DIAJUKAN_PADA_INSTANT = '2026-09-01T10:00:00.000Z'
 const HARI_REMINDER = '2026-09-05'
 const HARI_EXPIRY = '2026-09-08'
 
-/** Baris owner palsu — profil belum lengkap (kolom profil null). */
+/** Baris owner palsu — kolom MENTAH join 3 tabel (repo memetakan ke wire;
+ *  profil belum lengkap = field profil null, bank tunggal `storedBankName`). */
 const barisCalonBelumLengkap = {
   id: '0f0e0d0c-0000-4000-8000-000000000101',
   email: 'uji.snddash.unit.cron-belum-lengkap@gmail.com',
   status: 'diajukan',
   createdAt: DIAJUKAN_PADA_INSTANT,
-  namaLengkap: null,
+  fullName: null,
   alias: null,
-  nomorHp: null,
-  kontakDarurat: null,
-  nomorHpKontakDarurat: null,
-  hubunganDenganOwner: null,
-  namaBank: null,
-  pemilikRekening: null,
-  nomorRekening: null,
+  phoneNumber: null,
+  emergencyContactName: null,
+  emergencyContactPhoneNumber: null,
+  emergencyContactRelationship: null,
+  storedBankName: null,
+  accountHolderName: null,
+  accountNumber: null,
 }
 
 interface TulisanInsert {
@@ -101,6 +102,7 @@ function buatDbJobPalsu(hasilSelect: unknown[]) {
           tabelTerpilih = tabel
           return rantai
         },
+        leftJoin: () => rantai,
         where: () => rantai,
         limit: () => rantai,
         then: (resolve: (nilai: unknown[]) => void) => resolve(tabelTerpilih === owners ? hasilSelect : []),
@@ -178,15 +180,15 @@ describe('runRegistrationDailyJob — tanpa aksi di luar jendela (boundary kanon
       ...barisCalonBelumLengkap,
       id: '0f0e0d0c-0000-4000-8000-000000000102',
       email: 'uji.snddash.unit.cron-lengkap@gmail.com',
-      namaLengkap: 'Uji Lengkap',
+      fullName: 'Uji Lengkap',
       alias: 'Uji',
-      nomorHp: '081200000001',
-      kontakDarurat: 'Kontak Uji',
-      nomorHpKontakDarurat: '081300000001',
-      hubunganDenganOwner: 'Saudara',
-      namaBank: 'Bank Uji',
-      pemilikRekening: 'Uji Lengkap',
-      nomorRekening: '1234567890',
+      phoneNumber: '081200000001',
+      emergencyContactName: 'Kontak Uji',
+      emergencyContactPhoneNumber: '081300000001',
+      emergencyContactRelationship: 'Saudara',
+      storedBankName: 'Bank Uji',
+      accountHolderName: 'Uji Lengkap',
+      accountNumber: '1234567890',
     }
     const barisTerverifikasi = {
       ...barisCalonBelumLengkap,
