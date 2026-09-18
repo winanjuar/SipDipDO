@@ -2,9 +2,8 @@
  * ATDD RED-PHASE — Story 1.5 "Kelengkapan Profile 11 Field" (API, re-daftar
  * pendaftar kedaluwarsa — CAP-5, AD-11).
  *
- * SEMUA test `test.skip()` — scaffold TDD red phase; hapus skip HANYA pada
- * tugas green-phase yang mengimplementasikan transisi CAS
- * `kedaluwarsa → diajukan` di jalur POST /api/register.
+ * Tests DIAKTIFKAN pada tugas green-phase yang mengimplementasikan transisi
+ * CAS `kedaluwarsa → diajukan` di jalur POST /api/register.
  *
  * KONTRAK YANG DIPIN (epic-1.md Story 1.5 blok AC-3 + AD-11):
  * - Pendaftar berstatus `kedaluwarsa` mendaftar ulang dengan email yang sama
@@ -103,7 +102,7 @@ const SkemaDaftarAudit = z.object({
 type DaftarAudit = z.infer<typeof SkemaDaftarAudit>
 
 test.describe('[P0] Re-daftar kedaluwarsa → CAS kedaluwarsa→diajukan baris SAMA (CAP-5, AD-11)', () => {
-  test.skip('[P0] POST /api/register pada kedaluwarsa → status diajukan, POST kedua idempotent baris sama', async ({ apiRequest }) => {
+  test('[P0] POST /api/register pada kedaluwarsa → status diajukan, POST kedua idempotent baris sama', async ({ apiRequest }) => {
     // GAGAL saat red: impl saat ini echo 'kedaluwarsa' tanpa mutasi —
     // validasi SkemaRedaftar (literal 'diajukan') melempar sebelum asersi mana pun.
     await log.step('GIVEN sesi pendaftar berstatus kedaluwarsa (diajukanPada 8 hari kalender Jakarta lalu)')
@@ -140,7 +139,7 @@ test.describe('[P0] Re-daftar kedaluwarsa → CAS kedaluwarsa→diajukan baris S
     expect(kedua.body.email).toBe(pertama.body.email)
   })
 
-  test.skip('[P1] id baris re-daftar non-kosong dan email sesi tergemakan', async ({ apiRequest }) => {
+  test('[P1] id baris re-daftar non-kosong dan email sesi tergemakan', async ({ apiRequest }) => {
     // GAGAL saat red: skema literal 'diajukan' melempar pada echo 'kedaluwarsa'.
     await log.step('GIVEN sesi pendaftar kedaluwarsa dengan email sintetis')
     const emailPendaftar = emailSintetisUji()
@@ -167,7 +166,7 @@ test.describe('[P0] Re-daftar kedaluwarsa → CAS kedaluwarsa→diajukan baris S
 })
 
 test.describe('[P1] Re-daftar kedaluwarsa tercatat audit (AD-11) — terbaca COO', () => {
-  test.skip('[P1] entry audit re-daftar memuat email pendaftar, terbaca via GET /api/audit', async ({ apiRequest }) => {
+  test('[P1] entry audit re-daftar memuat email pendaftar, terbaca via GET /api/audit', async ({ apiRequest }) => {
     // GAGAL saat red: POST tidak pernah mentransisi (echo) sehingga TIDAK ada
     // entry audit re-daftar; GET /api/audit hijau (audit.api.spec.ts) dipakai
     // sebagai kontrak baca.

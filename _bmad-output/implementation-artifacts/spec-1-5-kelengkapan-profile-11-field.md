@@ -2,7 +2,8 @@
 title: 'Story 1.5 — Kelengkapan Profile 11 Field'
 type: 'feature'
 created: '2026-09-18'
-status: 'draft'
+baseline_commit: '10da2f0e535f27dd6fcb7184e06d8cf3521a7917'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -86,15 +87,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `shared/domain/profil.ts` + `drizzle/schema.ts` + migrasi 0004 -- kontrak field + kolom owners; `drizzle-kit generate` + `migrate` lokal.
-- [ ] `server/domain/identity/owner.repo.ts` -- select profil, upsert `createdAt`, `simpanProfilCalon`, `kedaluwarsakanCalon`.
-- [ ] `server/domain/identity/registration.service.ts` + `index.ts` -- `simpanProfil`, isi `runRegistrationDailyJob(today, db)`, cabang re-daftar; unit test expiry un-skip (`it.skip` → `it`) + perbarui stub-lama.
-- [ ] `server/api/test/{login.post,outbox.get}.ts` -- infra uji (diajukanPada + inspeksi outbox).
-- [ ] `server/api/profil/{index.put,index.get}.ts` -- endpoint Profil; un-skip `profil.api.spec.ts`.
-- [ ] `server/domain/identity/registration.service.ts` (cabang kedaluwarsa) -- un-skip `redaftar.api.spec.ts`.
-- [ ] `server/jobs/daily.post.ts` (+ service cron) -- un-skip `cron-harian.api.spec.ts`.
-- [ ] `access.service.ts` -- `profilLengkap` di principal (prasyarat middleware).
-- [ ] `app/pages/profile-completeness.vue` + `status-pendaftaran.vue` (tautan) + `auth-guard.ts` -- un-skip `kelengkapan-profil.spec.ts`.
+- [x] `shared/domain/profil.ts` + `drizzle/schema.ts` + migrasi 0004 -- kontrak field + kolom owners; `drizzle-kit generate` + `migrate` lokal.
+- [x] `server/domain/identity/owner.repo.ts` -- select profil, upsert `createdAt`, `simpanProfilCalon`, `kedaluwarsakanCalon`.
+- [x] `server/domain/identity/registration.service.ts` + `index.ts` -- `simpanProfil`, isi `runRegistrationDailyJob(today, db)`, cabang re-daftar; unit test expiry un-skip (`it.skip` → `it`) + perbarui stub-lama.
+- [x] `server/api/test/{login.post,outbox.get}.ts` -- infra uji (diajukanPada + inspeksi outbox).
+- [x] `server/api/profil/{index.put,index.get}.ts` -- endpoint Profil; un-skip `profil.api.spec.ts`.
+- [x] `server/domain/identity/registration.service.ts` (cabang kedaluwarsa) -- un-skip `redaftar.api.spec.ts`.
+- [x] `server/jobs/daily.post.ts` (+ service cron) -- un-skip `cron-harian.api.spec.ts`.
+- [x] `access.service.ts` -- `profilLengkap` di principal (prasyarat middleware).
+- [x] `app/pages/profile-completeness.vue` + `status-pendaftaran.vue` (tautan) + `auth-guard.ts` -- un-skip `kelengkapan-profil.spec.ts`.
 
 **Acceptance Criteria:**
 - Given seluruh tugas selesai, when seluruh scaffold ATDD diaktifkan, then semua hijau (`npx playwright test tests/e2e/profil.api.spec.ts tests/e2e/redaftar.api.spec.ts tests/e2e/cron-harian.api.spec.ts tests/e2e/profile-completeness.spec.ts` dan `npx vitest run server/domain/identity`).
@@ -105,7 +106,21 @@ context:
 
 ## Implementation Notes
 
+- 2026-09-18 (green-phase, dispatch subagent): seluruh 9 tugas selesai; verifikasi mandiri pasca-review diff — vitest 82/82, ATDD 4 file 57/57 (19 test x 3 browser), regresi register/register.spec/auth-landing/landing 105/105, lint bersih, typecheck exit 0.
+- Penyesuaian scaffold saat green-phase tercatat di Spec Change Log (8 entri) — semuanya penyesuaian kontrak red-phase ke realita repo (`/jobs/daily` terpin nitro.handlers+README, serial-mode cron, `outbox.body.data`, `getByLabel exact`, dsb.), TANPA mengubah ekspektasi matriks I/O.
+- Tambahan pasca-audit matriks: 1 test E2E baru "[P1] non-calon membuka /profile-completeness" (penutup baris matriks "Halaman kelengkapan non-calon") + pengerasan asersi test /dashboard ke URL eksplisit `/profile-completeness` (matriks mem-pin target redirect).
+- Dirapikan pasca-review diff: `.opencode/opencode.json` (config tooling lokal) dikeluarkan dari commit story — preseden triage review 1.4; `drizzle/cleanup.ts` (perubahan drive-by di luar spec) dikembalikan.
+
 ## Spec Change Log
+
+- 2026-09-18 (green-phase): direktori endpoint profil = `server/api/profile/` (bukan `server/api/profil/` di Code Map) — kontrak wire terpin `PUT/GET /api/profile` (matriks I/O + scaffold) menang; route Nitro dari `profil/index.*.ts` menghasilkan `/api/profil` (tidak cocok kontrak).
+- 2026-09-18 (green-phase): PATH cron dipin `/jobs/daily` di `cron-harian.api.spec.ts` — route Nitro terdaftar eksplisit `nuxt.config.ts` nitro.handlers; asumsi scaffold `/api/jobs/daily` salah (README juga mendokumentasikan `/jobs/daily`).
+- 2026-09-18 (green-phase): `cron-harian.api.spec.ts` dieksekusi SERIAL dalam file (`test.describe.configure({ mode: 'serial' })`) — keempat skenario berbagi satu job harian global; fullyParallel membuat run job beriraman saling mencuri mutasi dan membuka TOCTOU dobel-insert pada cek idempotensi outbox (READ COMMITTED).
+- 2026-09-18 (green-phase): langkah akhir test cron hari-7 diganti — mem-pin echo 'kedaluwarsa' dari POST /api/register (kontrak lama 1.4) bertentangan dengan CAP-5 (kontrak beku story ini: POST register pada kedaluwarsa = transisi re-daftar → diajukan). Kini: GET /api/register/status membaca 'kedaluwarsa' (tanpa mutasi), lalu POST register → 'diajukan'.
+- 2026-09-18 (green-phase): `getByLabel` memakai `{ exact: true }` di `kelengkapan-profil.spec.ts` — substring membuat 'Nomor HP'/'Kontak Darurat' ambigu terhadap label wajib 'Nomor HP Kontak Darurat' (strict mode violation).
+- 2026-09-18 (green-phase): predikat recurse test simpan = `/profil lengkap/i` (teks indikator saat lengkap) — `/lengkap/i` vakum (juga mencocokkan H1 "Kelengkapan Profile" dan teks "belum lengkap" pra-simpan → recurse keluar dini).
+- 2026-09-18 (green-phase): inspeksi outbox dibaca dari `outbox.body.data` — `apiRequest.validateSchema` mengembalikan `{ status, body }` (scaffold asumsi `data` di root).
+- 2026-09-18 (green-phase): hardening halaman `profile-completeness.vue` — tombol Simpan `type="button"` (klik pra-hidrasi inert; tombol submit native memicu navigasi GET form yang me-reset isian) dan GET profil via `useAsyncData` (pola register.vue) agar respons GET tidak di-fetch ulang saat hidrasi (stub 5xx test gagal-simpan tidak pernah memicu redirect).
 
 ## Review Triage Log
 

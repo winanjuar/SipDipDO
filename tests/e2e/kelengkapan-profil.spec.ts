@@ -3,16 +3,23 @@
  * CAP-1/2/3/6: halaman Kelengkapan Profile, indikator langkah, gerbang
  * navigasi, toast gagal non-validasi).
  *
- * SEMUA test `test.skip()` — scaffold TDD red phase; hapus skip HANYA pada
- * tugas green-phase yang mengimplementasikan halaman + endpoint-nya.
+ * Tests DIAKTIFKAN pada tugas green-phase yang mengimplementasikan halaman +
+ * endpoint-nya. Penyesuaian green-phase (alasan tercatat di Spec Change Log):
+ * predikat recurse memakai /profil lengkap/i (kontrak teks indikator saat
+ * LENGKAP) — /lengkap/i vakum karena juga mencocokkan H1 "Kelengkapan
+ * Profile" dan teks "belum lengkap" indikator pra-simpan (recurse keluar
+ * dini sebelum PUT selesai).
  *
  * ASUMSI KONTRAK UI (red-phase, nyatakan eksplisit — final saat green-phase):
  * - Route halaman: `/profile-completeness` (belum ditetapkan sumber mana pun;
  *   permukaan #3 EXPERIENCE.md "Kelengkapan Profile").
  * - Endpoint simpan: `/api/profile` (method POST atau PUT — intercept pakai
  *   glob url TANPA method agar tahan keduanya).
- * - 10 field memakai <label> terasosiasi (getByLabel, nama Indonesia —
+ * - 10 field memakai <label> terasosiasi (getByLabel exact — nama Indonesia,
  *   profile-fields.md); Gmail prefilled email sesi dan TIDAK dapat diedit.
+ *   Penyesuaian green-phase: matching `exact: true` — substring membuat
+ *   getByLabel('Nomor HP')/'Kontak Darurat' ambigu terhadap label wajib
+ *   'Nomor HP Kontak Darurat' (strict mode violation).
  * - Indikator langkah (UX-DR16) hidup di region `data-testid=
  *   kelengkapan-indikator` (kontrak TEST_IDS baru — fixture_needs); dia
  *   menyebut PERSIS field yang belum lengkap per nama fieldnya.
@@ -72,7 +79,7 @@ const emailSintetisUji = (): string => {
 const nilaiSintetisUntuk = (label: string): string => `Uji ${label} ${faker.string.alphanumeric(6)}`
 
 test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
-  test.skip('[P0] halaman Kelengkapan Profile: 10 field, Gmail readonly, indikator menyebut field kosong, tanpa nav lain', async ({ page, context, apiRequest }) => {
+  test('[P0] halaman Kelengkapan Profile: 10 field, Gmail readonly, indikator menyebut field kosong, tanpa nav lain', async ({ page, context, apiRequest }) => {
     // GAGAL saat red: 404 — halaman belum ada.
     await log.step('GIVEN sesi calon owner berstatus diajukan terinjeksikan')
     const cookies = await mintSesiPemilik(apiRequest, {
@@ -87,11 +94,11 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
 
     await log.step('THEN 10 field Lampiran A tampil by-label')
     for (const label of LABEL_FIELD_PROFIL) {
-      await expect(page.getByLabel(label)).toBeVisible()
+      await expect(page.getByLabel(label, { exact: true })).toBeVisible()
     }
 
     await log.step('AND Gmail prefilled email sesi dan tidak dapat diedit')
-    const gmail = page.getByLabel('Gmail')
+    const gmail = page.getByLabel('Gmail', { exact: true })
     await expect(gmail).not.toBeEditable()
 
     await log.step('AND indikator langkah menyebut PERSIS field yang belum diisi (semua masih kosong)')
@@ -105,7 +112,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     await expect(page.getByRole('link', { name: /antrian/i })).toHaveCount(0)
   })
 
-  test.skip('[P0] isi 10 field & simpan → indikator lengkap; reload → nilai persisten', async ({ page, context, apiRequest, recurse }) => {
+  test('[P0] isi 10 field & simpan → indikator lengkap; reload → nilai persisten', async ({ page, context, apiRequest, recurse }) => {
     // GAGAL saat red: halaman belum ada; klik simpan pun tidak akan pernah
     // membawa handler.
     await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
@@ -120,10 +127,10 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     await log.step('WHEN seluruh 10 field diisi nilai sintetis dan tombol simpan diklik')
     const nilaiField = new Map<string, string>()
     for (const label of LABEL_FIELD_PROFIL) {
-      const nilai = label === 'Gmail' ? await page.getByLabel('Gmail').inputValue() : nilaiSintetisUntuk(label)
+      const nilai = label === 'Gmail' ? await page.getByLabel('Gmail', { exact: true }).inputValue() : nilaiSintetisUntuk(label)
       nilaiField.set(label, nilai)
       if (label !== 'Gmail') {
-        await page.getByLabel(label).fill(nilai)
+        await page.getByLabel(label, { exact: true }).fill(nilai)
       }
     }
     await recurse(
@@ -133,24 +140,24 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
         } catch {
           // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
         }
-        return page.getByText(/lengkap/i).first().isVisible()
+        return page.getByText(/profil lengkap/i).first().isVisible()
       },
       lengkap => lengkap === true,
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu simpan profil + indikator lengkap' },
     )
 
     await log.step('THEN indikator menyatakan Profil lengkap (prasyarat verifikasi COO terpenuhi)')
-    await expect(page.getByText(/lengkap/i).first()).toBeVisible()
+    await expect(page.getByText(/profil lengkap/i).first()).toBeVisible()
 
     await log.step('WHEN halaman dimuat ulang')
     await page.reload()
 
     await log.step('THEN nilai field pertama & terakhir tersimpan persisten (CAP-1)')
-    await expect(page.getByLabel('Nama Lengkap')).toHaveValue(nilaiField.get('Nama Lengkap') ?? '')
-    await expect(page.getByLabel('Nomor Rekening')).toHaveValue(nilaiField.get('Nomor Rekening') ?? '')
+    await expect(page.getByLabel('Nama Lengkap', { exact: true })).toHaveValue(nilaiField.get('Nama Lengkap') ?? '')
+    await expect(page.getByLabel('Nomor Rekening', { exact: true })).toHaveValue(nilaiField.get('Nomor Rekening') ?? '')
   })
 
-  test.skip(
+  test(
     '[P1] submit gagal non-validasi (5xx): isian dipertahankan + toast verbatim UX-DR19',
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
     async ({ page, context, apiRequest, recurse, interceptNetworkCall }) => {
@@ -181,7 +188,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
         ['Nomor HP', nilaiSintetisUntuk('Nomor HP')],
       ])
       for (const [label, nilai] of isian) {
-        await page.getByLabel(label).fill(nilai)
+        await page.getByLabel(label, { exact: true }).fill(nilai)
       }
       await recurse(
         async () => {
@@ -202,12 +209,12 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
 
       await log.step('AND seluruh isian DIPERTAHANKAN — tanpa pengisian ulang dari nol')
       for (const [label, nilai] of isian) {
-        await expect(page.getByLabel(label)).toHaveValue(nilai)
+        await expect(page.getByLabel(label, { exact: true })).toHaveValue(nilai)
       }
     },
   )
 
-  test.skip('[P1] URL langsung /dashboard oleh calon belum lengkap → dialihkan di batas server (AD-8)', async ({ page, context, apiRequest }) => {
+  test('[P1] URL langsung /dashboard oleh calon belum lengkap → dialihkan di batas server (AD-8)', async ({ page, context, apiRequest }) => {
     // GAGAL saat red: gerbang redirect calon belum lengkap belum
     // diimplementasikan — /dashboard masih terjangkau untuk sesi diajukan.
     await log.step('GIVEN sesi calon owner berstatus diajukan (Profile belum lengkap)')
@@ -221,7 +228,22 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD RED PHASE)', () => {
     await log.step('WHEN membuka /dashboard secara langsung')
     await page.goto('/dashboard')
 
-    await log.step('THEN TIDAK berada di /dashboard — redirect terjadi (kontrak green-phase: ke /profile-completeness atau /status-pendaftaran; pertegas URL eksplisit saat green)')
-    await expect(page).not.toHaveURL(/\/dashboard/)
+    await log.step('THEN TIDAK berada di /dashboard — redirect terjadi di batas server ke /profile-completeness')
+    await expect(page).toHaveURL(/\/profile-completeness$/)
+  })
+
+  test('[P1] non-calon membuka /profile-completeness → dialihkan ke landing role-nya (pola status-pendaftaran)', async ({ page, context, apiRequest }) => {
+    // Penutup baris matriks I/O "Halaman kelengkapan non-calon": resolver
+    // halaman mengarahkan non-calon ke LANDING_PATH role-nya (pola
+    // status-pendaftaran.vue); middleware TIDAK menghalangi non-calon.
+    await log.step('GIVEN sesi pemegang saham (bukan calon) terinjeksikan')
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /profile-completeness secara langsung')
+    await page.goto('/profile-completeness')
+
+    await log.step('THEN dialihkan ke landing role-nya /dashboard')
+    await expect(page).toHaveURL(/\/dashboard$/)
   })
 })

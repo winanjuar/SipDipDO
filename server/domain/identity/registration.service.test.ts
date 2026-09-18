@@ -24,9 +24,16 @@ describe('registrationDeadline (FR-22/AD-11 — hari kalender, zona Asia/Jakarta
   })
 })
 
-describe('runRegistrationDailyJob (kerangka cron scaffold)', () => {
-  it('no-op dengan kontrak balikan tetap sampai jalur cron ada (Story 1.5/1.6)', async () => {
-    await expect(runRegistrationDailyJob(asDayKey('2026-09-16'))).resolves.toEqual({ reminded: 0, expired: 0 })
+describe('runRegistrationDailyJob (Story 1.5 — kontrak balikan penuh)', () => {
+  it('tanpa kandidat `diajukan` → kontrak balikan penuh nol (counter + daftar email)', async () => {
+    // Stub no-op lama ({ reminded: 0, expired: 0 }) digantikan kontrak baru
+    // Story 1.5: counter + remindedEmails/expiredEmails (paritas wire
+    // cron-harian.api.spec.ts); jalur eksekusi penuh diuji
+    // registration.service.expiry.test.ts.
+    const { dbPalsu } = buatDbTransaksiPalsu([], [])
+    await expect(
+      runRegistrationDailyJob(asDayKey('2026-09-16'), dbPalsu as unknown as Parameters<typeof runRegistrationDailyJob>[1]),
+    ).resolves.toEqual({ reminded: 0, expired: 0, remindedEmails: [], expiredEmails: [] })
   })
 })
 

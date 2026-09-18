@@ -34,8 +34,9 @@ import { runRegistrationDailyJob } from './registration.service'
 
 /** Hari uji — dianalisis dari konstanta deadline yang sudah terpin hijau:
  *  diajukanPada 2026-09-01 → reminderOn 2026-09-05 (H-3), expiresOn
- *  2026-09-08 (hari-7) — lihat registrationDeadline di registration.service.test.ts. */
-const DIAJUKAN_PADA = '2026-09-01'
+ *  2026-09-08 (hari-7) — lihat registrationDeadline di registration.service.test.ts.
+ *  Instant createdAt = pukul 17:00 WIB 2026-09-01 → jakartaDayKey = '2026-09-01'. */
+const DIAJUKAN_PADA_INSTANT = '2026-09-01T10:00:00.000Z'
 const HARI_REMINDER = '2026-09-05'
 const HARI_EXPIRY = '2026-09-08'
 
@@ -44,7 +45,7 @@ const barisCalonBelumLengkap = {
   id: '0f0e0d0c-0000-4000-8000-000000000101',
   email: 'uji.snddash.unit.cron-belum-lengkap@gmail.com',
   status: 'diajukan',
-  diajukanPada: DIAJUKAN_PADA,
+  createdAt: DIAJUKAN_PADA_INSTANT,
   namaLengkap: null,
   alias: null,
   nomorHp: null,
@@ -69,6 +70,12 @@ interface TulisanUpdate {
 /**
  * Fake tx dengan select + insert + update (tambahan `update` untuk CAS
  * kedaluwarsa — pola buatDbTransaksiPalsu registration.service.test.ts).
+ * Penyesuaian green-phase Story 1.5 (alasan tercatat):
+ * - select membedakan tabel — kandidat job = `owners` (hasilSelect); select
+ *   lain (cek idempotensi outbox `adaOutboxEmail`) → kosong agar jalur
+ *   reminder teruji sampai INSERT.
+ * - `update.returning` mengembalikan satu baris = CAS MENANG (satu penulis);
+ *   jalur CAS kalah tidak berbeda secara unit (guard ada di klausa WHERE SQL).
  */
 function buatDbJobPalsu(hasilSelect: unknown[]) {
   const tulisan: (TulisanInsert | TulisanUpdate)[] = []
@@ -81,16 +88,22 @@ function buatDbJobPalsu(hasilSelect: unknown[]) {
           return rantai
         },
         onConflictDoNothing: () => rantai,
-        returning: async () => [],
+        // Insert (outbox) selalu "berhasil" — repo proofs melempar bila
+        // returning kosong (guard noUncheckedIndexedAccess).
+        returning: async () => [{ id: 'insert-palsu' }],
       }
       return rantai
     },
     select: () => {
+      let tabelTerpilih: unknown
       const rantai = {
-        from: () => rantai,
+        from: (tabel: unknown) => {
+          tabelTerpilih = tabel
+          return rantai
+        },
         where: () => rantai,
         limit: () => rantai,
-        then: (resolve: (nilai: unknown[]) => void) => resolve(hasilSelect),
+        then: (resolve: (nilai: unknown[]) => void) => resolve(tabelTerpilih === owners ? hasilSelect : []),
       }
       return rantai
     },
@@ -101,7 +114,7 @@ function buatDbJobPalsu(hasilSelect: unknown[]) {
           return rantai
         },
         where: () => rantai,
-        returning: async () => [],
+        returning: async () => [{ id: 'cas-menang' }],
       }
       return rantai
     },
@@ -112,18 +125,19 @@ function buatDbJobPalsu(hasilSelect: unknown[]) {
   return { dbPalsu, tulisan }
 }
 
-/** Signature green-phase belum ada — cast eksplisit (lihat asumsi header). */
+/** Signature green-phase sudah ada: `runRegistrationDailyJob(today, db)` —
+ *  dbPalsu dilempar ke tipe parameter Db (pola cast scaffold). */
 const jalankanJob = (today: string, db: unknown): Promise<{ reminded: number, expired: number, remindedEmails: string[], expiredEmails: string[] }> =>
   (runRegistrationDailyJob as unknown as (
     today: ReturnType<typeof asDayKey>,
-    db: unknown,
+    db: never,
   ) => Promise<{ reminded: number, expired: number, remindedEmails: string[], expiredEmails: string[] }>)(
     asDayKey(today),
-    db,
+    db as never,
   )
 
 describe('runRegistrationDailyJob — pengingat H-3 (CAP-4, AR-6)', () => {
-  it.skip('pada hari reminderOn → INSERT outboxEmails untuk calon diajukan belum lengkap + balikan memuat email', async () => {
+  it('pada hari reminderOn → INSERT outboxEmails untuk calon diajukan belum lengkap + balikan memuat email', async () => {
     const { dbPalsu, tulisan } = buatDbJobPalsu([barisCalonBelumLengkap])
 
     const hasil = await jalankanJob(HARI_REMINDER, dbPalsu)
@@ -132,12 +146,15 @@ describe('runRegistrationDailyJob — pengingat H-3 (CAP-4, AR-6)', () => {
     expect(hasil.remindedEmails).toContain(barisCalonBelumLengkap.email)
     const insertOutbox = tulisan.find(t => t.tabel === outboxEmails) as TulisanInsert | undefined
     expect(insertOutbox).toBeDefined()
-    expect(insertOutbox?.baris?.to ?? insertOutbox?.baris?.email).toBe(barisCalonBelumLengkap.email)
+    // Kontrak repo proofs: values = { kind, toAddress, payload } (penyesuaian
+    // green-phase — scaffold asumsi `to`/`email`).
+    expect(insertOutbox?.baris?.toAddress ?? insertOutbox?.baris?.to).toBe(barisCalonBelumLengkap.email)
+    expect(insertOutbox?.baris?.kind).toBe('notifikasi')
   })
 })
 
 describe('runRegistrationDailyJob — kedaluwarsa hari-7 via CAS + audit (AD-11, AD-3)', () => {
-  it.skip('pada hari expiresOn → CAS UPDATE owners (diajukan→kedaluwarsa) + INSERT auditLogs in-tx', async () => {
+  it('pada hari expiresOn → CAS UPDATE owners (diajukan→kedaluwarsa) + INSERT auditLogs in-tx', async () => {
     const { dbPalsu, tulisan } = buatDbJobPalsu([barisCalonBelumLengkap])
 
     const hasil = await jalankanJob(HARI_EXPIRY, dbPalsu)
@@ -156,7 +173,7 @@ describe('runRegistrationDailyJob — kedaluwarsa hari-7 via CAS + audit (AD-11,
 })
 
 describe('runRegistrationDailyJob — tanpa aksi di luar jendela (boundary kanonik)', () => {
-  it.skip('profil sudah lengkap / status bukan diajukan → tanpa tulisan, tanpa email, kontrak balikan penuh', async () => {
+  it('profil sudah lengkap / status bukan diajukan → tanpa tulisan, tanpa email, kontrak balikan penuh', async () => {
     const barisLengkap = {
       ...barisCalonBelumLengkap,
       id: '0f0e0d0c-0000-4000-8000-000000000102',

@@ -1,8 +1,7 @@
 /**
  * ATDD RED-PHASE — Story 1.5 "Kelengkapan Profile 11 Field" (API, endpoint Profil).
  *
- * SEMUA test `test.skip()` — scaffold TDD red phase; hapus skip HANYA pada
- * tugas green-phase yang mengimplementasikan endpoint-nya (spec:
+ * Tests DIAKTIFKAN pada tugas green-phase endpoint Profil (spec:
  * _bmad-output/specs/spec-story-1-5-kelengkapan-profile-11-field/SPEC.md,
  * CAP-1/CAP-2).
  *
@@ -127,7 +126,7 @@ const profilLengkapUji = (overrides: Partial<Record<keyof Profil, string>> = {})
 })
 
 test.describe('[P0] PUT /api/profile sesi diajukan → profil tersimpan lengkap', () => {
-  test.skip('[P0] 10 field lengkap → 200/201 profileComplete=true remainingFields kosong tanpa referral', async ({ apiRequest }) => {
+  test('[P0] 10 field lengkap → 200/201 profileComplete=true remainingFields kosong tanpa referral', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — PUT /api/profile belum ada; validasi SkemaProfil
     // melempar sebelum asersi status tercapai.
     await log.step('GIVEN sesi calon owner berstatus diajukan (baris existing)')
@@ -154,7 +153,7 @@ test.describe('[P0] PUT /api/profile sesi diajukan → profil tersimpan lengkap'
 })
 
 test.describe('[P0] PUT /api/profile tanpa sesi (AD-8 wajib auth)', () => {
-  test.skip('[P0] PUT tanpa cookie sesi ditolak 401 envelope seragam', async ({ apiRequest }) => {
+  test('[P0] PUT tanpa cookie sesi ditolak 401 envelope seragam', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada; validasi envelope gagal lebih dulu.
     await log.step('GIVEN permintaan PUT /api/profile tanpa cookie sesi')
 
@@ -173,7 +172,7 @@ test.describe('[P0] PUT /api/profile tanpa sesi (AD-8 wajib auth)', () => {
 })
 
 test.describe('[P1] PUT /api/profile validasi kelengkapan PERSIS (CAP-2 di wire)', () => {
-  test.skip('[P1] 2 field dikosongkan → 400 dan daftar field belum lengkap PERSIS dua itu', async ({ apiRequest }) => {
+  test('[P1] 2 field dikosongkan → 400 dan daftar field belum lengkap PERSIS dua itu', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada. Pin CAP-2: respons validasi
     // menyebut persis field yang kosong (namaBank, nomorRekening) dan TIDAK
     // menyebut field yang terisi (namaLengkap).
@@ -203,7 +202,7 @@ test.describe('[P1] PUT /api/profile validasi kelengkapan PERSIS (CAP-2 di wire)
 })
 
 test.describe('[P1] PUT /api/profile menolak field referral (FR-22)', () => {
-  test.skip('[P1] body berisi referral ditolak 400 envelope — referral diajukan saat Pembelian Pertama', async ({ apiRequest }) => {
+  test('[P1] body berisi referral ditolak 400 envelope — referral diajukan saat Pembelian Pertama', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada. Cermin kontrak POST /api/register.
     await log.step('GIVEN sesi calon owner berstatus diajukan')
     const cookieSesi = await mintSesiPemilik(apiRequest, {
@@ -227,7 +226,7 @@ test.describe('[P1] PUT /api/profile menolak field referral (FR-22)', () => {
 })
 
 test.describe('[P1] PUT /api/profile gerbang non-calon (CAP-3, AD-8)', () => {
-  test.skip('[P1] owner terverifikasi menulis profil → 403 envelope', async ({ apiRequest }) => {
+  test('[P1] owner terverifikasi menulis profil → 403 envelope', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada. Endpoint Profil hanya untuk
     // calon owner `diajukan` (CAP-3); status lain ditolak di batas server.
     await log.step("GIVEN sesi owner berstatus 'terverifikasi' (bukan calon)")
@@ -252,7 +251,7 @@ test.describe('[P1] PUT /api/profile gerbang non-calon (CAP-3, AD-8)', () => {
 })
 
 test.describe('[P1] Persistensi profil — PUT lalu GET identik (CAP-1)', () => {
-  test.skip('[P1] nilai yang disimpan terbaca kembali utuh saat GET /api/profile', async ({ apiRequest }) => {
+  test('[P1] nilai yang disimpan terbaca kembali utuh saat GET /api/profile', async ({ apiRequest }) => {
     // GAGAL saat red: PUT menjawab 404 sebelum GET mana pun dieksekusi.
     await log.step('GIVEN sesi calon owner berstatus diajukan menyimpan profil lengkap')
     const cookieSesi = await mintSesiPemilik(apiRequest, {

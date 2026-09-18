@@ -74,6 +74,18 @@ export const owners = pgTable('owners', {
    *  Epic 3 mengimplementasikan param link ?ref= (keputusan owner
    *  2026-09-18); null = mendaftar tanpa referral. */
   usedReferralCode: text('used_referral_code'),
+  /** Profil Lampiran A #1–10 (Story 1.5, FR-22) — string apa adanya (AD-10),
+   *  nullable sampai pendaftar menyimpan dari halaman Kelengkapan Profile.
+   *  Gmail (#3) TIDAK dibuat sebagai kolom — selalu `email` di atas. */
+  namaLengkap: text('nama_lengkap'),
+  alias: text('alias'),
+  nomorHp: text('nomor_hp'),
+  kontakDarurat: text('kontak_darurat'),
+  nomorHpKontakDarurat: text('nomor_hp_kontak_darurat'),
+  hubunganDenganOwner: text('hubungan_dengan_owner'),
+  namaBank: text('nama_bank'),
+  pemilikRekening: text('pemilik_rekening'),
+  nomorRekening: text('nomor_rekening'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
 })

@@ -9,7 +9,15 @@
  * Internal: outbox.repo.ts (Drizzle hanya di sini), outbox.service.ts,
  * resend.client.ts (wiring Resend — kredensial via env).
  */
-export { enqueueEmail, dispatchPendingOutboxEmails } from './outbox.service'
+export {
+  adaOutboxEmail,
+  listOutboxEmailPenerima,
+} from './outbox.repo'
+export {
+  dispatchPendingOutboxEmails,
+  enqueueEmail,
+  OUTBOX_KIND_NOTIFIKASI,
+} from './outbox.service'
 export type { OutboxKind } from './outbox.service'
 export type { MailClient, MailMessage, MailSendResult } from './resend.client'
 export { createResendMailClient } from './resend.client'

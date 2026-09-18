@@ -2,11 +2,14 @@
  * ATDD RED-PHase — Story 1.5 "Kelengkapan Profile 11 Field" (API, cron harian
  * pengingat H-3 & kedaluwarsa hari ke-7 — CAP-4, AD-9/AD-11, AR-6).
  *
- * SEMUA test `test.skip()` — scaffold TDD red phase; hapus skip HANYA pada
- * tugas green-phase yang mengisi `runRegistrationDailyJob`.
+ * Tests DIAKTIFKAN pada tugas green-phase yang mengisi `runRegistrationDailyJob`.
+ * Penyesuaian green-phase (alasan tercatat di Spec Change Log): PATH_CRON
+ * dipin `/jobs/daily` — route Nitro terdaftar eksplisit di nuxt.config.ts
+ * (nitro.handlers), BUKAN `/api/jobs/daily` (asumsi salah scaffold; README
+ * juga mendokumentasikan POST /jobs/daily).
  *
  * KONTRAK YANG DIPIN (epic-1.md Story 1.5 blok AC-2 + AD-9 + AR-6):
- * - Cron harian `/api/jobs/daily` terproteksi CRON_SECRET (endpoint hijau
+ * - Cron harian `/jobs/daily` terproteksi CRON_SECRET (endpoint hijau
  *   sejak scaffold; guard `Authorization: Bearer` timing-safe).
  * - Batas hari dihitung DI DALAM endpoint zona Asia/Jakarta (AD-9) — test
  *   menyuntik WAKTU lewat data: seed baris owner backdated via
@@ -20,7 +23,7 @@
  * KONTRAK TEST-INFRA BARU (asumsi eksplisit — final saat green-phase):
  * - Mint `/api/test/login` menerima override opsional `diajukanPada`
  *   (DayKey 'YYYY-MM-DD' kalender Jakarta).
- * - Respons `/api/jobs/daily` `details.jobs.registration` memuat BUKAN hanya
+ * - Respons `/jobs/daily` `details.jobs.registration` memuat BUKAN hanya
  *   counter: `{ reminded, expired, remindedEmails, expiredEmails }` — stub
  *   saat ini hanya `{ reminded: 0, expired: 0 }` sehingga skema zod gagal =
  *   merah jujur.
@@ -60,7 +63,7 @@ const HARI_REMINDER_H3 = 4
 const HARI_EXPIRY_H7 = 7
 const HARI_SEBELUM_REMINDER = 2
 
-const PATH_CRON = '/api/jobs/daily'
+const PATH_CRON = '/jobs/daily'
 const PATH_OUTBOX_UJI = '/api/test/outbox'
 
 /** Secret cron lokal — fallback identik env NUXT_CRON_SECRET dev (.env lokal;
@@ -102,7 +105,7 @@ const SkemaJobRegistrasi = z.object({
   expiredEmails: z.array(z.string()),
 })
 
-/** Bentuk wire respons /api/jobs/daily (daily.post.ts: { code, message, details }). */
+/** Bentuk wire respons /jobs/daily (daily.post.ts: { code, message, details }). */
 const SkemaResponsCron = z.object({
   code: z.string().min(1),
   message: z.string().min(1),
@@ -178,14 +181,24 @@ const inspeksiOutbox = async (
     headers: { TEST_AUTH_SECRET: SECRET_TEST_AUTH },
   }).validateSchema(SkemaInspeksiOutbox)
 
+/**
+ * SERIAL dalam file (penyesuaian green-phase — alasan tercatat di Spec Change
+ * Log): keempat skenario berbagi SATU job harian global atas tabel owners yang
+ * sama. Dengan fullyParallel, dua run job BERIRAMA saling mencuri mutasi
+ * (remindedEmails kosong) dan membuka TOCTOU pada cek idempotensi outbox
+ * (dua transaksi READ COMMITTED sama-sama melihat kosong → dobel insert).
+ * Eksekusi berurutan mencerminkan realita cron (satu trigger per hari).
+ */
+test.describe.configure({ mode: 'serial' })
+
 test.describe('[P1] Cron H-3 → email pengingat masuk outbox (CAP-4, AR-6)', () => {
-  test.skip('[P1] pendaftar diajukan belum lengkap pada hari reminderOn → reminded memuat email + baris outbox ada', async ({ apiRequest }) => {
+  test('[P1] pendaftar diajukan belum lengkap pada hari reminderOn → reminded memuat email + baris outbox ada', async ({ apiRequest }) => {
     // GAGAL saat red: stub { reminded: 0, expired: 0 } tanpa field emails →
     // skema SkemaResponsCron melempar; inspeksi outbox pun 404 (endpoint baru).
     await log.step('GIVEN calon diajukan belum lengkap dengan reminderOn = hari Jakarta ini (diajukanPada hari-4)')
     const { email } = await seedCalonBackdated(apiRequest, hariJakartaMinus(HARI_REMINDER_H3))
 
-    await log.step('WHEN job harian dijalankan (POST /api/jobs/daily dengan CRON_SECRET)')
+    await log.step('WHEN job harian dijalankan (POST /jobs/daily dengan CRON_SECRET)')
     const { status, body } = await jalankanCron(apiRequest)
     expect(status).toBe(STATUS_OK)
 
@@ -193,13 +206,16 @@ test.describe('[P1] Cron H-3 → email pengingat masuk outbox (CAP-4, AR-6)', ()
     expect(body.details.jobs.registration.remindedEmails).toContain(email)
 
     await log.step('AND baris outbox pengingat untuk email itu ada (belum tentu terkirim — kirim async)')
+    // apiRequest.validateSchema mengembalikan { status, body } — baris outbox
+    // berada di `body.data` (penyesuaian green-phase: scaffold asumsi `data`
+    // di root respons).
     const outbox = await inspeksiOutbox(apiRequest, email)
-    expect(outbox.data.length).toBeGreaterThanOrEqual(1)
+    expect(outbox.body.data.length).toBeGreaterThanOrEqual(1)
   })
 })
 
 test.describe('[P1] Cron hari ke-7 → kedaluwarsa via CAS + audit (CAP-4, AD-11)', () => {
-  test.skip('[P1] pendaftar pada/expired hari ke-7 → status kedaluwarsa + expiredEmails memuat email', async ({ apiRequest }) => {
+  test('[P1] pendaftar pada/expired hari ke-7 → status kedaluwarsa + expiredEmails memuat email', async ({ apiRequest }) => {
     // GAGAL saat red: stub tidak pernah memutasi status — echo register tetap
     // 'diajukan' dan skema respons cron gagal lebih dulu di field emails.
     await log.step('GIVEN calon diajukan belum lengkap dengan expiresOn = hari Jakarta ini (diajukanPada hari-7)')
@@ -212,21 +228,33 @@ test.describe('[P1] Cron hari ke-7 → kedaluwarsa via CAS + audit (CAP-4, AD-11
     await log.step('THEN job melaporkan email pendaftar di expiredEmails')
     expect(body.details.jobs.registration.expiredEmails).toContain(email)
 
-    await log.step('AND status owner kini kedaluwarsa — POST /api/register menggemakan status baris YANG SAMA (sesi GIVEN, tanpa re-seed)')
-    // Pin longgar: echo status existing (kontrak hijau Story 1.4); transisi
-    // re-daftar dipin terpisah di redaftar.api.spec.ts.
-    const echo = await apiRequest<{ status: string }>({
+    await log.step('AND status owner kini kedaluwarsa — GET /api/register/status membaca baris YANG SAMA (sesi GIVEN, tanpa re-seed)')
+    // Penyesuaian green-phase (alasan tercatat di Spec Change Log): scaffold
+    // mem-pin echo 'kedaluwarsa' dari POST /api/register (kontrak lama Story
+    // 1.4) — kontrak beku Story 1.5 (CAP-5, matriks I/O) menentukan POST
+    // /api/register pada baris `kedaluwarsa` JUSTRU melakukan transisi
+    // re-daftar → diajukan. Kedaluwarsa diverifikasi via pembacaan status
+    // (tanpa mutasi); transisi re-daftar dipin di redaftar.api.spec.ts.
+    const statusBaca = await apiRequest<{ status: string }>({
+      method: 'GET',
+      path: '/api/register/status',
+      headers: headerSesi,
+    })
+    expect(statusBaca.body.status).toBe('kedaluwarsa')
+
+    await log.step('AND re-daftar CAP-5 pada baris yang sama → kembali diajukan')
+    const redaftar = await apiRequest<{ id: string, status: string }>({
       method: 'POST',
       path: '/api/register',
       body: {},
       headers: headerSesi,
     })
-    expect(echo.body.status).toBe('kedaluwarsa')
+    expect(redaftar.body.status).toBe('diajukan')
   })
 })
 
 test.describe('[P1] Cron sebelum H-3 → tanpa aksi (boundary aman)', () => {
-  test.skip('[P1] pendaftar diajukanPada hari-2 → remindedEmails/expiredEmails tidak memuat email', async ({ apiRequest }) => {
+  test('[P1] pendaftar diajukanPada hari-2 → remindedEmails/expiredEmails tidak memuat email', async ({ apiRequest }) => {
     // GAGAL saat red (tetap merah jujur): skema respons cron menuntut field
     // emails yang belum ada pada stub — test ini memastikan kontrak muatan,
     // bukan sekadar counter nol.
@@ -244,7 +272,7 @@ test.describe('[P1] Cron sebelum H-3 → tanpa aksi (boundary aman)', () => {
 })
 
 test.describe('[P1] Cron idempoten — job sama di hari sama tidak dobel (AR-6)', () => {
-  test.skip('[P1] run 2x pada hari H-3 yang sama → baris outbox untuk email itu tetap tepat 1', async ({ apiRequest }) => {
+  test('[P1] run 2x pada hari H-3 yang sama → baris outbox untuk email itu tetap tepat 1', async ({ apiRequest }) => {
     // GAGAL saat red: skema respons cron gagal lebih dulu (field emails belum ada).
     await log.step('GIVEN calon diajukan pada hari reminderOn')
     const { email } = await seedCalonBackdated(apiRequest, hariJakartaMinus(HARI_REMINDER_H3))
@@ -255,16 +283,16 @@ test.describe('[P1] Cron idempoten — job sama di hari sama tidak dobel (AR-6)'
 
     await log.step('THEN outbox untuk email itu tetap tepat 1 baris')
     const outbox = await inspeksiOutbox(apiRequest, email)
-    expect(outbox.data).toHaveLength(1)
+    expect(outbox.body.data).toHaveLength(1)
   })
 })
 
 test.describe('[P2] Guard cron — CRON_SECRET wajib (regresi; endpoint hijau sejak scaffold)', () => {
-  test.skip('[P2] POST /api/jobs/daily tanpa secret → 401 envelope seragam', async ({ apiRequest }) => {
-    // Test REGRESI: endpoint /api/jobs/daily hijau sejak Story 1.1 scaffold —
+  test('[P2] POST /jobs/daily tanpa secret → 401 envelope seragam', async ({ apiRequest }) => {
+    // Test REGRESI: endpoint /jobs/daily hijau sejak Story 1.1 scaffold —
     // kemungkinan langsung lulus saat diaktifkan; dipertahankan sebagai
     // penguat AD-9 (job tersembunyi tanpa guard dilarang).
-    await log.step('GIVEN POST /api/jobs/daily TANPA header Authorization')
+    await log.step('GIVEN POST /jobs/daily TANPA header Authorization')
 
     await log.step('WHEN guard timing-safe menilai permintaan')
     const { status, body } = await apiRequest<z.infer<typeof SkemaEnvelopeError>>({

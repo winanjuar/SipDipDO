@@ -43,6 +43,16 @@ const statusData = landing && !('unlinked' in landing) && landing.role === 'calo
 const badge = statusData ? PETA_BADGE[statusData.status] : null
 const alasanPenolakan = statusData?.rejectionReason ?? ''
 
+/**
+ * Tautan "Lengkapi Profile" (Story 1.5, UX-DR14) — satu-satunya pintu nav
+ * yang sah bagi calon `diajukan` dengan Profil belum lengkap; calon lengkap
+ * maupun status lain tidak melihatnya. Kelengkapan dibaca dari GET
+ * /api/profile (kanonik kontrak wire); gagal baca = tautan disembunyikan.
+ */
+const perluLengkapiProfil = statusData?.status === 'diajukan'
+  ? !(await api<{ profileComplete: boolean }>('/api/profile').catch(() => null))?.profileComplete
+  : false
+
 /** Alert konfirmasi pasca-daftar (permintaan owner 2026-09-18, direvisi:
  *  alert di ATAS halaman menggantikan toast bawah — auto-hilang 3 detik):
  *  flag query dari register.vue → alert SEKALI lalu query dibersihkan agar
@@ -86,6 +96,14 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
           {{ badge.label }}
         </Badge>
       </div>
+
+      <NuxtLink
+        v-if="perluLengkapiProfil"
+        to="/profile-completeness"
+        class="flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+      >
+        Lengkapi Profile
+      </NuxtLink>
 
       <div v-if="alasanPenolakan" class="flex flex-col gap-1">
         <p class="text-sm font-medium">Alasan penolakan</p>

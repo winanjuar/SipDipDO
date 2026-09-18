@@ -15,15 +15,19 @@ export {
   daftarOwnerByEmail,
   findActiveCooTenure,
   findOwnerByEmail,
+  kedaluwarsakanCalon,
+  listCalonDiajukan,
   openCooTenure,
+  simpanProfilCalon,
   upsertOwnerByEmail,
 } from './owner.repo'
-export type { HasilDaftarOwner, OwnerRecord } from './owner.repo'
+export type { BarisCalonJob, HasilDaftarOwner, OwnerRecord } from './owner.repo'
 export {
   REGISTRATION_EXPIRY_DAYS,
   REGISTRATION_REMINDER_DAYS_BEFORE,
   ajukanPendaftaran,
   registrationDeadline,
   runRegistrationDailyJob,
+  simpanProfil,
 } from './registration.service'
-export type { RegistrationDeadline } from './registration.service'
+export type { HasilJobHarianPendaftaran, RegistrationDeadline } from './registration.service'

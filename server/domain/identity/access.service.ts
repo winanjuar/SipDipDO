@@ -13,6 +13,7 @@
  *   role dievaluasi per-request, tidak pernah disimpan di JWT/session, sehingga
  *   pergantian COO/status tidak pernah basi.
  */
+import { profilLengkap } from '#shared/domain/profil'
 import { CALON_OWNER_STATUSES, LANDING_PATH, type OwnerAccessSnapshot, type Principal, type Role } from '#shared/domain/identity'
 
 /** Sumber tautan landing role→route (dipakai route handler & halaman). */
@@ -20,13 +21,23 @@ export { LANDING_PATH }
 
 /**
  * Baris owner minimal untuk keputusan role. Repo nyata (`createIdentityRepo`)
- * selalu mengisi `id` & `rejectionReason`; stub repo uji boleh minimal —
- * service hanya membaca yang tersedia.
+ * selalu mengisi `id`, `rejectionReason`, dan kolom Profil (Story 1.5); stub
+ * repo uji boleh minimal — service hanya membaca yang tersedia (kolom Profil
+ * absen dinilai kosong oleh predikat `profilLengkap`).
  */
 export interface OwnerRoleInput extends OwnerAccessSnapshot {
   id?: string
   email: string
   rejectionReason?: string | null
+  namaLengkap?: string | null
+  alias?: string | null
+  nomorHp?: string | null
+  kontakDarurat?: string | null
+  nomorHpKontakDarurat?: string | null
+  hubunganDenganOwner?: string | null
+  namaBank?: string | null
+  pemilikRekening?: string | null
+  nomorRekening?: string | null
 }
 
 /**
@@ -82,6 +93,7 @@ export async function buildPrincipal(repo: IdentityRepoPort, email: string): Pro
       status: owner.status,
       rejectionReason: owner.rejectionReason ?? null,
       firstEffectiveAt: owner.firstEffectiveAt,
+      profilLengkap: profilLengkap(owner),
     },
   }
 }
