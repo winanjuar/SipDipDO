@@ -212,17 +212,6 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
           <p v-if="salah.alias" class="text-xs text-destructive">{{ salah.alias }}</p>
         </div>
 
-        <div class="flex flex-col gap-1 lg:col-span-2">
-          <label for="profil-gmail" class="text-sm font-medium">Email</label>
-          <input
-            id="profil-gmail"
-            :value="gmail"
-            type="text"
-            disabled
-            class="flex h-11 w-full rounded-md border bg-muted px-3 py-1 text-sm text-muted-foreground opacity-80"
-          >
-        </div>
-
         <div class="flex flex-col gap-1">
           <label for="profil-nomorHp" class="text-sm font-medium">No HP</label>
           <input
@@ -234,6 +223,17 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
           <p v-if="salah.nomorHp" class="text-xs text-destructive">{{ salah.nomorHp }}</p>
+        </div>
+
+        <div class="flex flex-col gap-1 lg:col-span-2">
+          <label for="profil-gmail" class="text-sm font-medium">Email</label>
+          <input
+            id="profil-gmail"
+            :value="gmail"
+            type="text"
+            disabled
+            class="flex h-11 w-full rounded-md border bg-muted px-3 py-1 text-sm text-muted-foreground opacity-80"
+          >
         </div>
       </fieldset>
 
