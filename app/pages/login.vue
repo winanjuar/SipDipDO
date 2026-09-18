@@ -24,6 +24,9 @@ const errorOAuth = computed(() => {
 })
 
 async function masukGoogle() {
+  // Flag toast "Masuk berhasil." — dikonsumsi halaman landing pertama
+  // (useSekaliToastMasuk) agar konfirmasi terbaca di halaman berikutnya.
+  tandaiMasukBerhasil()
   await signIn('google', { callbackUrl: '/' })
 }
 

@@ -10,16 +10,17 @@ import type { LandingRespons } from '~/lib/landing'
  * Tanpa input referral (referral hanya di Pembelian Pertama, Epic 3).
  *
  * Mesin status halaman (SSR, seperti status-pendaftaran.vue): resolver
- * /api/landing menentukan mode — tanpa sesi = anonim (CTA "Daftar" → OAuth
- * Google); sesi unlinked = CTA "Selesaikan Pendaftaran" + status "Akun
- * Google terhubung" (pasca-OAuth halaman TIDAK lagi tampak identik —
- * laporan owner 2026-09-18: klik pertama anonim = OAuth, klik kedua =
- * tulis data) → klik memicu POST /api/pendaftaran lalu redirect
- * /status-pendaftaran; calon/non-calon = redirect landing role-nya. KLIK
- * CTA adalah SATU-SATUNYA pemicu tulis data (keputusan owner 2026-09-18:
- * data masuk DB dari aksi pendaftaran eksplisit, bukan sekadar kunjungan);
- * kegagalan menampilkan pesan envelope di region aria-live="polite" dekat
- * CTA dengan state dipertahankan.
+ * /api/landing menentukan mode — tanpa sesi = anonim (CTA "Daftar" → modal
+ * T&C → OAuth Google); sesi unlinked = CTA "Selesaikan Pendaftaran" +
+ * status "Akun Google terhubung" (pasca-OAuth halaman TIDAK lagi tampak
+ * identik — laporan owner 2026-09-18: klik pertama anonim = OAuth, klik
+ * kedua = tulis data) → modal T&C wajib dicentang → POST
+ * /api/pendaftaran lalu hard-redirect /status-pendaftaran; calon/non-calon
+ * = redirect landing role-nya. KLIK CTA + KONFIRMASI MODAL adalah
+ * SATU-SATUNYA pemicu tulis data (keputusan owner 2026-09-18: data masuk
+ * DB dari aksi pendaftaran eksplisit, bukan sekadar kunjungan); kegagalan
+ * menampilkan pesan envelope di region aria-live="polite" dekat CTA
+ * dengan state dipertahankan.
  */
 definePageMeta({ auth: false })
 
@@ -42,6 +43,34 @@ if (landing.value && !('unlinked' in landing.value)) {
 
 /** Sesi ada (respons { unlinked: true }) → CTA mengajukan pendaftaran; tanpa sesi → OAuth. */
 const denganSesi = computed(() => landing.value !== null)
+
+/** Label CTA — pasca-OAuth halaman tidak tampak identik (laporan owner
+ *  2026-09-18): anonim = "Daftar" (→ OAuth), unlinked = "Selesaikan
+ *  Pendaftaran" (→ POST). */
+const labelCta = computed(() => (denganSesi.value ? 'Selesaikan Pendaftaran' : 'Daftar'))
+
+/** Modal konfirmasi T&C (permintaan owner 2026-09-18): KLIK CTA TIDAK
+ *  langsung bereaksi — modal wajib dicentang dulu; Batal/tutup = tidak ada
+ *  OAuth, tidak ada tulisan DB. Tautan "Syarat & Ketentuan" membuka modal
+ *  yang sama (satu sumber — halaman T&C penuh di luar scope 1.4). */
+const modalSyaratTerbuka = ref(false)
+const syaratDisetujui = ref(false)
+
+function bukaModalSyarat(): void {
+  syaratDisetujui.value = false
+  modalSyaratTerbuka.value = true
+}
+
+function tutupModalSyarat(): void {
+  modalSyaratTerbuka.value = false
+}
+
+/** Konfirmasi modal → lanjutkan aksi asal (OAuth anonim / POST unlinked). */
+function konfirmasiSyarat(): void {
+  if (!syaratDisetujui.value) return
+  modalSyaratTerbuka.value = false
+  void daftarGoogle()
+}
 
 /** Pesan error envelope terakhir — region aria-live dekat CTA; state dipertahankan. */
 const pesanError = ref('')
@@ -113,10 +142,23 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
         size="lg"
         class="h-12 w-full"
         :disabled="sedangDaftar"
-        @click="daftarGoogle"
+        @click="bukaModalSyarat"
       >
-        {{ denganSesi ? 'Selesaikan Pendaftaran' : 'Daftar' }}
+        {{ labelCta }}
       </Button>
+
+      <p class="text-xs text-muted-foreground">
+        Dengan mendaftar Anda menyetujui
+        <button
+          type="button"
+          data-testid="pendaftaran-tautan-syarat"
+          class="font-medium text-primary underline underline-offset-4"
+          @click="bukaModalSyarat"
+        >
+          Syarat &amp; Ketentuan
+        </button>
+        .
+      </p>
 
       <p
         v-if="pesanError"
@@ -139,5 +181,35 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
         Status pendaftaran: Diajukan → Terverifikasi / Ditolak (dengan alasan).
       </p> -->
     </div>
+
+    <Dialog :open="modalSyaratTerbuka" @update:open="modalSyaratTerbuka = $event">
+      <DialogContent class="max-w-sm" data-testid="pendaftaran-modal-syarat">
+        <DialogHeader>
+          <DialogTitle>Konfirmasi Pendaftaran</DialogTitle>
+          <DialogDescription>
+            Sebelum melanjutkan, mohon setujui hal berikut:
+          </DialogDescription>
+        </DialogHeader>
+
+        <label class="flex min-h-11 cursor-pointer items-start gap-3 text-left text-sm leading-relaxed">
+          <input
+            v-model="syaratDisetujui"
+            type="checkbox"
+            data-testid="pendaftaran-syarat-setuju"
+            class="mt-0.5 size-4 shrink-0"
+          >
+          <span>Saya sudah memahami aturan main owner dan risiko yang mungkin harus ditanggung.</span>
+        </label>
+
+        <DialogFooter class="gap-2 sm:justify-center">
+          <Button variant="outline" data-testid="pendaftaran-syarat-batal" @click="tutupModalSyarat">
+            Batal
+          </Button>
+          <Button data-testid="pendaftaran-syarat-lanjut" :disabled="!syaratDisetujui" @click="konfirmasiSyarat">
+            Lanjutkan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </main>
 </template>

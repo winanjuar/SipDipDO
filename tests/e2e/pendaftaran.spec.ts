@@ -59,7 +59,7 @@ const emailSintetisUji = (): string => {
 }
 
 test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN PHASE)', () => {
-  test('[P0] halaman pendaftaran publik render tanpa sesi: CTA tampil, tanpa input referral', async ({ page }) => {
+  test('[P0] halaman pendaftaran publik render tanpa sesi: CTA tampil, tanpa input referral, modal T&C menutup tanpa efek', async ({ page, recurse }) => {
     await log.step('GIVEN pengunjung tanpa sesi membuka link publik pendaftaran')
     await page.goto(HALAMAN_PENDAFTARAN)
 
@@ -69,6 +69,33 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
 
     await log.step('AND form TANPA field referral (AC1: tanpa input referral)')
     await expect(page.getByRole('textbox', { name: /referral/i })).toHaveCount(0)
+
+    await log.step('WHEN klik CTA membuka modal konfirmasi T&C — Lanjutkan DISABLE sebelum centang (keputusan owner 2026-09-18)')
+    await recurse(
+      async () => {
+        if (await page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()) return true
+        try {
+          await page.getByRole('button', { name: 'Daftar' }).click()
+        } catch {
+          // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+        }
+        return page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()
+      },
+      terbuka => terbuka === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: modal konfirmasi T&C terbuka' },
+    )
+    await expect(page.getByTestId(TEST_IDS.pendaftaran.tombolLanjut)).toBeDisabled()
+
+    await log.step('WHEN Batal menutup modal')
+    await page.getByTestId(TEST_IDS.pendaftaran.tombolBatal).click()
+
+    await log.step('THEN tetap di /pendaftaran — tanpa OAuth, tanpa efek')
+    await expect(page).toHaveURL(/\/pendaftaran$/)
+    await expect(page.getByTestId(TEST_IDS.pendaftaran.modalSyarat)).toHaveCount(0)
+
+    await log.step('AND tautan "Syarat & Ketentuan" membuka modal yang sama')
+    await page.getByTestId(TEST_IDS.pendaftaran.tautanSyarat).click()
+    await expect(page.getByTestId(TEST_IDS.pendaftaran.modalSyarat)).toBeVisible()
   })
 
   test('[P0] submit pendaftaran via akun Google → POST /api/pendaftaran → redirect status + badge Diajukan', async ({
@@ -91,26 +118,28 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     // POST benar-benar tidak pernah terkirim.
     pendaftaranCall.catch(() => {})
 
-    await log.step('WHEN membuka halaman pendaftaran lalu KLIK CTA "Daftar" — satu-satunya pemicu tulis data (keputusan owner 2026-09-18: kunjungan tidak pernah menulis)')
+    await log.step('WHEN membuka halaman pendaftaran → modal T&C → centang → "Selesaikan Pendaftaran" (klik + konfirmasi = satu-satunya pemicu tulis data)')
     await page.goto(HALAMAN_PENDAFTARAN)
-    // Hidrasi Vue di dev server = eventual-consistent → recurse (pola
-    // smoke.ui.spec.ts): klik diulang sampai redirect terjadi — klik sebelum
-    // hidrasi tidak membawa handler. Spy jangan di-await DI DALAM loop
-    // (promise waitForRequest memblokir iterasi sampai timeout) — URL jadi
-    // sinyal berhenti; spy di-await setelahnya.
+    // Fase 1: klik CTA sampai modal terbuka — hidrasi Vue di dev server =
+    // eventual-consistent → recurse (pola smoke.ui.spec.ts); klik pra-hidrasi
+    // tidak membawa handler. Spy jangan di-await DI DALAM loop (promise
+    // waitForRequest memblokir iterasi) — URL/modal jadi sinyal berhenti.
     await recurse(
       async () => {
-        if (page.url().includes('/status-pendaftaran')) return true
+        if (await page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()) return true
         try {
           await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
         } catch {
-          // Klik kalah race terhadap redirect — dievaluasi ulang iterasi berikutnya.
+          // Klik kalah race hidrasi — dievaluasi ulang iterasi berikutnya.
         }
-        return page.url().includes('/status-pendaftaran')
+        return page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()
       },
-      selesai => selesai === true,
-      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA mengirim POST lalu redirect' },
+      terbuka => terbuka === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: modal konfirmasi T&C terbuka' },
     )
+    // Fase 2: modal terbuka = Vue hidup → centang wajib lalu konfirmasi SEKALI.
+    await page.getByTestId(TEST_IDS.pendaftaran.checkboxSyarat).check()
+    await page.getByTestId(TEST_IDS.pendaftaran.tombolLanjut).click()
 
     await log.step('THEN panggilan pendaftaran terkirim (201)')
     const { status } = await pendaftaranCall
@@ -121,6 +150,9 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     // query; flag dibersihkan onMounted (race) jadi tak di-pin.
     await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: BATAS_RECURSE_SUBMIT_MS })
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
+
+    await log.step('AND toast sukses tampil di halaman BERIKUTNYA (bukan halaman yang tertimpa redirect)')
+    await expect(page.getByText('Pendaftaran berhasil diajukan.')).toBeVisible()
   })
 
   test('[P0] badge Diajukan tampil dengan aria-live polite di halaman status', async ({
@@ -166,19 +198,26 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
         fulfillResponse: { status: 409, body: { message: 'Email ini sudah terdaftar' } },
       })
 
-      await log.step('WHEN membuka halaman pendaftaran lalu submit hingga halaman menampilkan kegagalan')
+      await log.step('WHEN membuka halaman pendaftaran → modal T&C → centang → "Selesaikan Pendaftaran" → stub 409 tampil sebagai pesan error')
       await page.goto(HALAMAN_PENDAFTARAN)
-      // Label CTA "Daftar" = re-negotiasi copy owner 2026-09-18 (lihat header file).
-      // Hidrasi Vue di dev server = eventual-consistent → recurse (pola
-      // smoke.ui.spec.ts): klik diulang sampai pesan error envelope tampil.
+      // Fase 1: klik CTA sampai modal terbuka (klik pra-hidrasi tanpa handler).
       await recurse(
         async () => {
-          await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
-          return page.getByText(/sudah terdaftar/i).isVisible()
+          if (await page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()) return true
+          try {
+            await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
+          } catch {
+            // Klik kalah race hidrasi — dievaluasi ulang iterasi berikutnya.
+          }
+          return page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()
         },
-        tampil => tampil === true,
-        { timeout: BATAS_RECURSE_PESAN_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: pesan error envelope tampil' },
+        terbuka => terbuka === true,
+        { timeout: BATAS_RECURSE_PESAN_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: modal konfirmasi T&C terbuka' },
       )
+      // Fase 2: centang + konfirmasi → POST kena stub 409 → pesan envelope.
+      await page.getByTestId(TEST_IDS.pendaftaran.checkboxSyarat).check()
+      await page.getByTestId(TEST_IDS.pendaftaran.tombolLanjut).click()
+      await expect(page.getByText(/sudah terdaftar/i)).toBeVisible()
 
       await log.step('THEN POST stub teramati dan pesan error envelope tampil di dekat CTA')
       await duplikatCall

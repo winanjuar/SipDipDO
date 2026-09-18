@@ -6,6 +6,8 @@
  */
 definePageMeta({ auth: true })
 
+useSekaliToastMasuk()
+
 useHead({ title: 'Halaman Personal — Sip & Dip' })
 </script>
 

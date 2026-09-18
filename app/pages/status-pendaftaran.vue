@@ -45,13 +45,16 @@ const badge = statusData ? PETA_BADGE[statusData.status] : null
 const alasanPenolakan = statusData?.rejectionReason ?? ''
 
 /** Toast konfirmasi pasca-daftar (permintaan owner 2026-09-18): flag query
- *  dari pendaftaran.vue → toast SEKALI lalu query dibersihkan agar refresh/
- *  bagikan URL tidak mengulang konfirmasi. Klien-saja (onMounted). */
+ *  dari pendaftaran.vue → toast SEKALI berdurasi panjang lalu query
+ *  dibersihkan agar refresh/bagikan URL tidak mengulang konfirmasi.
+ *  Klien-saja (onMounted). Toast "Masuk berhasil." dilewati di sini bila
+ *  toast daftar tampil (jangan dua toast bertumpuk). */
 const route = useRoute()
 const router = useRouter()
+useSekaliToastMasuk()
 onMounted(() => {
   if (route.query.daftar === FLAG_DAFTAR_BERHASIL) {
-    toast.success('Pendaftaran berhasil diajukan.')
+    toast.success('Pendaftaran berhasil diajukan.', { duration: DURASI_TOAST_SUKSES_MS })
     void router.replace({ query: { ...route.query, daftar: undefined } })
   }
 })

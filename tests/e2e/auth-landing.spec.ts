@@ -228,22 +228,31 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await expect(page.getByText('Akun Google Anda sudah terhubung — tinggal satu langkah lagi.')).toBeVisible()
       await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toBeVisible()
 
-      await log.step('WHEN menekan CTA "Selesaikan Pendaftaran" — aksi pendaftaran eksplisit')
+      await log.step('THEN mendarat di halaman pendaftaran TANPA tulisan data — kunjungan tidak pernah membuat baris owner (keputusan owner 2026-09-18)')
+      await expect(page).toHaveURL(/\/pendaftaran$/, { timeout: 15_000 })
+      // Pasca-OAuth halaman TIDAK lagi tampak identik (laporan owner
+      // 2026-09-18): status koneksi + CTA berubah label.
+      await expect(page.getByText('Akun Google Anda sudah terhubung — tinggal satu langkah lagi.')).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toBeVisible()
+
+      await log.step('WHEN menekan CTA "Selesaikan Pendaftaran" → modal T&C → centang → "Lanjutkan" (aksi pendaftaran eksplisit)')
       // Hidrasi Vue di dev server = eventual-consistent → recurse: klik
-      // diulang sampai redirect terjadi (klik sebelum hidrasi tanpa handler).
+      // diulang sampai modal terbuka (klik sebelum hidrasi tanpa handler).
       await recurse(
         async () => {
-          if (page.url().includes('/status-pendaftaran')) return true
+          if (await page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()) return true
           try {
             await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
           } catch {
-            // Klik kalah race terhadap redirect — dievaluasi ulang iterasi berikutnya.
+            // Klik kalah race hidrasi — dievaluasi ulang iterasi berikutnya.
           }
-          return page.url().includes('/status-pendaftaran')
+          return page.getByTestId(TEST_IDS.pendaftaran.modalSyarat).isVisible()
         },
-        selesai => selesai === true,
-        { timeout: BATAS_RECURSE_DAFTAR_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA Daftar mengirim POST lalu redirect' },
+        terbuka => terbuka === true,
+        { timeout: BATAS_RECURSE_DAFTAR_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: modal konfirmasi T&C terbuka' },
       )
+      await page.getByTestId(TEST_IDS.pendaftaran.checkboxSyarat).check()
+      await page.getByTestId(TEST_IDS.pendaftaran.tombolLanjut).click()
 
       await log.step('THEN dialihkan ke status pendaftaran dengan badge Diajukan (hard navigation + flag toast)')
       await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: 15_000 })
@@ -265,6 +274,29 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText(labelBadge)
       await expect(page.getByTestId(TEST_IDS.statusPendaftaran.alasanPenolakan)).toHaveCount(0)
     }
+  })
+
+  test('[P2] toast "Masuk berhasil." tampil SEKALI di landing pertama (permintaan owner: toast di halaman berikutnya)', async ({ page, context, apiRequest }) => {
+    // Kontrak flag: kunci sessionStorage milik app/composables/useSekaliToast.ts
+    // (halaman login menandai sebelum signIn; landing pertama mengonsumsi).
+    const KUNCI_FLAG_MASUK = 'snd-dash.toast-masuk-berhasil'
+    await log.step("GIVEN sesi COO sudah diinjeksikan di landing /antrian-beli")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    await context.addCookies(cookies)
+    await page.goto('/antrian-beli')
+
+    await log.step('AND flag toast masuk ditandai (simulasi halaman login pre-signIn)')
+    await page.evaluate(kunci => sessionStorage.setItem(kunci, '1'), KUNCI_FLAG_MASUK)
+
+    await log.step('WHEN halaman landing dimuat ulang (mount pertama dengan flag)')
+    await page.reload()
+    await expect(page.getByText('Masuk berhasil.')).toBeVisible()
+
+    await log.step('WHEN reload kedua (flag sudah dikonsumsi)')
+    await page.reload()
+
+    await log.step('THEN toast TIDAK muncul lagi')
+    await expect(page.getByText('Masuk berhasil.')).toHaveCount(0)
   })
 
   test('[P1] penutupan tenure COO memindahkan landing sesuai role baru', async ({ page, context, apiRequest }) => {
