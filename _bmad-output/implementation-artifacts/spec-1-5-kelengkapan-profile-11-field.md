@@ -3,7 +3,7 @@ title: 'Story 1.5 — Kelengkapan Profile 11 Field'
 type: 'feature'
 created: '2026-09-18'
 baseline_commit: '10da2f0e535f27dd6fcb7184e06d8cf3521a7917'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
