@@ -47,17 +47,17 @@ if (!landing) {
 /** Bentuk wire GET/PUT /api/profile (server/api/profile) — duplikasi bentuk
  *  terkontrol ala lib/landing.ts; kanoniknya handler + shared/domain/profil. */
 interface ResponsProfil {
-  namaLengkap: string
+  fullName: string
   alias: string
   gmail: string
-  nomorHp: string
-  kontakDarurat: string
-  nomorHpKontakDarurat: string
-  hubunganDenganOwner: string
-  namaBank: string
-  bankLain: string
-  pemilikRekening: string
-  nomorRekening: string
+  phoneNumber: string
+  emergencyContactName: string
+  emergencyContactPhoneNumber: string
+  emergencyContactRelationship: string
+  bankName: string
+  otherBankName: string
+  accountHolderName: string
+  accountNumber: string
   profileComplete: boolean
   remainingFields: string[]
   referralCode: string
@@ -93,17 +93,17 @@ const isian = reactive(
   Object.fromEntries(
     FIELD_PROFIL_SIMPAN.map((kunci) => [
       kunci,
-      kunci === 'namaLengkap'
+      kunci === 'fullName'
         // Prefill Google (keputusan owner 2026-09-18): Nama diisi dari profil
         // Google HANYA bila kolom masih kosong — tetap editable, tidak pernah
         // menimpa data tersimpan.
-        ? (profilTersimpan.value?.namaLengkap || profilTersimpan.value?.namaDariGoogle || '')
+        ? (profilTersimpan.value?.fullName || profilTersimpan.value?.namaDariGoogle || '')
         : (profilTersimpan.value?.[kunci] ?? ''),
     ]),
   ),
 ) as Record<KunciFieldProfil, string>
 
-/** Sisa field wajib kosong — murni via kontrak shared (bankLain bersyarat). */
+/** Sisa field wajib kosong — murni via kontrak shared (otherBankName bersyarat). */
 const sisa = computed(() => sisaFieldKosong(isian))
 
 /** Pesan gagal non-validasi (UX-DR19) — verbatim; isian dipertahankan. */
@@ -224,16 +224,16 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         <legend class="px-1 text-sm font-semibold">Pribadi</legend>
 
         <div class="flex flex-col gap-1 lg:col-span-2">
-          <label for="profil-namaLengkap" class="text-sm font-medium">Nama</label>
+          <label for="profil-fullName" class="text-sm font-medium">Nama</label>
           <input
-            id="profil-namaLengkap"
-            v-model="isian.namaLengkap"
+            id="profil-fullName"
+            v-model="isian.fullName"
             type="text"
             :maxlength="PANJANG_MAKS_NAMA"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.namaLengkap" class="text-xs text-destructive">{{ salah.namaLengkap }}</p>
+          <p v-if="salah.fullName" class="text-xs text-destructive">{{ salah.fullName }}</p>
         </div>
 
         <div class="flex flex-col gap-1">
@@ -250,16 +250,16 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-nomorHp" class="text-sm font-medium">No HP</label>
+          <label for="profil-phoneNumber" class="text-sm font-medium">No HP</label>
           <input
-            id="profil-nomorHp"
-            v-model="isian.nomorHp"
+            id="profil-phoneNumber"
+            v-model="isian.phoneNumber"
             type="text"
             inputmode="tel"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.nomorHp" class="text-xs text-destructive">{{ salah.nomorHp }}</p>
+          <p v-if="salah.phoneNumber" class="text-xs text-destructive">{{ salah.phoneNumber }}</p>
         </div>
 
         <div class="flex flex-col gap-1 lg:col-span-2">
@@ -279,35 +279,35 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         <legend class="px-1 text-sm font-semibold">Info Kontak Darurat</legend>
 
         <div class="flex flex-col gap-1 lg:col-span-2">
-          <label for="profil-kontakDarurat" class="text-sm font-medium">Nama</label>
+          <label for="profil-emergencyContactName" class="text-sm font-medium">Nama</label>
           <input
-            id="profil-kontakDarurat"
-            v-model="isian.kontakDarurat"
+            id="profil-emergencyContactName"
+            v-model="isian.emergencyContactName"
             type="text"
             :maxlength="PANJANG_MAKS_NAMA"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.kontakDarurat" class="text-xs text-destructive">{{ salah.kontakDarurat }}</p>
+          <p v-if="salah.emergencyContactName" class="text-xs text-destructive">{{ salah.emergencyContactName }}</p>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-nomorHpKontakDarurat" class="text-sm font-medium">No HP</label>
+          <label for="profil-emergencyContactPhoneNumber" class="text-sm font-medium">No HP</label>
           <input
-            id="profil-nomorHpKontakDarurat"
-            v-model="isian.nomorHpKontakDarurat"
+            id="profil-emergencyContactPhoneNumber"
+            v-model="isian.emergencyContactPhoneNumber"
             type="text"
             inputmode="tel"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.nomorHpKontakDarurat" class="text-xs text-destructive">{{ salah.nomorHpKontakDarurat }}</p>
+          <p v-if="salah.emergencyContactPhoneNumber" class="text-xs text-destructive">{{ salah.emergencyContactPhoneNumber }}</p>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-hubunganDenganOwner" class="text-sm font-medium">Hubungan</label>
-          <Select v-model="isian.hubunganDenganOwner">
-            <SelectTrigger id="profil-hubunganDenganOwner" class="h-11 w-full">
+          <label for="profil-emergencyContactRelationship" class="text-sm font-medium">Hubungan</label>
+          <Select v-model="isian.emergencyContactRelationship">
+            <SelectTrigger id="profil-emergencyContactRelationship" class="h-11 w-full">
               <SelectValue placeholder="Pilih hubungan…" />
             </SelectTrigger>
             <SelectContent>
@@ -318,48 +318,48 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
               </SelectGroup>
             </SelectContent>
           </Select>
-          <p v-if="salah.hubunganDenganOwner" class="text-xs text-destructive">{{ salah.hubunganDenganOwner }}</p>
+          <p v-if="salah.emergencyContactRelationship" class="text-xs text-destructive">{{ salah.emergencyContactRelationship }}</p>
         </div>
       </fieldset>
 
       <!-- Grup 3 — Info Rekening (Lampiran A #8-10; urutan re-negotiasi owner
            2026-09-18 #5: No. Rekening → Pemilik → Bank); dropdown shadcn
            urut alfabetis, opsi "Lainnya" terakhir dan membuka input
-           bankLain DI SEBELAH combobox (maxlength + sanitasi server). -->
+           otherBankName DI SEBELAH combobox (maxlength + sanitasi server). -->
       <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
         <legend class="px-1 text-sm font-semibold">Info Rekening</legend>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-nomorRekening" class="text-sm font-medium">No. Rekening</label>
+          <label for="profil-accountNumber" class="text-sm font-medium">No. Rekening</label>
           <input
-            id="profil-nomorRekening"
-            v-model="isian.nomorRekening"
+            id="profil-accountNumber"
+            v-model="isian.accountNumber"
             type="text"
             inputmode="numeric"
             :maxlength="PANJANG_MAKS_REKENING"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.nomorRekening" class="text-xs text-destructive">{{ salah.nomorRekening }}</p>
+          <p v-if="salah.accountNumber" class="text-xs text-destructive">{{ salah.accountNumber }}</p>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-pemilikRekening" class="text-sm font-medium">Pemilik</label>
+          <label for="profil-accountHolderName" class="text-sm font-medium">Pemilik</label>
           <input
-            id="profil-pemilikRekening"
-            v-model="isian.pemilikRekening"
+            id="profil-accountHolderName"
+            v-model="isian.accountHolderName"
             type="text"
             :maxlength="PANJANG_MAKS_NAMA"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.pemilikRekening" class="text-xs text-destructive">{{ salah.pemilikRekening }}</p>
+          <p v-if="salah.accountHolderName" class="text-xs text-destructive">{{ salah.accountHolderName }}</p>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-namaBank" class="text-sm font-medium">Bank</label>
-          <Select v-model="isian.namaBank">
-            <SelectTrigger id="profil-namaBank" class="h-11 w-full">
+          <label for="profil-bankName" class="text-sm font-medium">Bank</label>
+          <Select v-model="isian.bankName">
+            <SelectTrigger id="profil-bankName" class="h-11 w-full">
               <SelectValue placeholder="Pilih bank…" />
             </SelectTrigger>
             <SelectContent>
@@ -371,20 +371,20 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
               </SelectGroup>
             </SelectContent>
           </Select>
-          <p v-if="salah.namaBank" class="text-xs text-destructive">{{ salah.namaBank }}</p>
+          <p v-if="salah.bankName" class="text-xs text-destructive">{{ salah.bankName }}</p>
         </div>
 
-        <div v-if="isian.namaBank === BANK_LAINNYA" class="flex flex-col gap-1">
-          <label for="profil-bankLain" class="text-sm font-medium">Bank Lainnya</label>
+        <div v-if="isian.bankName === BANK_LAINNYA" class="flex flex-col gap-1">
+          <label for="profil-otherBankName" class="text-sm font-medium">Bank Lainnya</label>
           <input
-            id="profil-bankLain"
-            v-model="isian.bankLain"
+            id="profil-otherBankName"
+            v-model="isian.otherBankName"
             type="text"
             :maxlength="PANJANG_MAKS_NAMA"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
-          <p v-if="salah.bankLain" class="text-xs text-destructive">{{ salah.bankLain }}</p>
+          <p v-if="salah.otherBankName" class="text-xs text-destructive">{{ salah.otherBankName }}</p>
         </div>
       </fieldset>
 
