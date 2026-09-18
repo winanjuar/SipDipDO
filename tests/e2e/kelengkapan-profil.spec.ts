@@ -1,5 +1,10 @@
 /**
  * ATDD — Story 1.5 "Kelengkapan Profile 11 Field" (E2E UI — CAP-1/2/3/6:
+ * validasi/sanitasi form — re-negotiasi owner 2026-09-18: batas panjang
+ * (nama 25/alias 10/rekening 20), HP 0+9-15 digit, dropdown Bank (7+
+ * "Lainnya" membuka textbox bankLain) & Hubungan, prefill Nama dari profil
+ * Google bila kosong, error format inline per-field dari 400
+ * PROFILE_INVALID).
  * halaman Kelengkapan Profile, indikator langkah, gerbang navigasi, toast
  * gagal non-validasi).
  *
@@ -49,25 +54,32 @@ const LEGEND_REKENING = 'Info Rekening'
 const LEGEND_REFERAL = 'Referal'
 
 /**
- * Peta grup → field editable: pasangan [label singkat, kunci kontrak wire].
- * Urutan mengikuti halaman; label duplikat antar grup ("Nama", "No HP")
- * aman karena locator selalu di-scope ke fieldset.
+ * Peta grup → field editable: pasangan [label singkat, kunci kontrak wire,
+ * jenis kontrol]. Bank & Hubungan = dropdown (re-negotiasi owner); label
+ * duplikat antar grup ("Nama", "No HP") aman karena locator selalu di-scope
+ * ke fieldset. `bankLain` absen — textbox kondisional hanya muncul saat Bank
+ * "Lainnya" (dipin test alur khusus).
  */
-const FIELD_EDITABLE: readonly { legend: string, label: string, kunci: string }[] = [
-  { legend: LEGEND_PRIBADI, label: 'Nama', kunci: 'namaLengkap' },
-  { legend: LEGEND_PRIBADI, label: 'Alias', kunci: 'alias' },
-  { legend: LEGEND_PRIBADI, label: 'No HP', kunci: 'nomorHp' },
-  { legend: LEGEND_KONTAK_DARURAT, label: 'Nama', kunci: 'kontakDarurat' },
-  { legend: LEGEND_KONTAK_DARURAT, label: 'No HP', kunci: 'nomorHpKontakDarurat' },
-  { legend: LEGEND_KONTAK_DARURAT, label: 'Hubungan', kunci: 'hubunganDenganOwner' },
-  { legend: LEGEND_REKENING, label: 'Bank', kunci: 'namaBank' },
-  { legend: LEGEND_REKENING, label: 'Pemilik', kunci: 'pemilikRekening' },
-  { legend: LEGEND_REKENING, label: 'No. Rekening', kunci: 'nomorRekening' },
+const FIELD_EDITABLE: readonly { legend: string, label: string, kunci: string, jenis: 'input' | 'select' }[] = [
+  { legend: LEGEND_PRIBADI, label: 'Nama', kunci: 'namaLengkap', jenis: 'input' },
+  { legend: LEGEND_PRIBADI, label: 'Alias', kunci: 'alias', jenis: 'input' },
+  { legend: LEGEND_PRIBADI, label: 'No HP', kunci: 'nomorHp', jenis: 'input' },
+  { legend: LEGEND_KONTAK_DARURAT, label: 'Nama', kunci: 'kontakDarurat', jenis: 'input' },
+  { legend: LEGEND_KONTAK_DARURAT, label: 'No HP', kunci: 'nomorHpKontakDarurat', jenis: 'input' },
+  { legend: LEGEND_KONTAK_DARURAT, label: 'Hubungan', kunci: 'hubunganDenganOwner', jenis: 'select' },
+  { legend: LEGEND_REKENING, label: 'Bank', kunci: 'namaBank', jenis: 'select' },
+  { legend: LEGEND_REKENING, label: 'Pemilik', kunci: 'pemilikRekening', jenis: 'input' },
+  { legend: LEGEND_REKENING, label: 'No. Rekening', kunci: 'nomorRekening', jenis: 'input' },
 ]
 
-/** 9 kunci kontrak PUT — dipin terurut; field referral TIDAK boleh ikut. */
+/** Nilai sah default untuk field dropdown (enum shared/domain/profil). */
+const BANK_UJI = 'BCA'
+const HUBUNGAN_UJI = 'Saudara'
+
+/** 10 kunci kontrak PUT — dipin terurut; field referral TIDAK boleh ikut. */
 const KUNCI_KONTRAK_PUT = [
   'alias',
+  'bankLain',
   'hubunganDenganOwner',
   'kontakDarurat',
   'namaBank',
@@ -77,6 +89,15 @@ const KUNCI_KONTRAK_PUT = [
   'nomorRekening',
   'pemilikRekening',
 ] as const
+
+/** Nama tetap token sesi mint — sumber prefill Google field Nama. */
+const NAMA_SESI_MINT = 'Pemilik Uji Sintetis'
+
+/** Batas panjang client-side (paritas PANJANG_MAKS_NAMA shared/domain/profil). */
+const PANJANG_MAKS_NAMA_UJI = 25
+
+/** Pesan inline kode format-salah (verbatim halaman). */
+const PESAN_FORMAT_SALAH = 'Hanya angka dan tanda "-".'
 
 /** Nama field Lampiran A penuh yang dipakai indikator (UX-DR16 persis). */
 const NAMA_FIELD_KOSONG_CONTOH = 'Nama Bank'
@@ -101,17 +122,62 @@ const headerCookieDariMint = (cookies: Cookie[]): Record<string, string> => ({
 const locatorField = (page: Page, legend: string, label: string): Locator =>
   page.getByRole('group', { name: legend }).getByLabel(label, { exact: true })
 
+/** Tanda tangan minimal fixture recurse (playwright-utils) untuk helper. */
+type RecurseSesi = <T>(
+  fn: () => Promise<T>,
+  predikat: (nilai: T) => boolean,
+  opts?: { timeout?: number, interval?: number, log?: string },
+) => Promise<T>
+
+/**
+ * Tunggu hidrasi Vue selesai (tombol Simpan membawa data-terhidrasi="true")
+ * sebelum interaksi apa pun — select v-model di-reset oleh hidrasi dari
+ * state SSR (debug 2026-09-18), sehingga selectOption pra-hidrasi bisa
+ * lenyap diam-diam; input teks kebetulan selamat.
+ */
+async function tungguHidrasi(page: Page): Promise<void> {
+  await expect(page.getByRole('button', { name: 'Simpan' })).toHaveAttribute('data-terhidrasi', 'true')
+}
+
+/**
+ * Isi satu field ter-scope. Input teks memakai fill; SELECT dibungkus recurse
+ * verifikasi — nilai selectOption yang dipasang PRA-hidrasi Vue ter-reset
+ * oleh hidrasi (snapshot debug 2026-09-18: dua select kosong walau sudah
+ * dipilih), jadi pemilihan diulang sampai benar-benar menempel pasca-hidrasi.
+ */
+async function isiField(recurse: RecurseSesi, page: Page, legend: string, label: string, jenis: 'input' | 'select', nilai: string): Promise<void> {
+  const lokasi = locatorField(page, legend, label)
+  if (jenis === 'select') {
+    await recurse(
+      async () => {
+        try {
+          await lokasi.selectOption(nilai)
+        } catch {
+          // Pra-hidrasi tanpa handler penuh — dievaluasi ulang iterasi berikutnya.
+        }
+        return (await lokasi.inputValue()) === nilai
+      },
+      menempel => menempel === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: `Menunggu pilihan ${label} menempel pasca-hidrasi` },
+    )
+  } else {
+    await lokasi.fill(nilai)
+  }
+}
+
 /** Factory 9 field profil tersimpan sintetis (endpoint langsung PUT
  *  /api/profile — pasca-review; pola profil.api.spec.ts). */
 const profilLengkapUji = (): Record<string, string> => ({
-  namaLengkap: faker.person.fullName(),
-  alias: faker.person.firstName(),
+  // Nilai patuh batas validasi (nama <=25, alias <=5, enum sah).
+  namaLengkap: `Uji ${faker.string.alphanumeric(6)}`,
+  alias: faker.string.alphanumeric({ length: 5, casing: 'lower' }),
   nomorHp: '0812' + faker.string.numeric(8),
-  kontakDarurat: faker.person.fullName(),
+  kontakDarurat: `Uji ${faker.string.alphanumeric(6)}`,
   nomorHpKontakDarurat: '0813' + faker.string.numeric(8),
-  hubunganDenganOwner: 'Saudara',
-  namaBank: 'Bank Uji Sentral',
-  pemilikRekening: faker.person.fullName(),
+  hubunganDenganOwner: HUBUNGAN_UJI,
+  namaBank: BANK_UJI,
+  bankLain: '',
+  pemilikRekening: `Uji ${faker.string.alphanumeric(6)}`,
   nomorRekening: faker.string.numeric(10),
 })
 
@@ -121,8 +187,18 @@ const emailSintetisUji = (): string => {
   return `uji.snddash.e2e.${lokalUji}@gmail.com`
 }
 
-/** Nilai sintetis untuk satu field (kunci kontrak — bukan label). */
-const nilaiSintetisUntuk = (kunci: string): string => `Uji ${kunci} ${faker.string.alphanumeric(6)}`
+/**
+ * Nilai sintetis PATUH aturan field (re-negotiasi owner 2026-09-18): nomor
+ * HP/rekening hanya digit (awalan 0 untuk HP), alias <=10, nama bebas <=25 —
+ * supaya tidak terpotong maxlength client-side saat fill.
+ */
+const nilaiSintetisUntuk = (kunci: string): string => {
+  if (kunci === 'nomorHp') return '0812' + faker.string.numeric(8)
+  if (kunci === 'nomorHpKontakDarurat') return '0813' + faker.string.numeric(8)
+  if (kunci === 'nomorRekening') return faker.string.numeric(10)
+  if (kunci === 'alias') return faker.string.alphanumeric({ length: 6, casing: 'lower' })
+  return `Uji ${kunci.slice(0, 8)} ${faker.string.alphanumeric(4)}`
+}
 
 test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => {
   test('[P0] halaman Kelengkapan Profile: 4 grup field, Email readonly, referal tampil, indikator menyebut field kosong, tanpa nav lain', async ({ page, context, apiRequest }) => {
@@ -137,6 +213,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
     await log.step('WHEN membuka /profile-completeness')
     await page.goto(HALAMAN_KELENGKAPAN)
+    await tungguHidrasi(page)
 
     await log.step('THEN 4 grup fieldset ber-legend tampil (re-negotiasi owner)')
     for (const legend of [LEGEND_PRIBADI, LEGEND_KONTAK_DARURAT, LEGEND_REKENING, LEGEND_REFERAL]) {
@@ -166,6 +243,15 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
     await expect(indikator.getByText('Nomor Rekening')).toBeVisible()
 
+    await log.step('AND Nama ter-prefill dari profil Google sesi (kolom masih kosong) — tetap editable')
+    const namaAwal = locatorField(page, LEGEND_PRIBADI, 'Nama')
+    await expect(namaAwal).toHaveValue(NAMA_SESI_MINT)
+    await expect(namaAwal).toBeEditable()
+
+    await log.step('AND maxlength client-side memotong isian Nama pada 25 karakter')
+    await namaAwal.fill('A'.repeat(PANJANG_MAKS_NAMA_UJI + 5))
+    expect((await namaAwal.inputValue()).length).toBe(PANJANG_MAKS_NAMA_UJI)
+
     await log.step('AND TANPA navigasi lain (UX-DR14 — hanya Kelengkapan Profile + status)')
     await expect(page.getByRole('link', { name: /dashboard/i })).toHaveCount(0)
     await expect(page.getByRole('link', { name: /antrian/i })).toHaveCount(0)
@@ -185,13 +271,14 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     const simpanCall = interceptNetworkCall({ url: '**/api/profile', method: 'PUT' })
 
     await page.goto(HALAMAN_KELENGKAPAN)
+    await tungguHidrasi(page)
 
-    await log.step('WHEN seluruh 9 field editable diisi nilai sintetis dan tombol simpan diklik')
+    await log.step('WHEN seluruh field editable diisi (input diisi nilai sintetis; dropdown memilih enum sah) lalu tombol simpan diklik')
     const nilaiField = new Map<string, string>()
-    for (const { legend, label, kunci } of FIELD_EDITABLE) {
-      const nilai = nilaiSintetisUntuk(kunci)
+    for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
+      const nilai = kunci === 'namaBank' ? BANK_UJI : kunci === 'hubunganDenganOwner' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
       nilaiField.set(kunci, nilai)
-      await locatorField(page, legend, label).fill(nilai)
+      await isiField(recurse, page, legend, label, jenis, nilai)
     }
     await recurse(
       async () => {
@@ -206,7 +293,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu simpan profil + indikator lengkap' },
     )
 
-    await log.step('THEN body PUT persis 9 kunci kontrak (tanpa field referral/Email)')
+    await log.step('THEN body PUT persis 10 kunci kontrak (termasuk bankLain kosong; tanpa field referral/Email)')
     const { requestJson } = await simpanCall
     expect(Object.keys(requestJson as Record<string, unknown>).sort()).toEqual([...KUNCI_KONTRAK_PUT])
 
@@ -243,6 +330,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       })
 
       await page.goto(HALAMAN_KELENGKAPAN)
+      await tungguHidrasi(page)
 
       await log.step('WHEN 3 field diisi lalu tombol simpan diklik (dibungkus recurse hidrasi)')
       const isian: readonly { legend: string, label: string, nilai: string }[] = [
@@ -251,7 +339,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         { legend: LEGEND_PRIBADI, label: 'No HP', nilai: nilaiSintetisUntuk('nomorHp') },
       ]
       for (const { legend, label, nilai } of isian) {
-        await locatorField(page, legend, label).fill(nilai)
+        await isiField(recurse, page, legend, label, 'input', nilai)
       }
       await recurse(
         async () => {
@@ -390,14 +478,15 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       )
 
       await page.goto(HALAMAN_KELENGKAPAN)
+      await tungguHidrasi(page)
 
-      await log.step('WHEN 8 dari 9 field diisi — Bank sengaja dikosongkan — lalu simpan diklik')
-      const isian: { legend: string, label: string, nilai: string }[] = []
-      for (const { legend, label, kunci } of FIELD_EDITABLE) {
+      await log.step('WHEN seluruh field diisi kecuali Bank (placeholder) — lalu simpan diklik')
+      const isian: { legend: string, label: string, jenis: 'input' | 'select', nilai: string }[] = []
+      for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
         if (kunci === 'namaBank') continue
-        const nilai = nilaiSintetisUntuk(kunci)
-        isian.push({ legend, label, nilai })
-        await locatorField(page, legend, label).fill(nilai)
+        const nilai = kunci === 'hubunganDenganOwner' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
+        isian.push({ legend, label, jenis, nilai })
+        await isiField(recurse, page, legend, label, jenis, nilai)
       }
       await recurse(
         async () => {
@@ -424,6 +513,118 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       for (const { legend, label, nilai } of isian) {
         await expect(locatorField(page, legend, label)).toHaveValue(nilai)
       }
+    },
+  )
+
+  test(
+    '[P1] format HP salah (400 PROFILE_INVALID): error inline per-field, alert generik TIDAK tampil, isian dipertahankan',
+    { annotation: [{ type: 'skipNetworkMonitoring' }] },
+    async ({ page, context, apiRequest, recurse }) => {
+      // skipNetworkMonitoring: PUT 400 disengaja (cabang validasi FORMAT
+      // dipin — re-negotiasi owner 2026-09-18) — bukan bug jaringan.
+      await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
+      const cookies = await mintSesiPemilik(apiRequest, {
+        userIdentifier: 'tanpa-saham',
+        status: 'diajukan',
+        email: emailSintetisUji(),
+      })
+      await context.addCookies(cookies)
+      await page.goto(HALAMAN_KELENGKAPAN)
+      await tungguHidrasi(page)
+
+      await log.step('WHEN seluruh field diisi valid KECUALI No HP memuat huruf, lalu simpan diklik')
+      const nilaiSesuai = new Map<string, string>()
+      for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
+        const nilai = kunci === 'nomorHp'
+          ? '08-ABC-9999'
+          : kunci === 'namaBank' ? BANK_UJI : kunci === 'hubunganDenganOwner' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
+        nilaiSesuai.set(kunci, nilai)
+        await isiField(recurse, page, legend, label, jenis, nilai)
+      }
+      await recurse(
+        async () => {
+          try {
+            await page.getByRole('button', { name: /simpan/i }).click()
+          } catch {
+            // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+          }
+          return page.getByText(PESAN_FORMAT_SALAH).isVisible()
+        },
+        tampil => tampil === true,
+        { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu error inline format No HP' },
+      )
+
+      await log.step('THEN pesan inline format tampil DI BAWAH No HP (scoped grup Pribadi)')
+      await expect(page.getByRole('group', { name: LEGEND_PRIBADI }).getByText(PESAN_FORMAT_SALAH)).toBeVisible()
+
+      await log.step('AND alert generik gagal-simpan TIDAK tampil (khusus non-validasi)')
+      await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toHaveCount(0)
+
+      await log.step('AND seluruh isian dipertahankan')
+      for (const { legend, label, kunci } of FIELD_EDITABLE) {
+        await expect(locatorField(page, legend, label)).toHaveValue(nilaiSesuai.get(kunci) ?? '')
+      }
+    },
+  )
+
+  test(
+    '[P1] alur Bank "Lainnya": textbox muncul, wajib diisi, tersimpan & persisten',
+    { annotation: [{ type: 'skipNetworkMonitoring' }] },
+    async ({ page, context, apiRequest, recurse }) => {
+      // skipNetworkMonitoring: PUT 400 tahap pertama DISKENARIO-KAN (Bank
+      // "Lainnya" tanpa bankLain → PROFILE_INCOMPLETE adalah kontrak yang
+      // dipin) — bukan bug jaringan.
+    await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await tungguHidrasi(page)
+
+    await log.step('WHEN seluruh field diisi valid + Bank "Lainnya" dipilih — textbox Bank Lainnya muncul tapi dibiarkan kosong')
+    for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
+      const nilai = kunci === 'namaBank' ? 'Lainnya' : kunci === 'hubunganDenganOwner' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
+      await isiField(recurse, page, legend, label, jenis, nilai)
+    }
+    const bankLainInput = locatorField(page, LEGEND_REKENING, 'Bank Lainnya')
+    await expect(bankLainInput).toBeVisible()
+
+    await log.step('THEN simpan tanpa bankLain → indikator menyebut field wajib "Bank Lainnya" (nama Lampiran penuh)')
+    await recurse(
+      async () => {
+        try {
+          await page.getByRole('button', { name: /simpan/i }).click()
+        } catch {
+          // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+        }
+        return page.getByTestId(TEST_IDS.kelengkapanProfil.indikator).getByText('Bank Lainnya').isVisible()
+      },
+      tampil => tampil === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu indikator memuat Bank Lainnya' },
+    )
+
+    await log.step('WHEN bankLain diisi lalu simpan → profil lengkap')
+    await bankLainInput.fill('SeaBank')
+    await recurse(
+      async () => {
+        try {
+          await page.getByRole('button', { name: /simpan/i }).click()
+        } catch {
+          // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+        }
+        return page.getByText(/profil lengkap/i).first().isVisible()
+      },
+      lengkap => lengkap === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu profil lengkap' },
+    )
+
+    await log.step('THEN reload — dropdown tetap "Lainnya" dan bankLain persisten')
+    await page.reload()
+    await expect(locatorField(page, LEGEND_REKENING, 'Bank')).toHaveValue('Lainnya')
+    await expect(locatorField(page, LEGEND_REKENING, 'Bank Lainnya')).toHaveValue('SeaBank')
     },
   )
 })

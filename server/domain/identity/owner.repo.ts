@@ -25,6 +25,7 @@ const KOLOM_PROFIL = {
   nomorHpKontakDarurat: owners.nomorHpKontakDarurat,
   hubunganDenganOwner: owners.hubunganDenganOwner,
   namaBank: owners.namaBank,
+  bankLain: owners.bankLain,
   pemilikRekening: owners.pemilikRekening,
   nomorRekening: owners.nomorRekening,
 } as const
@@ -43,6 +44,7 @@ export interface OwnerRecord {
   nomorHpKontakDarurat: string | null
   hubunganDenganOwner: string | null
   namaBank: string | null
+  bankLain: string | null
   pemilikRekening: string | null
   nomorRekening: string | null
 }

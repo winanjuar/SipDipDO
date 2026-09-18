@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import {
   FIELD_PROFIL_SIMPAN,
-  sisaFieldKosong,
+  validasiProfil,
   type KunciFieldProfil,
   type ProfilValues,
 } from '#shared/domain/profil'
@@ -15,17 +15,24 @@ import { readBody, setResponseStatus } from 'h3'
  * PUT /api/profile — simpan kelengkapan Profile calon owner (Story 1.5,
  * CAP-1/FR-22; Lampiran A #1–10). Handler tipis (pola register/index.post.ts):
  * sesi → 401; selain calon `diajukan` → 403 (CAP-3); body membawa `referral`
- * → 400 (referral hanya saat Pembelian Pertama, Epic 3); field kosong/absen
- * → 400 dengan `details.remainingFields` PERSIS kunci field kosong (CAP-2 di
- * wire) — TANPA tulisan DB. Sukses → 200 `{ ...field, gmail = email sesi,
- * profileComplete: true, remainingFields: [] }` + audit `profil-kelengkapan`
- * in-tx di service. Gmail TIDAK diterima dari body — selalu email sesi.
+ * → 400 (referral hanya saat Pembelian Pertama, Epic 3).
+ *
+ * Validasi dua lapis dari kontrak murni `shared/domain/profil`
+ * (re-negotiasi owner 2026-09-18 — sanitasi, panjang maksimum, pola nomor,
+ * enum Bank/Hubungan):
+ * - field wajib kosong → 400 `PROFILE_INCOMPLETE` + `details.remainingFields`
+ *   (termasuk `bankLain` bila Bank "Lainnya" tanpa nama bank lain);
+ * - format/enum salah → 400 `PROFILE_INVALID` + `details.invalidFields`
+ *   `[{ field, kode }]`;
+ * keduanya TANPA tulisan DB. Sukses → 200 nilai BERSIH (hasil sanitasi) +
+ * `gmail = email sesi, profileComplete: true, remainingFields: []` + audit
+ * `profil-kelengkapan` in-tx di service. Gmail TIDAK diterima dari body.
  */
 
 /**
  * Skema bentuk body dari kontrak `shared/domain/profil` (satu sumber kunci):
- * setiap field `string | undefined` — kelongkopan dievaluasi predikat murni
- * `sisaFieldKosong` agar absen/kosong/non-string dilaporkan seragam.
+ * setiap field `string | undefined` — kelongcopan & format dievaluasi
+ * `validasiProfil` agar absen/kosong/non-string dilaporkan seragam.
  */
 const SkemaIsianProfil = z.object(
   Object.fromEntries(FIELD_PROFIL_SIMPAN.map((kunci) => [kunci, z.string().optional()])),
@@ -60,11 +67,18 @@ export default defineEventHandler(async (event) => {
   }
 
   const terurai = SkemaIsianProfil.safeParse(body)
-  const isian: ProfilValues = Object.fromEntries(
-    FIELD_PROFIL_SIMPAN.map((kunci) => [kunci, (terurai.success ? terurai.data[kunci] : '')?.trim() ?? '']),
-  ) as ProfilValues
+  const mentah: Partial<Record<KunciFieldProfil, string>> = Object.fromEntries(
+    FIELD_PROFIL_SIMPAN.map((kunci) => [kunci, terurai.success ? terurai.data[kunci] : '']),
+  )
 
-  const sisa = sisaFieldKosong(isian)
+  const { bersih, sisa, kesalahan } = validasiProfil(mentah)
+  if (kesalahan.length > 0) {
+    return sendApiError(event, HTTP_STATUS.badRequest, {
+      code: 'PROFILE_INVALID',
+      message: 'Isian Profile belum sah — periksa field yang ditandai.',
+      details: { invalidFields: kesalahan },
+    })
+  }
   if (sisa.length > 0) {
     return sendApiError(event, HTTP_STATUS.badRequest, {
       code: 'PROFILE_INCOMPLETE',
@@ -73,10 +87,11 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await simpanProfil({ email, nilai: isian }, useDb())
+  const nilaiBersih: ProfilValues = bersih
+  await simpanProfil({ email, nilai: nilaiBersih }, useDb())
   setResponseStatus(event, HTTP_STATUS.ok)
   return {
-    ...isian,
+    ...nilaiBersih,
     gmail: email,
     profileComplete: true,
     remainingFields: [],

@@ -46,6 +46,14 @@ const JUMLAH_FIELD_PROFIL = 10
 /** Panjang kode referral owner (paritas PANJANG_KODE_REFERRAL shared/domain). */
 const PANJANG_KODE_REFERRAL = 8
 
+/** Batas panjang validasi (paritas PANJANG_MAKS_* shared/domain/profil). */
+const PANJANG_MAKS_NAMA_UJI = 25
+const PANJANG_MAKS_ALIAS_UJI = 10
+
+/** Nama tetap token sesi mint (server/api/test/login.post.ts) — sumber
+ *  `namaDariGoogle` untuk persona mint (prefill Nama, keputusan owner). */
+const NAMA_SESI_MINT = 'Pemilik Uji Sintetis'
+
 const PATH_PROFIL = '/api/profile'
 
 /** Cookie[] hasil mintSesiPemilik → header Cookie untuk apiRequest (pola
@@ -88,6 +96,7 @@ const SkemaProfil = z.object({
   namaBank: z.string().min(1),
   pemilikRekening: z.string().min(1),
   nomorRekening: z.string().min(1),
+  bankLain: z.string(),
   profileComplete: z.literal(true),
   remainingFields: z.tuple([]),
   referral: z.never().optional(),
@@ -109,10 +118,12 @@ const SkemaProfilBaca = z.object({
   namaBank: z.string(),
   pemilikRekening: z.string(),
   nomorRekening: z.string(),
+  bankLain: z.string(),
   profileComplete: z.boolean(),
   remainingFields: z.array(z.string()),
   referralCode: z.string().min(1),
   usedReferralCode: z.string().nullable(),
+  namaDariGoogle: z.string(),
 })
 
 /** Bentuk wire entry audit — disalin dari redaftar.api.spec.ts (duplikasi
@@ -140,15 +151,19 @@ type DaftarAudit = z.infer<typeof SkemaDaftarAudit>
  * intent test). Override `{ namaBank: '' }` = mensimulasikan field kosong.
  */
 const profilLengkapUji = (overrides: Partial<Record<keyof Profil, string>> = {}) => ({
-  namaLengkap: faker.person.fullName(),
-  alias: faker.person.firstName(),
+  // Nilai patuh batas validasi (re-negotiasi owner 2026-09-18): nama bebas
+  // <=25, alias <=10, HP 0+9-15 digit, rekening <=20 digit/"-", enum sah.
+  // Gmail bukan bagian body PUT (selalu email sesi) — hanya kunci tipe Profil.
+  namaLengkap: `Uji ${faker.string.alphanumeric(6)}`,
+  alias: faker.string.alphanumeric({ length: 5, casing: 'lower' }),
   gmail: emailSintetisUji(),
   nomorHp: '0812' + faker.string.numeric(8),
-  kontakDarurat: faker.person.fullName(),
+  kontakDarurat: `Uji ${faker.string.alphanumeric(6)}`,
   nomorHpKontakDarurat: '0813' + faker.string.numeric(8),
   hubunganDenganOwner: 'Saudara',
-  namaBank: 'Bank Uji Sentral',
-  pemilikRekening: faker.person.fullName(),
+  namaBank: 'BCA',
+  bankLain: '',
+  pemilikRekening: `Uji ${faker.string.alphanumeric(6)}`,
   nomorRekening: faker.string.numeric(10),
   ...overrides,
 })
@@ -278,6 +293,109 @@ test.describe('[P1] PUT /api/profile gerbang non-calon (CAP-3, AD-8)', () => {
   })
 })
 
+test.describe('[P1] PUT /api/profile validasi format & enum (PROFILE_INVALID)', () => {
+  test('[P1] enam pelanggaran sekaligus → 400 PROFILE_INVALID + invalidFields field+kode', async ({ apiRequest }) => {
+    // Re-negotiasi owner 2026-09-18: sanitasi/batas/enum. GAGAL bila handler
+    // menerima nilai di luar kontrak tanpa PROFILE_INVALID.
+    await log.step('GIVEN sesi calon owner berstatus diajukan')
+    const cookieSesi = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+
+    await log.step('WHEN PUT dengan 6 pelanggaran: nama>25, alias>10, HP non-digit, rekening berkarakter spasi, hubungan & bank di luar daftar')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'PUT',
+      path: PATH_PROFIL,
+      body: profilLengkapUji({
+        namaLengkap: 'A'.repeat(PANJANG_MAKS_NAMA_UJI + 1),
+        alias: 'B'.repeat(PANJANG_MAKS_ALIAS_UJI + 1),
+        nomorHp: '0812-ABCD-90',
+        nomorRekening: '12 34',
+        hubunganDenganOwner: 'Teman',
+        namaBank: 'Bukopin',
+      }),
+      headers: headerCookieDariMint(cookieSesi),
+    }).validateSchema(SkemaEnvelopeError)
+
+    await log.step('THEN 400 PROFILE_INVALID — invalidFields memuat keenam field + kode')
+    expect(status).toBe(STATUS_BAD_REQUEST)
+    expect(body.code).toBe('PROFILE_INVALID')
+    const wire = JSON.stringify(body.details)
+    for (const field of ['namaLengkap', 'alias', 'nomorHp', 'nomorRekening', 'hubunganDenganOwner', 'namaBank']) {
+      expect(wire).toContain(`"${field}"`)
+    }
+    expect(wire).toContain('terlalu-panjang')
+    expect(wire).toContain('format-salah')
+    expect(wire).toContain('di-luar-daftar')
+  })
+
+  test('[P1] sanitasi server: spasi ganda + kontrol karakter dirapikan sebelum disimpan', async ({ apiRequest }) => {
+    await log.step('GIVEN sesi calon owner berstatus diajukan')
+    const cookieSesi = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+
+    await log.step('WHEN PUT dengan namaLengkap ber-spasi ganda + kontrol karakter')
+    const { status, body } = await apiRequest<Profil>({
+      method: 'PUT',
+      path: PATH_PROFIL,
+      body: profilLengkapUji({ namaLengkap: '  Budi \u0007  Santoso  ' }),
+      headers: headerCookieDariMint(cookieSesi),
+    }).validateSchema(SkemaProfil)
+
+    await log.step('THEN 200 dan respons membawa nilai hasil sanitasi')
+    expect(status).toBe(STATUS_OK)
+    expect(body.namaLengkap).toBe('Budi Santoso')
+  })
+})
+
+test.describe('[P1] Bank "Lainnya" — bankLain wajib bersyarat', () => {
+  test('[P1] Lainnya tanpa nama bank → 400 PROFILE_INCOMPLETE memuat bankLain; terisi → 200 + tergemakan GET', async ({ apiRequest }) => {
+    await log.step('GIVEN sesi calon owner berstatus diajukan')
+    const cookieSesi = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    const headerCookie = headerCookieDariMint(cookieSesi)
+
+    await log.step('WHEN PUT Bank "Lainnya" tanpa bankLain')
+    const kosong = await apiRequest<EnvelopeError>({
+      method: 'PUT',
+      path: PATH_PROFIL,
+      body: profilLengkapUji({ namaBank: 'Lainnya', bankLain: '' }),
+      headers: headerCookie,
+    }).validateSchema(SkemaEnvelopeError)
+
+    await log.step('THEN 400 PROFILE_INCOMPLETE dengan bankLain di remainingFields')
+    expect(kosong.status).toBe(STATUS_BAD_REQUEST)
+    expect(kosong.body.code).toBe('PROFILE_INCOMPLETE')
+    expect(JSON.stringify(kosong.body.details)).toContain('bankLain')
+
+    await log.step('WHEN PUT Bank "Lainnya" dengan bankLain terisi')
+    const terisi = await apiRequest<Profil>({
+      method: 'PUT',
+      path: PATH_PROFIL,
+      body: profilLengkapUji({ namaBank: 'Lainnya', bankLain: 'SeaBank' }),
+      headers: headerCookie,
+    }).validateSchema(SkemaProfil)
+
+    await log.step('THEN 200 lalu GET menggemakan Lainnya + SeaBank persisten')
+    expect(terisi.status).toBe(STATUS_OK)
+    const { body } = await apiRequest<z.infer<typeof SkemaProfilBaca>>({
+      method: 'GET',
+      path: PATH_PROFIL,
+      headers: headerCookie,
+    }).validateSchema(SkemaProfilBaca)
+    expect(body.namaBank).toBe('Lainnya')
+    expect(body.bankLain).toBe('SeaBank')
+  })
+})
+
 test.describe('[P1] Persistensi profil — PUT lalu GET identik (CAP-1) + audit in-tx', () => {
   test('[P1] nilai yang disimpan terbaca kembali utuh saat GET /api/profile', async ({ apiRequest }) => {
     // GAGAL saat red: PUT menjawab 404 sebelum GET mana pun dieksekusi.
@@ -310,11 +428,15 @@ test.describe('[P1] Persistensi profil — PUT lalu GET identik (CAP-1) + audit 
     expect(body.nomorRekening).toBe(profil.nomorRekening)
     expect(body.profileComplete).toBe(true)
     expect(body.remainingFields).toHaveLength(0)
-    expect(Object.keys(profil)).toHaveLength(JUMLAH_FIELD_PROFIL)
+    // Factory memuat 10 field tersimpan + kunci tipe gmail (bukan body PUT).
+    expect(Object.keys(profil).filter(kunci => kunci !== 'gmail')).toHaveLength(JUMLAH_FIELD_PROFIL)
 
     await log.step('AND referensi referral tampilan tersedia (kode milik owner terisi; referal-dari DORMANT null)')
     expect(body.referralCode.length).toBe(PANJANG_KODE_REFERRAL)
     expect(body.usedReferralCode).toBeNull()
+
+    await log.step('AND namaDariGoogle = nama profil akun sesi (sumber prefill awal field Nama)')
+    expect(body.namaDariGoogle).toBe(NAMA_SESI_MINT)
 
     // Penambahan pasca-review — pin audit in-tx (matriks: PUT lengkap +
     // audit `profil-kelengkapan`): entry terbaca COO via GET /api/audit.

@@ -19,4 +19,12 @@ Pengelompokan & label input (re-negotiasi owner 2026-09-18): form memakai 4 fiel
 | Referal | — | Kode Referal Saya | Kode Referal Saya | `owners.referral_code`; **disabled** (tampilan only) |
 | Referal | — | Referal Dari | Referal Dari | `owners.used_referral_code`; **disabled**, DORMANT null sampai Epic 3 |
 
-Aturan kelengkapan (dipakai CAP-2/cron CAP-4): field dianggap terisi bila nilai trim non-kosong; Profil lengkap = 9 dari 9 field tersimpan terisi (Email selalu terisi = email sesi). Field referral TIDAK pernah menjadi bagian body `PUT /api/profile` maupun predikat kelengkapan.
+Aturan validasi & sanitasi (re-negotiasi owner 2026-09-18 — kontrak `shared/domain/profil`):
+- **Sanitasi** semua teks: trim + rapatkan run whitespace + buang kontrol karakter; nilai tersimpan = hasil sanitasi.
+- **Panjang maksimum**: nama bebas (Nama Lengkap, Kontak Darurat, Pemilik Rekening, Bank Lainnya) 25; Alias 10; Nomor Rekening 20.
+- **Nomor HP** (keduanya): hanya digit dan tanda "-"; wajib diawali 0 dengan total 9–15 digit.
+- **Nomor Rekening**: hanya digit dan tanda "-".
+- **Dropdown** (enum terpin): Bank = Mandiri, BCA, BNI, Jago, BSI, BRI, Jenius + **Lainnya** (membuka field *Bank Lainnya* wajib-bersyarat ≤25, kolom `bank_lain`); Hubungan = Orang Tua, Pasangan, Anak, Saudara, Rekan.
+- **Wire**: 400 `PROFILE_INVALID` + `details.invalidFields [{field, kode: terlalu-panjang|format-salah|di-luar-daftar}]` untuk format/enum; 400 `PROFILE_INCOMPLETE` + `remainingFields` untuk kelengkapan. GET memuat `namaDariGoogle` (prefill awal field Nama bila kolom kosong — keputusan owner: cukup nama+email).
+
+Aturan kelengkapan (dipakai CAP-2/cron CAP-4): field dianggap terisi bila nilai trim non-kosong; Profil lengkap = seluruh field wajib terisi (`bankLain` hanya bila Bank "Lainnya"; Email selalu terisi = email sesi). Field referral TIDAK pernah menjadi bagian body `PUT /api/profile` maupun predikat kelengkapan.

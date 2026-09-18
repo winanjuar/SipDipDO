@@ -76,7 +76,9 @@ export const owners = pgTable('owners', {
   usedReferralCode: text('used_referral_code'),
   /** Profil Lampiran A #1–10 (Story 1.5, FR-22) — string apa adanya (AD-10),
    *  nullable sampai pendaftar menyimpan dari halaman Kelengkapan Profile.
-   *  Gmail (#3) TIDAK dibuat sebagai kolom — selalu `email` di atas. */
+   *  Gmail (#3) TIDAK dibuat sebagai kolom — selalu `email` di atas.
+   *  `bank_lain` (re-negotiasi owner 2026-09-18): wajib hanya bila
+   *  `nama_bank` = 'Lainnya' (enum 7 bank + Lainnya). */
   namaLengkap: text('nama_lengkap'),
   alias: text('alias'),
   nomorHp: text('nomor_hp'),
@@ -84,6 +86,7 @@ export const owners = pgTable('owners', {
   nomorHpKontakDarurat: text('nomor_hp_kontak_darurat'),
   hubunganDenganOwner: text('hubungan_dengan_owner'),
   namaBank: text('nama_bank'),
+  bankLain: text('bank_lain'),
   pemilikRekening: text('pemilik_rekening'),
   nomorRekening: text('nomor_rekening'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
