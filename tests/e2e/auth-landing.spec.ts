@@ -18,14 +18,14 @@
  * lewat `context.addCookies(...)` — deviasi tercatat dari fixture authToken
  * agar tiap test memegang sesi userIdentifier-nya sendiri secara eksplisit.
  *
- * Catatan mandate playwright-utils: seluruh navigasi di spec ini adalah
- * dokumen SSR (redirect diputuskan server-side saat request), tidak ada
- * panggilan API client-side yang layak di-spy → `interceptNetworkCall` tidak
- * dipakai di sini. Semua asersi memakai web-first assertion (toHaveURL /
- * toBeVisible / toContainText) yang auto-retry, sehingga `recurse` tidak
- * diperlukan; tanpa waitForTimeout. Tidak ada test yang subjeknya error path
- * (jalur unlinked adalah redirect produk, bukan 4xx/5xx tersembunyi), sehingga
- * anotasi `skipNetworkMonitoring` tidak digunakan.
+ * Catatan mandate playwright-utils: navigasi mayoritas spec ini adalah
+ * dokumen SSR (redirect diputuskan server-side saat request), tanpa
+ * panggilan API client-side yang layak di-spy → `interceptNetworkCall`
+ * tidak dipakai; asersi web-first (toHaveURL / toBeVisible / toContainText)
+ * auto-retry. Pengecualian [P2] tautan pendaftaran: klik CTA "Daftar" di
+ * dev server menunggu hidrasi Vue → `recurse`, dan navigasi klien anonim
+ * ke /pendaftaran menghasilkan 401 /api/landing yang SAH (ditangkap
+ * halaman) → anotasi `skipNetworkMonitoring`; tanpa waitForTimeout.
  */
 import { faker } from '@faker-js/faker/locale/id_ID'
 import { test, expect, log } from '../support/merged-fixtures'
@@ -34,11 +34,17 @@ import { mintSesiPemilik } from '../support/helpers/sesi-minting'
 
 /** Email sintetis unik pola mint dev-only (prefix terkunci agar tak pernah
  *  menimpa baris non-sintetis — pola pendaftaran.api.spec.ts; dipakai bila
- *  auto-submit /pendaftaran akan MEMBUAT baris owner untuk email mint). */
+ *  test AKAN membuat baris owner via klik CTA pendaftaran). */
 const emailSintetisUji = (): string => {
   const lokalUji = faker.internet.username().toLowerCase().replace(/[^a-z0-9]+/g, '.')
   return `uji.snddash.e2e.${lokalUji}@gmail.com`
 }
+
+/** Tempo recurse klik CTA di dev server (milidetik) — hidrasi Vue
+ *  eventual-consistent, klik dini tidak membawa handler (pola
+ *  pendaftaran.spec.ts). */
+const INTERVAL_RECURSE_MS = 500
+const BATAS_RECURSE_DAFTAR_MS = 15_000
 
 /** Halaman terproteksi (landing map ter-pin) — proteksi SSR diharapkan seragam. */
 const HALAMAN_TERPROTEKSI = ['/dashboard', '/personal', '/antrian-beli', '/status-pendaftaran'] as const
@@ -180,18 +186,16 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await context.addCookies(cookies)
     await log.step('WHEN membuka root aplikasi')
     await page.goto('/')
-    await log.step('THEN kembali ke /login?state=unlinked dengan pesan arahan verbatim')
+    await log.step('THEN kembali ke /login?state=unlinked dengan pesan arahan (copy re-negotiasi owner 2026-09-18)')
     await expect(page).toHaveURL(/\/login\?state=unlinked/)
-    const PESAN_UNLINKED =
-      'Akun Google ini belum terhubung. Pendaftar: lanjutkan pendaftaran. ' +
-      'Owner eksisting: hubungi COO untuk pencocokan email migrasi.'
-    await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked)).toContainText(PESAN_UNLINKED)
+    await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked)).toContainText('Akun tidak ditemukan.')
+    await expect(page.getByTestId(TEST_IDS.login.pesanUnlinked).getByRole('link', { name: 'Lakukan pendaftaran' })).toBeVisible()
   })
 
   test(
-    '[P2] tautan pendaftaran dari login — anonim "Mau daftar?" & unlinked "lanjutkan pendaftaran"',
+    '[P2] tautan pendaftaran dari login — anonim "Yuk Gabung!" & unlinked "Lakukan pendaftaran"',
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
-    async ({ page, context, apiRequest }) => {
+    async ({ page, context, apiRequest, recurse }) => {
       // skipNetworkMonitoring: klik tautan = navigasi klien ke /pendaftaran —
       // resolver /api/landing di browser anonim menjawab 401 envelope yang
       // DITANGKAP halaman (useAsyncData catch → mode anonim); 401 ini produk
@@ -199,25 +203,50 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await log.step('GIVEN pengunjung anonim membuka halaman login')
       await page.goto('/login')
 
-      await log.step('WHEN menekan tautan "Mau daftar?"')
+      await log.step('WHEN menekan tautan "Yuk Gabung!"')
       await page.getByTestId(TEST_IDS.login.tautanDaftar).click()
 
       await log.step('THEN mendarat di halaman pendaftaran publik')
       await expect(page).toHaveURL(/\/pendaftaran$/)
 
       // Email unik WAJIB: email mint deterministik persona 'unlinked' dipakai
-      // bersama test lain — auto-submit /pendaftaran (Story 1.4) akan MEMBUAT
-      // baris owner untuk email ini; email unik mencegah polusi antar-test.
+      // bersama test lain — test ini MENGKLIK CTA "Daftar" (Story 1.4) yang
+      // MEMBUAT baris owner untuk email ini; email unik mencegah polusi
+      // antar-test.
       await log.step("GIVEN sesi 'unlinked' dengan email sintetis UNIK kembali ke login dengan pesan arahan")
       const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'unlinked', email: emailSintetisUji() })
       await context.addCookies(cookies)
       await page.goto('/login?state=unlinked')
 
-      await log.step('WHEN menekan tautan "lanjutkan pendaftaran" di dalam pesan arahan')
-      await page.getByRole('link', { name: 'lanjutkan pendaftaran' }).click()
+      await log.step('WHEN menekan tautan "Lakukan pendaftaran" di dalam pesan arahan')
+      await page.getByRole('link', { name: 'Lakukan pendaftaran' }).click()
 
-      await log.step('THEN mendarat di pendaftaran lalu auto-submit (Story 1.4) mengarahkan ke status dengan badge Diajukan')
-      await expect(page).toHaveURL(/\/status-pendaftaran$/, { timeout: 15_000 })
+      await log.step('THEN mendarat di halaman pendaftaran TANPA tulisan data — kunjungan tidak pernah membuat baris owner (keputusan owner 2026-09-18)')
+      await expect(page).toHaveURL(/\/pendaftaran$/, { timeout: 15_000 })
+      // Pasca-OAuth halaman TIDAK lagi tampak identik (laporan owner
+      // 2026-09-18): status koneksi + CTA berubah label.
+      await expect(page.getByText('Akun Google Anda sudah terhubung — tinggal satu langkah lagi.')).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Selesaikan Pendaftaran' })).toBeVisible()
+
+      await log.step('WHEN menekan CTA "Selesaikan Pendaftaran" — aksi pendaftaran eksplisit')
+      // Hidrasi Vue di dev server = eventual-consistent → recurse: klik
+      // diulang sampai redirect terjadi (klik sebelum hidrasi tanpa handler).
+      await recurse(
+        async () => {
+          if (page.url().includes('/status-pendaftaran')) return true
+          try {
+            await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
+          } catch {
+            // Klik kalah race terhadap redirect — dievaluasi ulang iterasi berikutnya.
+          }
+          return page.url().includes('/status-pendaftaran')
+        },
+        selesai => selesai === true,
+        { timeout: BATAS_RECURSE_DAFTAR_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA Daftar mengirim POST lalu redirect' },
+      )
+
+      await log.step('THEN dialihkan ke status pendaftaran dengan badge Diajukan (hard navigation + flag toast)')
+      await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: 15_000 })
       await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
     },
   )

@@ -2,6 +2,7 @@
 import type { OwnerStatus } from '#shared/domain/identity'
 import { LANDING_PATH } from '#shared/domain/identity'
 import type { LandingRespons, StatusPendaftaranRespons } from '~/lib/landing'
+import { toast } from 'vue-sonner'
 
 /**
  * Status Pendaftaran — khusus calon owner `diajukan`/`ditolak`/`kedaluwarsa`
@@ -11,6 +12,9 @@ import type { LandingRespons, StatusPendaftaranRespons } from '~/lib/landing'
  * nyata Story 1.4 — jangan diimplementasi di sini.
  */
 definePageMeta({ auth: true })
+
+/** Flag konfirmasi dari hard-navigasi pasca-daftar (pendaftaran.vue). */
+const FLAG_DAFTAR_BERHASIL = 'berhasil'
 
 /** Peta status → badge (teks + varian token semantik UX-DR2/DR4). */
 const PETA_BADGE: Record<OwnerStatus, { label: string, variant: 'warn' | 'success' | 'destructive' | 'muted' }> = {
@@ -39,6 +43,18 @@ const statusData = landing && !('unlinked' in landing) && landing.role === 'calo
 
 const badge = statusData ? PETA_BADGE[statusData.status] : null
 const alasanPenolakan = statusData?.rejectionReason ?? ''
+
+/** Toast konfirmasi pasca-daftar (permintaan owner 2026-09-18): flag query
+ *  dari pendaftaran.vue → toast SEKALI lalu query dibersihkan agar refresh/
+ *  bagikan URL tidak mengulang konfirmasi. Klien-saja (onMounted). */
+const route = useRoute()
+const router = useRouter()
+onMounted(() => {
+  if (route.query.daftar === FLAG_DAFTAR_BERHASIL) {
+    toast.success('Pendaftaran berhasil diajukan.')
+    void router.replace({ query: { ...route.query, daftar: undefined } })
+  }
+})
 
 useHead({ title: 'Status Pendaftaran — Sip & Dip' })
 </script>

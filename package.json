@@ -18,7 +18,8 @@
     "typecheck": "nuxt typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "npx tsx drizzle/seed.ts"
+    "db:seed": "npx tsx drizzle/seed.ts",
+    "db:cleanup": "npx tsx drizzle/cleanup.ts"
   },
   "dependencies": {
     "@lucide/vue": "^1.46.0",

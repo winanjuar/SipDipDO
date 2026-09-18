@@ -241,10 +241,12 @@ test.describe('[P1] API /api/pendaftaran/status unlinked', () => {
     await log.step('THEN redirect ke /login?state=unlinked dengan pesan arahan verbatim')
     expect(response.status()).toBe(200)
     expect(response.url()).toContain('/login?state=unlinked')
-    // Teks verbatim kini memuat tautan inline "lanjutkan pendaftaran"
-    // (Story 1.4) — normalisasi tag HTML sebelum mem-pin substring verbatim.
+    // Copy pesan re-negotiasi owner 2026-09-18 ("Akun tidak ditemukan." +
+    // tautan inline "Lakukan pendaftaran") — normalisasi tag HTML sebelum
+    // mem-pin substring.
     const bodyTanpaTag = body.replace(/<[^>]+>/g, '')
-    expect(bodyTanpaTag).toContain('Akun Google ini belum terhubung. Pendaftar: lanjutkan pendaftaran.')
+    expect(bodyTanpaTag).toContain('Akun tidak ditemukan.')
+    expect(bodyTanpaTag).toContain('Lakukan pendaftaran')
   })
 })
 

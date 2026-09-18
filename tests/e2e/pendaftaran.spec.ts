@@ -76,6 +76,7 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     context,
     apiRequest,
     interceptNetworkCall,
+    recurse,
   }) => {
     // Kontrak 201 = baris BARU dibuat → mint dengan email sintetis UNIK agar
     // rerun tidak menjawab 200 idempoten (lihat catatan emailSintetisUji).
@@ -90,18 +91,35 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     // POST benar-benar tidak pernah terkirim.
     pendaftaranCall.catch(() => {})
 
-    await log.step('WHEN membuka halaman pendaftaran — auto-submit sesi unlinked mengirim POST saat mount (Flow 6; klik CTA tetap berlaku, idempotent)')
+    await log.step('WHEN membuka halaman pendaftaran lalu KLIK CTA "Daftar" — satu-satunya pemicu tulis data (keputusan owner 2026-09-18: kunjungan tidak pernah menulis)')
     await page.goto(HALAMAN_PENDAFTARAN)
+    // Hidrasi Vue di dev server = eventual-consistent → recurse (pola
+    // smoke.ui.spec.ts): klik diulang sampai redirect terjadi — klik sebelum
+    // hidrasi tidak membawa handler. Spy jangan di-await DI DALAM loop
+    // (promise waitForRequest memblokir iterasi sampai timeout) — URL jadi
+    // sinyal berhenti; spy di-await setelahnya.
+    await recurse(
+      async () => {
+        if (page.url().includes('/status-pendaftaran')) return true
+        try {
+          await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
+        } catch {
+          // Klik kalah race terhadap redirect — dievaluasi ulang iterasi berikutnya.
+        }
+        return page.url().includes('/status-pendaftaran')
+      },
+      selesai => selesai === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA mengirim POST lalu redirect' },
+    )
 
     await log.step('THEN panggilan pendaftaran terkirim (201)')
     const { status } = await pendaftaranCall
     expect(status).toBe(STATUS_CREATED)
 
-    await log.step('AND dialihkan ke /status-pendaftaran dengan badge Diajukan (by text)')
-    // Asersi web-first auto-retry (bukan polling URL manual): di dev server,
-    // URL vue-router baru berganti SETELAH chunk route lazy selesai dimuat —
-    // cold-start browser pertama bisa jauh lebih lambat dari interval polling.
-    await expect(page).toHaveURL(/\/status-pendaftaran$/, { timeout: BATAS_RECURSE_SUBMIT_MS })
+    await log.step('AND dialihkan (hard navigation + flag toast ?daftar=berhasil) ke /status-pendaftaran dengan badge Diajukan')
+    // Hard navigation membawa query flag toast — anchor $ diizinkan optional
+    // query; flag dibersihkan onMounted (race) jadi tak di-pin.
+    await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: BATAS_RECURSE_SUBMIT_MS })
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
   })
 
@@ -155,7 +173,7 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
       // smoke.ui.spec.ts): klik diulang sampai pesan error envelope tampil.
       await recurse(
         async () => {
-          await page.getByRole('button', { name: 'Daftar' }).click()
+          await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
           return page.getByText(/sudah terdaftar/i).isVisible()
         },
         tampil => tampil === true,

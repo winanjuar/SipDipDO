@@ -1,13 +1,13 @@
 <script setup lang="ts">
 /**
  * Halaman Login publik (UX-DR3/DR15): lockup logo 80px terpusat + tagline +
- * SATU CTA Google + tautan pendaftaran (Story 1.4): "Mau daftar?" untuk
- * pengunjung anonim; frasa "lanjutkan pendaftaran" pada pesan unlinked
- * menaut ke /pendaftaran — teks pesan verbatim UX-DR15 tidak berubah (pin
- * verbatim di tests/e2e/auth-landing.spec.ts). Halaman TIDAK terproteksi
- * (auth: false) — tanpa navigasi app (Story 1.7). Kegagalan/batal OAuth
- * (`?error=…` callback Google) kembali ke halaman ini tanpa crash, dengan
- * pemberitahuan netral (tanpa pesan menyesatkan).
+ * SATU CTA Google + tautan pendaftaran (Story 1.4, copy re-negotiasi owner
+ * 2026-09-18): "Belum jadi pemilik? Yuk Gabung!" untuk pengunjung anonim;
+ * pesan unlinked "Akun tidak ditemukan." + tautan "Lakukan pendaftaran"
+ * menaut ke /pendaftaran (pin copy di tests/e2e/auth-landing.spec.ts).
+ * Halaman TIDAK terproteksi (auth: false) — tanpa navigasi app (Story 1.7).
+ * Kegagalan/batal OAuth (`?error=…` callback Google) kembali ke halaman ini
+ * tanpa crash, dengan pemberitahuan netral (tanpa pesan menyesatkan).
  */
 definePageMeta({ auth: false })
 
@@ -59,9 +59,8 @@ useHead({ title: 'Masuk — Sip & Dip' })
         class="rounded-md border p-3 text-sm leading-relaxed text-foreground"
         aria-live="polite"
       >
-        Akun Google ini belum terhubung. Pendaftar:
-        <NuxtLink to="/pendaftaran" class="font-medium text-primary underline underline-offset-4">lanjutkan pendaftaran</NuxtLink>.
-        Owner eksisting: hubungi COO untuk pencocokan email migrasi.
+        Akun tidak ditemukan. <br>
+        <NuxtLink to="/pendaftaran" class="font-medium text-primary underline underline-offset-4">Lakukan pendaftaran</NuxtLink>
       </p>
 
       <p
@@ -73,8 +72,8 @@ useHead({ title: 'Masuk — Sip & Dip' })
       </p>
 
       <p v-else class="text-sm text-muted-foreground">
-        Belum jadi owner?
-        <NuxtLink data-testid="login-tautan-daftar" to="/pendaftaran" class="font-medium text-primary underline underline-offset-4">Mau daftar?</NuxtLink>
+        Belum jadi pemilik?
+        <NuxtLink data-testid="login-tautan-daftar" to="/pendaftaran" class="font-medium text-primary underline underline-offset-4">Yuk Gabung!</NuxtLink>
       </p>
     </div>
   </main>

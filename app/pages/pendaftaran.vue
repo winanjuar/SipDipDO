@@ -10,12 +10,16 @@ import type { LandingRespons } from '~/lib/landing'
  * Tanpa input referral (referral hanya di Pembelian Pertama, Epic 3).
  *
  * Mesin status halaman (SSR, seperti status-pendaftaran.vue): resolver
- * /api/landing menentukan mode — tanpa sesi = anonim (CTA → OAuth Google);
- * sesi unlinked = POST /api/pendaftaran berjalan otomatis saat mount (pasca-
- * OAuth langsung redirect /status-pendaftaran) atau via klik CTA; calon/
- * non-calon = redirect landing role-nya. Kegagalan menampilkan pesan
- * envelope di region aria-live="polite" dekat CTA dengan state
- * dipertahankan.
+ * /api/landing menentukan mode — tanpa sesi = anonim (CTA "Daftar" → OAuth
+ * Google); sesi unlinked = CTA "Selesaikan Pendaftaran" + status "Akun
+ * Google terhubung" (pasca-OAuth halaman TIDAK lagi tampak identik —
+ * laporan owner 2026-09-18: klik pertama anonim = OAuth, klik kedua =
+ * tulis data) → klik memicu POST /api/pendaftaran lalu redirect
+ * /status-pendaftaran; calon/non-calon = redirect landing role-nya. KLIK
+ * CTA adalah SATU-SATUNYA pemicu tulis data (keputusan owner 2026-09-18:
+ * data masuk DB dari aksi pendaftaran eksplisit, bukan sekadar kunjungan);
+ * kegagalan menampilkan pesan envelope di region aria-live="polite" dekat
+ * CTA dengan state dipertahankan.
  */
 definePageMeta({ auth: false })
 
@@ -42,6 +46,8 @@ const denganSesi = computed(() => landing.value !== null)
 /** Pesan error envelope terakhir — region aria-live dekat CTA; state dipertahankan. */
 const pesanError = ref('')
 const sedangDaftar = ref(false)
+/** true setelah POST sukses — menampilkan konfirmasi lokal sambil hard-navigasi. */
+const terdaftar = ref(false)
 
 /** Pesan bawaan bila envelope tidak membawa message yang terbaca. */
 const PESAN_GAGAL_DEFAULT = 'Pendaftaran belum terkirim — silakan coba lagi.'
@@ -57,10 +63,11 @@ async function daftarGoogle() {
   if (sedangDaftar.value) return
   sedangDaftar.value = true
   pesanError.value = ''
+  let sukses = false
   try {
     if (denganSesi.value) {
       await $fetch('/api/pendaftaran', { method: 'POST', body: {} })
-      await navigateTo('/status-pendaftaran')
+      sukses = true
     } else {
       await signIn('google', { callbackUrl: '/pendaftaran' })
     }
@@ -69,20 +76,17 @@ async function daftarGoogle() {
   } finally {
     sedangDaftar.value = false
   }
+  if (sukses) {
+    // HARD navigation (bukan navigateTo SPA): penuh page-load — kebal race
+    // hidrasi/router klien yang pernah membuat pengguna tertinggal di
+    // halaman ini pasca-POST sukses (laporan owner 2026-09-18). Flag query
+    // memicu toast konfirmasi di halaman status lalu dibersihkan.
+    terdaftar.value = true
+    window.location.assign('/status-pendaftaran?daftar=berhasil')
+  }
 }
 
 useHead({ title: 'Pendaftaran — Sip & Dip' })
-
-/**
- * Auto-submit saat mount untuk sesi unlinked (Flow 6 UX: URL publik → daftar
- * akun Google → status Diajukan — tanpa klik kedua pasca-OAuth). Sekaligus
- * pengerasan race hidrasi dev-server: redirect tidak lagi bergantung pada
- * klik yang menang race hidrasi Vue. Klik CTA tetap berlaku (idempotent);
- * kegagalan tetap menampilkan pesan envelope di region aria-live.
- */
-onMounted(() => {
-  if (denganSesi.value) void daftarGoogle()
-})
 </script>
 
 <template>
@@ -97,13 +101,21 @@ onMounted(() => {
     </section>
 
     <div class="mt-6 flex w-full max-w-xs flex-col gap-3">
+      <p
+        v-if="denganSesi && !terdaftar"
+        class="rounded-md border p-3 text-sm leading-relaxed text-foreground"
+        aria-live="polite"
+      >
+        Akun Google Anda sudah terhubung — tinggal satu langkah lagi.
+      </p>
+
       <Button
         size="lg"
         class="h-12 w-full"
         :disabled="sedangDaftar"
         @click="daftarGoogle"
       >
-        Daftar
+        {{ denganSesi ? 'Selesaikan Pendaftaran' : 'Daftar' }}
       </Button>
 
       <p
@@ -112,6 +124,14 @@ onMounted(() => {
         aria-live="polite"
       >
         {{ pesanError }}
+      </p>
+
+      <p
+        v-if="terdaftar"
+        class="rounded-md border border-success/40 bg-success/10 p-3 text-sm leading-relaxed text-foreground"
+        aria-live="polite"
+      >
+        Pendaftaran berhasil diajukan — menuju halaman status…
       </p>
 
       <!-- <p class="text-xs leading-relaxed text-muted-foreground">
