@@ -702,6 +702,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
 
       await log.step('WHEN field Nama dikosongkan (perubahan belum disimpan)')
+      const namaTersimpan = await locatorField(page, LEGEND_PRIBADI, 'Nama').inputValue()
       await locatorField(page, LEGEND_PRIBADI, 'Nama').fill('')
 
       await log.step('THEN indikator TETAP menyatakan lengkap — TIDAK membalik ke "belum lengkap" (data DB utuh)')
@@ -709,8 +710,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await expect(indikator).not.toContainText('Profil belum lengkap')
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toBeVisible()
 
-      await log.step('AND nilai dipulihkan → catatan perubahan hilang')
-      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill('Pulih Uji')
+      await log.step('AND nilai ASLI dipulihkan → catatan perubahan hilang')
+      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill(namaTersimpan)
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
     },
   )

@@ -26,9 +26,18 @@ import type { LandingRespons } from '~/lib/landing'
  * client-side (`maxlength`), Bank & Hubungan = dropdown (enum shared),
  * field Nama ter-prefill dari profil Google (`namaDariGoogle`) HANYA bila
  * kolom masih kosong — tetap editable; error FORMAT tampil inline per-field
- * dari 400 PROFILE_INVALID (`details.invalidFields`), kelengkapan tetap via
- * indikator (400 PROFILE_INCOMPLETE), dan kegagalan non-validasi → Alert
- * verbatim UX-DR19 dengan isian dipertahankan.
+ * dari 400 PROFILE_INVALID (`details.invalidFields`), dan kegagalan
+ * non-validasi → Alert verbatim UX-DR19 dengan isian dipertahankan.
+ *
+ * Feedback aksi simpan (permintaan owner 2026-09-18): setiap Simpan selalu
+ * menjawab — tombol "Menyimpan…" saat in-flight; sukses → alert "Profil
+ * tersimpan." DI ATAS halaman auto-hilang 3 detik (pola status-pendaftaran —
+ * toast bawah tak terlihat); 400 PROFILE_INCOMPLETE → alert khusus (form
+ * yang DIKIRIM kurang; DB tak tersentuh). Indikator rail mengklaim HANYA
+ * dari data TERSIMPAN (`statusServer`: GET awal + respons PUT sukses) plus
+ * catatan "Perubahan belum disimpan." dari deteksi dirty — isian lengkap
+ * yang belum disimpan tidak pernah diklaim lengkap, dan DB lengkap tidak
+ * pernah dibalik jadi belum lengkap oleh edit form.
  */
 definePageMeta({ auth: true })
 
@@ -103,13 +112,49 @@ const isian = reactive(
   ),
 ) as Record<KunciFieldProfil, string>
 
-/** Sisa field wajib kosong — murni via kontrak shared (otherBankName bersyarat). */
-const sisa = computed(() => sisaFieldKosong(isian))
+/**
+ * Status kelengkapan menurut SERVER (data tersimpan) — sumber SATU-SATUNYA
+ * klaim indikator rail: init dari GET, diputakhirkan HANYA oleh respons
+ * sukses PUT. Respons 400 INCOMPLETE mendeskripsikan FORM yang dikirim (DB
+ * tak tersentuh) — tidak pernah membalik klaim (keluhan owner 2026-09-18).
+ */
+const statusServer = reactive({
+  profileComplete: profilTersimpan.value?.profileComplete ?? false,
+  remainingFields: (profilTersimpan.value?.remainingFields ?? []) as KunciFieldProfil[],
+})
+
+/** Snapshot baseline isian (pasca prefill Google) — acuan deteksi perubahan. */
+const snapshotAwal = { ...isian } as Record<KunciFieldProfil, string>
+
+/** Ada isian yang menyimpang dari baseline terakhir yang diketahui server. */
+const kotor = computed(() => FIELD_PROFIL_SIMPAN.some(kunci => isian[kunci] !== snapshotAwal[kunci]))
+
+/**
+ * Teks catatan perubahan — saat dirty, sertakan field isian yang masih
+ * kosong DI FORM (informasi form, BUKAN klaim kelengkapan DB; field
+ * bersyarat `otherBankName` hanya masuk bila Bank = "Lainnya" di isian).
+ */
+const teksCatatan = computed(() => {
+  const sisaIsian = sisaFieldKosong(isian)
+  return sisaIsian.length > 0
+    ? `Perubahan belum disimpan — field isian belum lengkap: ${sisaIsian.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ')}.`
+    : 'Perubahan belum disimpan.'
+})
 
 /** Pesan gagal non-validasi (UX-DR19) — verbatim; isian dipertahankan. */
 const PESAN_GAGAL_SIMPAN = 'Tidak dapat menyimpan — coba lagi.'
 const gagalSimpan = ref(false)
+/** 400 PROFILE_INCOMPLETE: form yang DIKIRIM kurang — feedback klik khusus;
+ *  klaim indikator (data tersimpan) tidak diubah. */
+const PESAN_GAGAL_LENGKAPI = 'Perubahan tidak dapat disimpan — lengkapi field yang belum diisi.'
+const gagalLengkapi = ref(false)
 const sedangSimpan = ref(false)
+
+/** Alert sukses simpan — DI ATAS halaman, auto-hilang 3 detik (pola
+ *  status-pendaftaran; toast bawah tak terlihat — keputusan owner 2026-09-18). */
+const PESAN_TERSIMPAN = 'Profil tersimpan.'
+const pesanTersimpan = ref('')
+let timerPesanTersimpan: ReturnType<typeof setTimeout> | undefined
 
 /** Pesan inline per kode kesalahan format (400 PROFILE_INVALID). */
 const PESAN_KESALAHAN: Record<KodeKesalahanProfil, string> = {
@@ -131,21 +176,38 @@ async function simpan() {
   if (sedangSimpan.value) return
   sedangSimpan.value = true
   gagalSimpan.value = false
-  salah.value = {}
+  gagalLengkapi.value = false
+  // `salah` TIDAK dihapus di awal klik — error inline format bertahan stabil
+  // lintas percobaan dan dihapus HANYA oleh respons sukses (menghapus di sini
+  // membuat error berkedip tiap klik: muncul ~10ms lalu tersapu attempt baru).
   try {
     const hasil = await $fetch<ResponsProfil>('/api/profile', { method: 'PUT', body: { ...isian } })
-    // Nilai kanonik = versi server (hasil sanitasi) — isian diselaraskan.
+    salah.value = {}
+    // Nilai kanonik = versi server (hasil sanitasi) — isian & baseline
+    // diselaraskan sehingga catatan perubahan hilang.
     for (const kunci of FIELD_PROFIL_SIMPAN) {
       isian[kunci] = hasil[kunci] ?? ''
+      snapshotAwal[kunci] = hasil[kunci] ?? ''
     }
+    // Klaim indikator kini dari data TERSIMPAN (respons sukses).
+    statusServer.profileComplete = hasil.profileComplete
+    statusServer.remainingFields = [...hasil.remainingFields] as KunciFieldProfil[]
+    pesanTersimpan.value = PESAN_TERSIMPAN
+    if (timerPesanTersimpan !== undefined) clearTimeout(timerPesanTersimpan)
+    timerPesanTersimpan = setTimeout(() => {
+      pesanTersimpan.value = ''
+    }, DURASI_ALERT_SUKSES_MS)
   } catch (error) {
-    // 400 PROFILE_INCOMPLETE = kelengkapan → indikator; 400 PROFILE_INVALID =
+    // 400 PROFILE_INCOMPLETE = form yang DIKIRIM kurang → alert khusus (klaim
+    // indikator tidak diubah — DB tak tersentuh); 400 PROFILE_INVALID =
     // format/enum → inline per-field; kegagalan lain (5xx/jaringan) → Alert
     // verbatim. Segala cabang: isian dipertahankan.
     const data = (error as { data?: { code?: unknown, details?: { invalidFields?: { field: string, kode: KodeKesalahanProfil }[] } } } | null)?.data
     if (data?.code === 'PROFILE_INVALID') {
       salah.value = Object.fromEntries((data.details?.invalidFields ?? []).map(({ field, kode }) => [field, PESAN_KESALAHAN[kode]]))
-    } else if (data?.code !== 'PROFILE_INCOMPLETE') {
+    } else if (data?.code === 'PROFILE_INCOMPLETE') {
+      gagalLengkapi.value = true
+    } else {
       gagalSimpan.value = true
     }
   } finally {
@@ -157,7 +219,20 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-10 lg:max-w-5xl">
+  <div>
+    <!-- Feedback sukses simpan — alert atas halaman auto-hilang 3 detik
+         (pola status-pendaftaran; toast bawah tak terlihat). -->
+    <Alert
+      v-if="pesanTersimpan"
+      data-testid="kelengkapan-alert-tersimpan"
+      variant="success"
+      class="mx-auto max-w-md px-4 pt-4 sm:rounded-lg lg:max-w-5xl"
+      aria-live="polite"
+    >
+      {{ pesanTersimpan }}
+    </Alert>
+
+    <main class="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-10 lg:max-w-5xl">
     <header>
       <h1 class="text-2xl font-semibold">Kelengkapan Profil</h1>
       <p class="text-sm text-muted-foreground">
@@ -171,17 +246,28 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
           {{ PESAN_GAGAL_SIMPAN }}
         </Alert>
 
+        <!-- 400 PROFILE_INCOMPLETE: form yang DIKIRIM kurang — DB tak
+             tersentuh, klaim indikator (data tersimpan) tidak berubah. -->
+        <Alert v-if="gagalLengkapi" data-testid="kelengkapan-alert-gagal-lengkapi" variant="destructive" aria-live="polite">
+          {{ PESAN_GAGAL_LENGKAPI }}
+        </Alert>
+
         <p
           data-testid="kelengkapan-indikator"
           class="rounded-md border p-3 text-sm leading-relaxed"
           aria-live="polite"
         >
-          <template v-if="sisa.length > 0">
-            Profil belum lengkap — field belum diisi: {{ sisa.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
+          <template v-if="!statusServer.profileComplete">
+            Profil belum lengkap — field belum diisi: {{ statusServer.remainingFields.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
           </template>
           <template v-else>
             Profil lengkap — seluruh field terisi. Menunggu verifikasi.
           </template>
+          <span
+            v-if="kotor"
+            data-testid="kelengkapan-catatan-belum-tersimpan"
+            class="mt-2 block text-muted-foreground"
+          >{{ teksCatatan }}</span>
         </p>
 
         <!-- Referal: tampilan ONLY (DI LUAR body PUT dan DI LUAR kelengkapan —
@@ -400,9 +486,10 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         :data-terhidrasi="terhidrasi ? 'true' : 'false'"
         @click="simpan"
       >
-        Simpan
+        {{ sedangSimpan ? 'Menyimpan…' : 'Simpan' }}
       </Button>
       </form>
     </div>
   </main>
+  </div>
 </template>
