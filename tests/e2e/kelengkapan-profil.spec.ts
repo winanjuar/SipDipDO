@@ -63,7 +63,7 @@ const LEGEND_REFERAL = 'Referal'
  */
 const FIELD_EDITABLE: readonly { legend: string, label: string, kunci: string, jenis: 'input' | 'select' }[] = [
   { legend: LEGEND_PRIBADI, label: 'Nama Lengkap', kunci: 'fullName', jenis: 'input' },
-  { legend: LEGEND_PRIBADI, label: 'Alias', kunci: 'alias', jenis: 'input' },
+  { legend: LEGEND_PRIBADI, label: 'Nama Panggilan atau Alias', kunci: 'alias', jenis: 'input' },
   { legend: LEGEND_PRIBADI, label: 'No HP', kunci: 'phoneNumber', jenis: 'input' },
   { legend: LEGEND_KONTAK_DARURAT, label: 'Nama', kunci: 'emergencyContactName', jenis: 'input' },
   { legend: LEGEND_KONTAK_DARURAT, label: 'No HP', kunci: 'emergencyContactPhoneNumber', jenis: 'input' },
@@ -359,7 +359,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await log.step('WHEN 3 field diisi lalu tombol simpan diklik (dibungkus recurse hidrasi)')
       const isian: readonly { legend: string, label: string, nilai: string }[] = [
         { legend: LEGEND_PRIBADI, label: 'Nama Lengkap', nilai: nilaiSintetisUntuk('fullName') },
-        { legend: LEGEND_PRIBADI, label: 'Alias', nilai: nilaiSintetisUntuk('alias') },
+        { legend: LEGEND_PRIBADI, label: 'Nama Panggilan atau Alias', nilai: nilaiSintetisUntuk('alias') },
         { legend: LEGEND_PRIBADI, label: 'No HP', nilai: nilaiSintetisUntuk('phoneNumber') },
       ]
       for (const { legend, label, nilai } of isian) {
