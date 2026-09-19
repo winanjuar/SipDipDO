@@ -292,13 +292,15 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
              TOKEN SEMANTIK tema (UX-DR2, pola varian Alert sukses), bukan
              warna raw: Sistem = tinta primary (kelengkapan DATA TERSIMPAN),
              Isian = tinta warn (field form masih kosong, muncul hanya saat
-             sudah edit). -->
-        <div
+             sudah edit). Legend di atas border — pola fieldset Profil
+             Pemilik/Info Kontak Darurat/Info Rekening/Referal (owner
+             2026-09-19: bukan paragraf informasi di dalam box). -->
+        <fieldset
           data-testid="kelengkapan-indikator"
           class="rounded-md border border-primary/40 bg-primary/10 p-3 text-sm leading-relaxed"
           aria-live="polite"
         >
-          <p class="text-xs font-medium text-primary">Kelengkapan Data di Sistem</p>
+          <legend class="px-1 text-sm font-semibold text-primary">Kelengkapan Data di Sistem</legend>
           <p class="mt-1">
             <template v-if="!statusServer.profileComplete">
               Profil belum lengkap — field belum diisi: {{ statusServer.remainingFields.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
@@ -307,19 +309,19 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
               Profil lengkap — seluruh field terisi. Menunggu verifikasi.
             </template>
           </p>
-        </div>
+        </fieldset>
 
-        <div
+        <fieldset
           v-if="tampilCatatanForm"
           data-testid="kelengkapan-catatan-form"
           class="rounded-md border border-warn/40 bg-warn/10 p-3 text-sm leading-relaxed"
           aria-live="polite"
         >
-          <p class="text-xs font-medium text-warn">Kelengkapan Isian di Form</p>
+          <legend class="px-1 text-sm font-semibold text-warn">Kelengkapan Isian di Form</legend>
           <p class="mt-1">
             Field isian belum lengkap: {{ sisaFormIsian.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}.
           </p>
-        </div>
+        </fieldset>
 
         <!-- Referal: tampilan ONLY (DI LUAR body PUT dan DI LUAR kelengkapan —
              relokasi owner 2026-09-18 #6: menempel rail di bawah indikator);
