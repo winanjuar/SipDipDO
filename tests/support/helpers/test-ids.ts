@@ -62,5 +62,6 @@ export const TEST_IDS = {
     alertSukses: 'kelengkapan-alert-tersimpan',
     alertGagalLengkapi: 'kelengkapan-alert-gagal-lengkapi',
     catatanBelumTersimpan: 'kelengkapan-catatan-belum-tersimpan',
+    saklarPemilik: 'kelengkapan-saklar-pemilik',
   },
 } as const

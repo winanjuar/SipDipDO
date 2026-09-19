@@ -39,6 +39,10 @@ import type { LandingRespons } from '~/lib/landing'
  * catatan "Perubahan belum disimpan." dari deteksi dirty — isian lengkap
  * yang belum disimpan tidak pernah diklaim lengkap, dan DB lengkap tidak
  * pernah dibalik jadi belum lengkap oleh edit form.
+ *
+ * Saklar "Sama dengan pemilik" (permintaan owner 2026-09-19): Pemilik
+ * Rekening default terkunci mengikuti Nama Lengkap (state awal derived
+ * dari data tersimpan) — dimatikan untuk mengisi manual.
  */
 definePageMeta({ auth: true })
 
@@ -124,7 +128,20 @@ const statusServer = reactive({
   remainingFields: (profilTersimpan.value?.remainingFields ?? []) as KunciFieldProfil[],
 })
 
-/** Snapshot baseline isian (pasca prefill Google) — acuan deteksi perubahan. */
+/**
+ * Saklar "Sama dengan pemilik" (permintaan owner 2026-09-19): default ON —
+ * Pemilik Rekening terkunci mengikuti Nama Lengkap live (mirror ke
+ * `isian.accountHolderName`, kontrak PUT tak berubah). State awal DERIVED
+ * dari data tersimpan: kosong (belum pernah diisi) ATAU sama dengan Nama →
+ * ON; tersimpan berbeda (pernah diisi manual) → OFF agar nilai itu tetap
+ * terlihat & editable.
+ */
+const samaPemilik = ref(isian.accountHolderName === '' || isian.accountHolderName === isian.fullName)
+watch([() => samaPemilik.value, () => isian.fullName], ([sama, nama]) => {
+  if (sama) isian.accountHolderName = nama
+}, { immediate: true })
+
+/** Snapshot baseline isian (pasca prefill Google & mirror saklar) — acuan deteksi perubahan. */
 const snapshotAwal = { ...isian } as Record<KunciFieldProfil, string>
 
 /** Kunci field nomor yang disaring masukannya (hanya digit + "-"). */
@@ -365,8 +382,8 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             type="text"
             inputmode="tel"
             autocomplete="off"
-            @input="tapiskanNomor($event, 'phoneNumber')"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
+            @input="tapiskanNomor($event, 'phoneNumber')"
           >
           <p v-if="salah.phoneNumber" class="text-xs text-destructive">{{ salah.phoneNumber }}</p>
         </div>
@@ -408,8 +425,8 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             type="text"
             inputmode="tel"
             autocomplete="off"
-            @input="tapiskanNomor($event, 'emergencyContactPhoneNumber')"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
+            @input="tapiskanNomor($event, 'emergencyContactPhoneNumber')"
           >
           <p v-if="salah.emergencyContactPhoneNumber" class="text-xs text-destructive">{{ salah.emergencyContactPhoneNumber }}</p>
         </div>
@@ -448,13 +465,19 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             inputmode="numeric"
             :maxlength="PANJANG_MAKS_REKENING"
             autocomplete="off"
-            @input="tapiskanNomor($event, 'accountNumber')"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
+            @input="tapiskanNomor($event, 'accountNumber')"
           >
           <p v-if="salah.accountNumber" class="text-xs text-destructive">{{ salah.accountNumber }}</p>
         </div>
 
         <div class="flex flex-col gap-1">
+          <!-- Saklar "Sama dengan pemilik" (permintaan owner 2026-09-19) —
+               kanan-atas field: ON = terkunci mengikuti Nama; OFF = editable. -->
+          <div class="flex items-center justify-end gap-2">
+            <label for="profil-saklar-pemilik" class="text-sm text-muted-foreground">Sama dengan pemilik</label>
+            <Switch id="profil-saklar-pemilik" v-model="samaPemilik" data-testid="kelengkapan-saklar-pemilik" />
+          </div>
           <label for="profil-accountHolderName" class="text-sm font-medium">Pemilik</label>
           <input
             id="profil-accountHolderName"
@@ -462,7 +485,8 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             type="text"
             :maxlength="PANJANG_MAKS_NAMA"
             autocomplete="off"
-            class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
+            :disabled="samaPemilik"
+            :class="['flex h-11 w-full rounded-md border px-3 py-1 text-sm', samaPemilik ? 'bg-muted text-muted-foreground opacity-80' : 'bg-transparent shadow-xs']"
           >
           <p v-if="salah.accountHolderName" class="text-xs text-destructive">{{ salah.accountHolderName }}</p>
         </div>

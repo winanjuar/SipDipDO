@@ -149,6 +149,10 @@ async function tungguHidrasi(page: Page): Promise<void> {
  * lewat klik trigger lalu klik opsi by-role, dibungkus recurse verifikasi
  * teks trigger (nilai pra-hidrasi bisa ter-reset oleh hidrasi; pola lama
  * selectOption tidak berlaku untuk komponen non-native).
+ *
+ * Field Pemilik Rekening default TERKUNCI oleh saklar "Sama dengan pemilik"
+ * (permintaan owner 2026-09-19) — saklar dimatikan dulu bila masih ON agar
+ * fill() tidak menabrak input disabled.
  */
 async function isiField(recurse: RecurseSesi, page: Page, legend: string, label: string, jenis: 'input' | 'select', nilai: string): Promise<void> {
   const lokasi = locatorField(page, legend, label)
@@ -167,6 +171,10 @@ async function isiField(recurse: RecurseSesi, page: Page, legend: string, label:
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: `Menunggu pilihan ${label} menempel pasca-hidrasi` },
     )
   } else {
+    if (legend === LEGEND_REKENING && label === 'Pemilik') {
+      const saklar = page.getByTestId(TEST_IDS.kelengkapanProfil.saklarPemilik)
+      if ((await saklar.getAttribute('aria-checked')) === 'true') await saklar.click()
+    }
     await lokasi.fill(nilai)
   }
 }
@@ -743,6 +751,73 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await expect(noHp).toHaveValue('0812-790')
       await expect(noHpKontak).toHaveValue('0813-9876')
       await expect(noRek).toHaveValue('7638-049363')
+    },
+  )
+
+  test(
+    '[P1] saklar "Sama dengan pemilik": default ON (Pemilik terkunci mengikuti Nama), OFF → editable & persisten',
+    async ({ page, context, apiRequest, recurse }) => {
+      await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
+      const cookies = await mintSesiPemilik(apiRequest, {
+        userIdentifier: 'tanpa-saham',
+        status: 'diajukan',
+        email: emailSintetisUji(),
+      })
+      await context.addCookies(cookies)
+      await page.goto(HALAMAN_KELENGKAPAN)
+      await tungguHidrasi(page)
+
+      await log.step('THEN saklar default ON — field Pemilik terkunci bernilai prefill Nama (profil Google)')
+      const saklar = page.getByTestId(TEST_IDS.kelengkapanProfil.saklarPemilik)
+      const pemilik = locatorField(page, LEGEND_REKENING, 'Pemilik')
+      await expect(saklar).toHaveAttribute('aria-checked', 'true')
+      await expect(pemilik).toBeDisabled()
+      await expect(pemilik).toHaveValue(NAMA_SESI_MINT)
+
+      await log.step('WHEN Nama diedit — nilai Pemilik mengikuti live selama saklar ON')
+      const namaBaru = `Uji ${faker.string.alphanumeric(6)}`
+      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill(namaBaru)
+      await expect(pemilik).toHaveValue(namaBaru)
+
+      await log.step('AND saklar dimatikan + Pemilik diisi manual + seluruh field lain diisi lalu Simpan sukses')
+      await saklar.click()
+      await expect(saklar).toHaveAttribute('aria-checked', 'false')
+      await expect(pemilik).toBeEnabled()
+      const pemilikManual = `Uji ${faker.string.alphanumeric(6)}`
+      await pemilik.fill(pemilikManual)
+      for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
+        if (kunci === 'accountHolderName') continue
+        const nilai = kunci === 'bankName' ? BANK_UJI : kunci === 'emergencyContactRelationship' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
+        await isiField(recurse, page, legend, label, jenis, nilai)
+      }
+      await recurse(
+        async () => {
+          try {
+            await page.getByRole('button', { name: /simpan/i }).click()
+          } catch {
+            // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
+          }
+          return page.getByTestId(TEST_IDS.kelengkapanProfil.alertSukses).isVisible()
+        },
+        tampil => tampil === true,
+        { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu simpan profil sukses' },
+      )
+
+      await log.step('THEN nilai manual tersimpan — terkonfirmasi via GET /api/profile (kontrak server tak berubah)')
+      const { status, body } = await apiRequest<{ accountHolderName: string }>({
+        method: 'GET',
+        path: '/api/profile',
+        headers: headerCookieDariMint(cookies),
+      })
+      expect(status).toBe(200)
+      expect(body.accountHolderName).toBe(pemilikManual)
+
+      await log.step('AND reload → saklar OFF derived dari data tersimpan (Pemilik ≠ Nama), field editable bernilai manual')
+      await page.reload()
+      await tungguHidrasi(page)
+      await expect(saklar).toHaveAttribute('aria-checked', 'false')
+      await expect(pemilik).toBeEnabled()
+      await expect(pemilik).toHaveValue(pemilikManual)
     },
   )
 })
