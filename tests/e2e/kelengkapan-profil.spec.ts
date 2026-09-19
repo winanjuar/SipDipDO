@@ -303,6 +303,9 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     const { requestJson } = await simpanCall
     expect(Object.keys(requestJson as Record<string, unknown>).sort()).toEqual([...KUNCI_KONTRAK_PUT])
 
+    await log.step('AND alert sukses "Profil tersimpan." tampil di atas halaman (auto-hilang 3 detik — pola alert atas)')
+    await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.alertSukses)).toContainText('Profil tersimpan.')
+
     await log.step('AND indikator menyatakan Profil lengkap (prasyarat verifikasi COO terpenuhi)')
     await expect(page.getByText(/profil lengkap/i).first()).toBeVisible()
 
@@ -642,6 +645,73 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await tungguHidrasi(page)
     await expect(locatorField(page, LEGEND_REKENING, 'Bank')).toContainText('Lainnya')
     await expect(locatorField(page, LEGEND_REKENING, 'Bank Lainnya')).toHaveValue('SeaBank')
+    },
+  )
+
+  test(
+    '[P1] indikator tidak mengklaim lengkap dari isian yang BELUM disimpan (anti-prematur — klaim hanya dari data tersimpan)',
+    async ({ page, context, apiRequest, recurse }) => {
+      await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness (profil belum tersimpan)')
+      const cookies = await mintSesiPemilik(apiRequest, {
+        userIdentifier: 'tanpa-saham',
+        status: 'diajukan',
+        email: emailSintetisUji(),
+      })
+      await context.addCookies(cookies)
+      await page.goto(HALAMAN_KELENGKAPAN)
+      await tungguHidrasi(page)
+
+      await log.step('WHEN seluruh field diisi lengkap TANPA menekan Simpan')
+      for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
+        const nilai = kunci === 'bankName' ? BANK_UJI : kunci === 'emergencyContactRelationship' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
+        await isiField(recurse, page, legend, label, jenis, nilai)
+      }
+
+      await log.step('THEN indikator TIDAK mengklaim profil lengkap (belum tersimpan di DB) + catatan perubahan tampil')
+      const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
+      await expect(indikator).not.toContainText(/profil lengkap/i)
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toBeVisible()
+    },
+  )
+
+  test(
+    '[P1] indikator mengklaim dari data TERSIMPAN — menghapus isi field tidak membalik klaim (anti-palsu-negatif)',
+    async ({ page, context, apiRequest }) => {
+      await log.step('GIVEN calon diajukan dengan profil lengkap TERSIMPAN via endpoint langsung')
+      const cookies = await mintSesiPemilik(apiRequest, {
+        userIdentifier: 'tanpa-saham',
+        status: 'diajukan',
+        email: emailSintetisUji(),
+      })
+      const simpan = await apiRequest<{ profileComplete: boolean }>({
+        method: 'PUT',
+        path: '/api/profile',
+        body: profilLengkapUji(),
+        headers: headerCookieDariMint(cookies),
+      })
+      expect(simpan.status).toBe(200)
+      await context.addCookies(cookies)
+
+      await log.step('WHEN membuka halaman tanpa mengubah apa pun')
+      await page.goto(HALAMAN_KELENGKAPAN)
+      await tungguHidrasi(page)
+
+      await log.step('THEN indikator menyatakan lengkap + menunggu verifikasi, TANPA catatan perubahan')
+      const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
+      await expect(indikator).toContainText('Menunggu verifikasi')
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
+
+      await log.step('WHEN field Nama dikosongkan (perubahan belum disimpan)')
+      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill('')
+
+      await log.step('THEN indikator TETAP menyatakan lengkap — TIDAK membalik ke "belum lengkap" (data DB utuh)')
+      await expect(indikator).toContainText('Menunggu verifikasi')
+      await expect(indikator).not.toContainText('Profil belum lengkap')
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toBeVisible()
+
+      await log.step('AND nilai dipulihkan → catatan perubahan hilang')
+      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill('Pulih Uji')
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
     },
   )
 })

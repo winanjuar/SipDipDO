@@ -54,8 +54,13 @@ export const TEST_IDS = {
     ukuran: 'audit-trail-ukuran',
   },
   // Story 1.5 — kelengkapan profile (kontrak ATDD red-phase; region indikator
-  // langkah UX-DR16 diimplementasikan dengan data-testid ini).
+  // langkah UX-DR16 diimplementasikan dengan data-testid ini). Penambahan
+  // pasca-normalisasi indikator: klaim kelengkapan = data TERSIMPAN (server),
+  // bukan form live — plus feedback aksi simpan (alert sukses/gagal-lengkapi).
   kelengkapanProfil: {
     indikator: 'kelengkapan-indikator',
+    alertSukses: 'kelengkapan-alert-tersimpan',
+    alertGagalLengkapi: 'kelengkapan-alert-gagal-lengkapi',
+    catatanBelumTersimpan: 'kelengkapan-catatan-belum-tersimpan',
   },
 } as const
