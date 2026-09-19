@@ -21,7 +21,8 @@
  *
  * Penambahan PASCA-REVIEW sebelumnya: tautan "Lengkapi Profile" di
  * /status-pendaftaran (pintu nav tunggal), gerbang calon diajukan LENGKAP,
- * dan submit PARTIAL 400 PROFILE_INCOMPLETE (alert verbatim TIDAK tampil,
+ * dan submit PARTIAL sukses 200 (re-negotiasi owner 2026-09-19 — field
+ * kosong tidak lagi menolak simpan; zona Sistem tetap menyebut sisa,
  * isian dipertahankan).
  *
  * Kontrak wire: GET/PUT `/api/profile`; PUT body = PERSIS 9 kunci kontrak
@@ -96,8 +97,9 @@ const NAMA_SESI_MINT = 'Pemilik Uji Sintetis'
 /** Batas panjang client-side (paritas PANJANG_MAKS_NAMA shared/domain/profil). */
 const PANJANG_MAKS_NAMA_UJI = 25
 
-/** Pesan inline kode format-salah (verbatim halaman). */
-const PESAN_FORMAT_SALAH = 'Hanya angka dan tanda "-".'
+/** Pesan inline kode digit-hp (verbatim halaman — karakter sah namun jumlah
+ *  digit/prefix salah; permintaan owner 2026-09-19: info validasi relevan). */
+const PESAN_DIGIT_HP = 'Nomor HP harus 9-15 digit dan dimulai angka 0.'
 
 /** Batas recurse test format-HP: cold-start compile Vite webkit pada eksekusi
  *  pertama file bisa melebihi 30s standar (flaky teramati 2026-09-18). */
@@ -113,7 +115,7 @@ const PANJANG_KODE_REFERRAL = 8
 const TOAST_GAGAL_SIMPAN = 'Tidak dapat menyimpan — coba lagi.'
 
 /** Status HTTP yang dipakai penambahan pasca-review. */
-const STATUS_BAD_REQUEST = 400
+const STATUS_OK = 200
 
 /** Cookie[] hasil mint → header Cookie untuk apiRequest (pola
  *  profil.api.spec.ts — apiRequest tidak berbagi cookie-jar browser). */
@@ -251,8 +253,13 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     expect((await kodeReferal.inputValue()).length).toBe(PANJANG_KODE_REFERRAL)
     await expect(locatorField(page, LEGEND_REFERAL, 'Referal Dari')).toBeDisabled()
 
-    await log.step('AND indikator langkah menyebut PERSIS field yang belum diisi (nama Lampiran A penuh)')
+    await log.step('AND zona Sistem berlegend "Kelengkapan Data di Sistem" + tinta token semantik primary (UX-DR2 — bukan warna raw)')
     const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
+    await expect(indikator).toContainText('Kelengkapan Data di Sistem')
+    await expect(indikator).toHaveClass(/border-primary\/40/)
+    await expect(indikator).toHaveClass(/bg-primary\/10/)
+
+    await log.step('AND indikator langkah menyebut PERSIS field yang belum diisi (nama Lampiran A penuh)')
     await expect(indikator).toBeVisible()
     await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
     await expect(indikator.getByText('Nomor Rekening')).toBeVisible()
@@ -450,7 +457,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       body: profilLengkapUji(),
       headers: headerCookieDariMint(cookies),
     })
-    expect(simpan.status).toBe(200)
+    expect(simpan.status).toBe(STATUS_OK)
 
     await log.step('AND sesi yang sama di-mint ulang (baris sama — profil tetap tersimpan)')
     await context.addCookies(await mintSesiPemilik(apiRequest, {
@@ -468,15 +475,11 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
   })
 
   test(
-    '[P1] submit PARTIAL (400): alert gagal TIDAK tampil, indikator menyebut field kosong, isian dipertahankan (pasca-review)',
-    { annotation: [{ type: 'skipNetworkMonitoring' }] },
+    '[P1] submit PARSIAL sukses (re-negotiasi owner 2026-09-19): alert sukses, zona Sistem tetap menyebut field kosong, isian persisten',
     async ({ page, context, apiRequest, recurse, interceptNetworkCall }) => {
-      // skipNetworkMonitoring: PUT 400 disengaja (cabang validasi kelengkapan
-      // adalah kontrak yang sedang dipin) — bukan bug jaringan.
-      // Cabang 400 PROFILE_INCOMPLETE di-pin: halaman TIDAK menampilkan alert
-      // verbatim (itu khusus gagal non-validasi), indikator tetap menunjuk
-      // field kosong, dan seluruh isian dipertahankan.
-      await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness (tanpa stub)')
+      // Simpan parsial: field kosong TIDAK lagi menolak simpan — 200 dengan
+      // remainingFields; zona Sistem (server-truth) tetap menyebut sisa.
+     await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness (tanpa stub)')
       const cookies = await mintSesiPemilik(apiRequest, {
         userIdentifier: 'tanpa-saham',
         status: 'diajukan',
@@ -518,13 +521,17 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu PUT profil terpantau' },
       )
 
-      await log.step('THEN server menjawab 400 (validasi kelengkapan) dan alert verbatim TIDAK tampil')
-      expect(statusSimpan).toBe(STATUS_BAD_REQUEST)
+      await log.step('THEN server menjawab 200 (simpan parsial) + alert sukses, TANPA toast gagal')
+      expect(statusSimpan).toBe(STATUS_OK)
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.alertSukses)).toContainText('Profil tersimpan.')
       await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toHaveCount(0)
 
-      await log.step('AND indikator menyebut field kosong PERSIS (nama Lampiran A penuh: Nama Bank)')
+      await log.step('AND zona Sistem tetap menyebut field kosong PERSIS (nama Lampiran A penuh: Nama Bank)')
       const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
       await expect(indikator.getByText(NAMA_FIELD_KOSONG_CONTOH)).toBeVisible()
+
+      await log.step('AND zona Isian form TERSEMBUNYI (form = data tersimpan, tak ada perubahan)')
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
 
       await log.step('AND seluruh isian DIPERTAHANKAN')
       for (const { legend, label, jenis, nilai } of isian) {
@@ -539,7 +546,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
   )
 
   test(
-    '[P1] format HP salah (400 PROFILE_INVALID): error inline per-field, alert generik TIDAK tampil, isian dipertahankan',
+    '[P1] HP digit kurang (400 PROFILE_INVALID kode digit-hp): error inline per-field relevan, alert generik TIDAK tampil, isian dipertahankan',
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
     async ({ page, context, apiRequest, recurse }) => {
       // skipNetworkMonitoring: PUT 400 disengaja (cabang validasi FORMAT
@@ -558,7 +565,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       const nilaiSesuai = new Map<string, string>()
       for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
         // Penapis masukan nomor: huruf di '08-ABC-9999' ditolak langsung —
-        // tersisa '08--9999' (digit < 9 → server tetap menjawab format-salah).
+        // tersisa '08--9999' (karakter sah, digit < 9 → server menjawab
+        // kode digit-hp — pesan validasi relevan, bukan "hanya angka").
         const nilai = kunci === 'phoneNumber'
           ? '08--9999'
           : kunci === 'bankName' ? BANK_UJI : kunci === 'emergencyContactRelationship' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
@@ -572,14 +580,14 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
           } catch {
             // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
           }
-          return page.getByText(PESAN_FORMAT_SALAH).isVisible()
+          return page.getByText(PESAN_DIGIT_HP).isVisible()
         },
         tampil => tampil === true,
-        { timeout: BATAS_RECURSE_FORMAT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu error inline format No HP' },
+        { timeout: BATAS_RECURSE_FORMAT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu error inline digit No HP' },
       )
 
-      await log.step('THEN pesan inline format tampil DI BAWAH No HP (scoped grup Pribadi)')
-      await expect(page.getByRole('group', { name: LEGEND_PRIBADI }).getByText(PESAN_FORMAT_SALAH)).toBeVisible()
+      await log.step('THEN pesan inline digit-hp tampil DI BAWAH No HP (scoped grup Profil Pemilik)')
+      await expect(page.getByRole('group', { name: LEGEND_PRIBADI }).getByText(PESAN_DIGIT_HP)).toBeVisible()
 
       await log.step('AND alert generik gagal-simpan TIDAK tampil (khusus non-validasi)')
       await expect(page.getByText(TOAST_GAGAL_SIMPAN)).toHaveCount(0)
@@ -597,13 +605,21 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
   )
 
   test(
-    '[P1] alur Bank "Lainnya": textbox muncul, wajib diisi, tersimpan & persisten',
+    '[P1] alur Bank "Lainnya": textbox muncul, simpan PARSIAL tanpa nama bank sukses, terisi → lengkap & persisten',
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
-    async ({ page, context, apiRequest, recurse }) => {
-      // skipNetworkMonitoring: PUT 400 tahap pertama DISKENARIO-KAN (Bank
-      // "Lainnya" tanpa otherBankName → PROFILE_INCOMPLETE adalah kontrak yang
-      // dipin) — bukan bug jaringan.
-    await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
+    async ({ page, context, apiRequest, recurse, interceptNetworkCall }) => {
+      // skipNetworkMonitoring: PUT 200 x2 sesuai alur riil (parsial lalu
+      // lengkap) — monitoring difokuskan pada kontrak UI.
+      // SATU interceptor network-first (SEBELUM goto, pola spec ini) +
+      // penghitung PUT: tepat satu PUT pasti per fase — pola klik-poll-
+      // visible berisiko klik ganda lintas in-flight (klik ke-2 menunggu
+      // tombol disabled→enabled lalu PUT ulang; respons PUT ulang itu
+      // menghapus isian yang diketik di sela — race teramati 2026-09-19).
+      let jumlahPut = 0
+      interceptNetworkCall({ url: '**/api/profile', method: 'PUT' }).then(() => {
+        jumlahPut += 1
+      })
+     await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
     const cookies = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'tanpa-saham',
       status: 'diajukan',
@@ -621,7 +637,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     const otherBankNameInput = locatorField(page, LEGEND_REKENING, 'Bank Lainnya')
     await expect(otherBankNameInput).toBeVisible()
 
-    await log.step('THEN simpan tanpa otherBankName → zona CATATAN (form-truth) menyebut field wajib "Bank Lainnya"; indikator server-truth tak tersentuh')
+    await log.step('THEN simpan tanpa otherBankName → 200 PARSIAL: alert sukses + zona Sistem menyebut "Bank Lainnya" (sisa tersimpan)')
     await recurse(
       async () => {
         try {
@@ -629,14 +645,18 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         } catch {
           // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
         }
-        return page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan).getByText('Bank Lainnya').isVisible()
+        return jumlahPut >= 1
       },
-      tampil => tampil === true,
-      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu catatan form memuat Bank Lainnya' },
+      terkirim => terkirim === true,
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu PUT parsial terkirim' },
     )
-    await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)).not.toContainText('Bank Lainnya')
+    await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.alertSukses)).toContainText('Profil tersimpan.')
+    await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.indikator).getByText('Bank Lainnya')).toBeVisible()
+    await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
 
     await log.step('WHEN otherBankName diisi lalu simpan → profil lengkap')
+    // Fase 2 aman poll visible: tidak ada perubahan isian pasca-fill, PUT
+    // ulang yang mungkin terpicu membawa nilai identik (tak ada yang terhapus).
     await otherBankNameInput.fill('SeaBank')
     await recurse(
       async () => {
@@ -678,10 +698,10 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         await isiField(recurse, page, legend, label, jenis, nilai)
       }
 
-      await log.step('THEN indikator TIDAK mengklaim profil lengkap (belum tersimpan di DB) + catatan perubahan tampil')
+      await log.step('THEN indikator TIDAK mengklaim profil lengkap (belum tersimpan di DB) + zona Isian TERSEMBUNYI (form tak ada field kosong)')
       const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
       await expect(indikator).not.toContainText(/profil lengkap/i)
-      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toBeVisible()
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
     },
   )
 
@@ -700,17 +720,17 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         body: profilLengkapUji(),
         headers: headerCookieDariMint(cookies),
       })
-      expect(simpan.status).toBe(200)
+      expect(simpan.status).toBe(STATUS_OK)
       await context.addCookies(cookies)
 
       await log.step('WHEN membuka halaman tanpa mengubah apa pun')
       await page.goto(HALAMAN_KELENGKAPAN)
       await tungguHidrasi(page)
 
-      await log.step('THEN indikator menyatakan lengkap + menunggu verifikasi, TANPA catatan perubahan')
+      await log.step('THEN indikator menyatakan lengkap + menunggu verifikasi, TANPA zona Isian')
       const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
       await expect(indikator).toContainText('Menunggu verifikasi')
-      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
 
       await log.step('WHEN field Nama dikosongkan (perubahan belum disimpan)')
       const namaTersimpan = await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').inputValue()
@@ -719,14 +739,19 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await log.step('THEN indikator TETAP menyatakan lengkap — TIDAK membalik ke "belum lengkap" (data DB utuh)')
       await expect(indikator).toContainText('Menunggu verifikasi')
       await expect(indikator).not.toContainText('Profil belum lengkap')
-      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toBeVisible()
-      // Zona TERPISAH (permintaan owner 2026-09-19): catatan form hidup di box
-      // sendiri (aksen amber) — TIDAK lagi menempel di dalam box indikator.
-      await expect(indikator).not.toContainText('Perubahan belum disimpan')
+      // Zona Isian (owner 2026-09-19): muncul hanya saat sudah edit DAN form
+      // masih ada field kosong — box sendiri bertinta warn token semantik.
+      const catatanForm = page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)
+      await expect(catatanForm).toBeVisible()
+      await expect(catatanForm).toContainText('Kelengkapan Isian di Form')
+      await expect(catatanForm).toContainText('Field isian belum lengkap')
+      await expect(catatanForm).toHaveClass(/border-warn\/40/)
+      await expect(catatanForm).toHaveClass(/bg-warn\/10/)
+      await expect(indikator).not.toContainText('Field isian belum lengkap')
 
-      await log.step('AND nilai ASLI dipulihkan → catatan perubahan hilang')
+      await log.step('AND nilai ASLI dipulihkan → zona Isian hilang')
       await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').fill(namaTersimpan)
-      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
+      await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
     },
   )
 
@@ -813,7 +838,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         path: '/api/profile',
         headers: headerCookieDariMint(cookies),
       })
-      expect(status).toBe(200)
+      expect(status).toBe(STATUS_OK)
       expect(body.accountHolderName).toBe(pemilikManual)
 
       await log.step('AND reload → saklar OFF derived dari data tersimpan (Pemilik ≠ Nama), field editable bernilai manual')

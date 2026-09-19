@@ -152,8 +152,11 @@ export type ProfilValues = Record<KunciFieldProfil, string>
  */
 export type ProfilNilai = Partial<Record<KunciProfil, string | null | undefined>>
 
-/** Kode kesalahan format per field (dipisah dari kelengkapan `sisa`). */
-export type KodeKesalahanProfil = 'terlalu-panjang' | 'format-salah' | 'di-luar-daftar'
+/** Kode kesalahan format per field (dipisah dari kelengkapan `sisa`).
+ *  `digit-hp` (permintaan owner 2026-09-19): karakter Nomor HP sudah sah
+ *  (digit/"-") namun jumlah digit/prefix salah — dipisah dari `format-salah`
+ *  agar pesan validasi relevan ("hanya angka dan dash" menyesatkan). */
+export type KodeKesalahanProfil = 'terlalu-panjang' | 'format-salah' | 'digit-hp' | 'di-luar-daftar'
 
 /** Satu kesalahan format: field + kode (dipin di wire `details.invalidFields`). */
 export interface KesalahanFieldProfil {
@@ -253,8 +256,10 @@ export function validasiProfil(nilai: ProfilNilai): HasilValidasiProfil {
   const validasiHp = (field: KunciFieldProfil): void => {
     const nilai = bersih[field]
     if (nilai.length === 0) return
-    if (!POLA_NOMOR.test(nilai) || !POLA_DIGIT_HP.test(nilai.replaceAll('-', ''))) {
+    if (!POLA_NOMOR.test(nilai)) {
       kesalahan.push({ field, kode: 'format-salah' })
+    } else if (!POLA_DIGIT_HP.test(nilai.replaceAll('-', ''))) {
+      kesalahan.push({ field, kode: 'digit-hp' })
     }
   }
   validasiHp('phoneNumber')

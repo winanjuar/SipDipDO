@@ -17,16 +17,20 @@ import { readBody, setResponseStatus } from 'h3'
  * sesi → 401; selain calon `diajukan` → 403 (CAP-3); body membawa `referral`
  * → 400 (referral hanya saat Pembelian Pertama, Epic 3).
  *
- * Validasi dua lapis dari kontrak murni `shared/domain/profil`
+ * Validasi dari kontrak murni `shared/domain/profil`
  * (re-negotiasi owner 2026-09-18 — sanitasi, panjang maksimum, pola nomor,
  * enum Bank/Hubungan):
- * - field wajib kosong → 400 `PROFILE_INCOMPLETE` + `details.remainingFields`
- *   (termasuk `otherBankName` bila Bank "Lainnya" tanpa nama bank lain);
  * - format/enum salah → 400 `PROFILE_INVALID` + `details.invalidFields`
- *   `[{ field, kode }]`;
- * keduanya TANPA tulisan DB. Sukses → 200 nilai BERSIH (hasil sanitasi) +
- * `gmail = email sesi, profileComplete: true, remainingFields: []` + audit
- * `profil-kelengkapan` in-tx di service. Gmail TIDAK diterima dari body.
+ *   `[{ field, kode }]` TANPA tulisan DB (termasuk kode `digit-hp` —
+ *   karakter HP sah namun jumlah digit/prefix salah);
+ * - SIMPAN PARSIAL (re-negotiasi owner 2026-09-19): field kosong TIDAK lagi
+ *   menolak — form = state penuh (field yang dikosongkan ikut dikosongkan
+ *   di DB); sukses → 200 nilai BERSIH (hasil sanitasi) + `gmail = email
+ *   sesi, profileComplete = sisa.length === 0, remainingFields = sisa`
+ *   (termasuk `otherBankName` bila Bank "Lainnya" tanpa nama bank lain)
+ *   + audit `profil-kelengkapan` in-tx di service. Gerbang kelengkapan
+ *   (redirect AD-8, cron, indikator) tetap dari `profilLengkap` data
+ *   tersimpan. Gmail TIDAK diterima dari body.
  */
 
 /**
@@ -79,21 +83,16 @@ export default defineEventHandler(async (event) => {
       details: { invalidFields: kesalahan },
     })
   }
-  if (sisa.length > 0) {
-    return sendApiError(event, HTTP_STATUS.badRequest, {
-      code: 'PROFILE_INCOMPLETE',
-      message: 'Profil belum lengkap — isi seluruh field yang tersisa.',
-      details: { remainingFields: sisa },
-    })
-  }
 
+  // Simpan parsial (re-negotiasi owner 2026-09-19): kelengkapan TIDAK lagi
+  // gerbang simpan — form = state penuh, laporkan sisa apa adanya.
   const nilaiBersih: ProfilValues = bersih
   await simpanProfil({ email, nilai: nilaiBersih }, useDb())
   setResponseStatus(event, HTTP_STATUS.ok)
   return {
     ...nilaiBersih,
     gmail: email,
-    profileComplete: true,
-    remainingFields: [],
+    profileComplete: sisa.length === 0,
+    remainingFields: sisa,
   }
 })

@@ -118,16 +118,19 @@ describe('validasiProfil — pola nomor', () => {
       .toEqual([{ field: 'phoneNumber', kode: 'format-salah' }])
   })
 
-  it('HP tidak diawali 0 → format-salah', () => {
+  // Permintaan owner 2026-09-19: info validasi HP dibedakan per sebab —
+  // karakter sudah sah namun jumlah digit/prefix salah → kode sendiri
+  // (pesan "hanya angka dan dash" menyesatkan untuk kasus ini).
+  it('HP tidak diawali 0 (karakter sah) → digit-hp', () => {
     expect(validasiProfil({ ...nilaiLengkap(), phoneNumber: '628123456789' }).kesalahan)
-      .toEqual([{ field: 'phoneNumber', kode: 'format-salah' }])
+      .toEqual([{ field: 'phoneNumber', kode: 'digit-hp' }])
   })
 
-  it('HP < 9 digit / > 15 digit → format-salah', () => {
-    expect(validasiProfil({ ...nilaiLengkap(), phoneNumber: '0812' }).kesalahan)
-      .toEqual([{ field: 'phoneNumber', kode: 'format-salah' }])
+  it('HP < 9 digit / > 15 digit (karakter sah) → digit-hp', () => {
+    expect(validasiProfil({ ...nilaiLengkap(), phoneNumber: '081131' }).kesalahan)
+      .toEqual([{ field: 'phoneNumber', kode: 'digit-hp' }])
     expect(validasiProfil({ ...nilaiLengkap(), emergencyContactPhoneNumber: '0' + '1'.repeat(15) }).kesalahan)
-      .toEqual([{ field: 'emergencyContactPhoneNumber', kode: 'format-salah' }])
+      .toEqual([{ field: 'emergencyContactPhoneNumber', kode: 'digit-hp' }])
   })
 
   it('rekening mengandung selain digit/"-" → format-salah', () => {
