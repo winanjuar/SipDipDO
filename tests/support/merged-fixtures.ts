@@ -19,7 +19,7 @@ import { test as recurseFixture } from '@seontechnologies/playwright-utils/recur
 import { test as interceptFixture } from '@seontechnologies/playwright-utils/intercept-network-call/fixtures'
 import { test as networkErrorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures'
 import { test as authFixture } from './auth-fixture'
-import { test as cleanupFixture } from './fixtures/cleanup'
+import { test as cleanupFixture, testWorker as cleanupWorkerFixture } from './fixtures/cleanup'
 
 export const test = mergeTests(
   apiRequestFixture,
@@ -28,6 +28,7 @@ export const test = mergeTests(
   networkErrorFixture,
   authFixture,
   cleanupFixture,
+  cleanupWorkerFixture,
 )
 
 export { expect } from '@playwright/test'

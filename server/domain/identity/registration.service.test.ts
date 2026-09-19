@@ -24,9 +24,16 @@ describe('registrationDeadline (FR-22/AD-11 — hari kalender, zona Asia/Jakarta
   })
 })
 
-describe('runRegistrationDailyJob (kerangka cron scaffold)', () => {
-  it('no-op dengan kontrak balikan tetap sampai jalur cron ada (Story 1.5/1.6)', async () => {
-    await expect(runRegistrationDailyJob(asDayKey('2026-09-16'))).resolves.toEqual({ reminded: 0, expired: 0 })
+describe('runRegistrationDailyJob (Story 1.5 — kontrak balikan penuh)', () => {
+  it('tanpa kandidat `diajukan` → kontrak balikan penuh nol (counter + daftar email)', async () => {
+    // Stub no-op lama ({ reminded: 0, expired: 0 }) digantikan kontrak baru
+    // Story 1.5: counter + remindedEmails/expiredEmails (paritas wire
+    // cron-harian.api.spec.ts); jalur eksekusi penuh diuji
+    // registration.service.expiry.test.ts.
+    const { dbPalsu } = buatDbTransaksiPalsu([], [])
+    await expect(
+      runRegistrationDailyJob(asDayKey('2026-09-16'), dbPalsu as unknown as Parameters<typeof runRegistrationDailyJob>[1]),
+    ).resolves.toEqual({ reminded: 0, expired: 0, remindedEmails: [], expiredEmails: [] })
   })
 })
 
@@ -59,6 +66,7 @@ function buatDbTransaksiPalsu(hasilReturning: unknown[], hasilSelect: unknown[])
     select: () => {
       const rantai = {
         from: () => rantai,
+        leftJoin: () => rantai,
         where: () => rantai,
         limit: () => rantai,
         then: (resolve: (nilai: unknown[]) => void) => resolve(hasilSelect),
@@ -73,6 +81,37 @@ function buatDbTransaksiPalsu(hasilReturning: unknown[], hasilSelect: unknown[])
 }
 
 describe('ajukanPendaftaran (Story 1.4, FR-22/AD-3/AD-11 — matriks I/O spec)', () => {
+  /** Kolom mentah join 3 tabel (anak 1:1 belum ada — profil NULL) — bentuk
+   *  yang dikembalikan SELECT palsu; INSERT palsu cukup returning { id }
+   *  (pola repo pasca-normalisasi: rekaman dibaca ulang via join). */
+  const barisJoin = (baris: Record<string, unknown>) => ({
+    ...baris,
+    fullName: null,
+    alias: null,
+    phoneNumber: null,
+    emergencyContactName: null,
+    emergencyContactPhoneNumber: null,
+    emergencyContactRelationship: null,
+    storedBankName: null,
+    accountHolderName: null,
+    accountNumber: null,
+  })
+
+  /** Bentuk wire OwnerRecord (bank tunggal terurai dua field). */
+  const barisWire = (baris: Record<string, unknown>) => ({
+    ...baris,
+    fullName: null,
+    alias: null,
+    phoneNumber: null,
+    emergencyContactName: null,
+    emergencyContactPhoneNumber: null,
+    emergencyContactRelationship: null,
+    bankName: null,
+    otherBankName: null,
+    accountHolderName: null,
+    accountNumber: null,
+  })
+
   it('baris baru → entry audit pendaftaran-diajukan tertulis DALAM transaksi yang sama', async () => {
     const baris = {
       id: '0f0e0d0c-0000-4000-8000-000000000001',
@@ -81,12 +120,12 @@ describe('ajukanPendaftaran (Story 1.4, FR-22/AD-3/AD-11 — matriks I/O spec)',
       rejectionReason: null,
       firstEffectiveAt: null,
     }
-    const { dbPalsu, tulisan } = buatDbTransaksiPalsu([baris], [])
+    const { dbPalsu, tulisan } = buatDbTransaksiPalsu([{ id: baris.id }], [barisJoin(baris)])
 
     const hasil = await ajukanPendaftaran({ email: baris.email }, dbPalsu)
 
     expect(hasil.baru).toBe(true)
-    expect(hasil.rekaman).toEqual(baris)
+    expect(hasil.rekaman).toEqual(barisWire(baris))
 
     // Dua tulisan dalam SATU transaksi: baris owner + entry audit.
     expect(tulisan).toHaveLength(2)
@@ -114,13 +153,13 @@ describe('ajukanPendaftaran (Story 1.4, FR-22/AD-3/AD-11 — matriks I/O spec)',
       rejectionReason: null,
       firstEffectiveAt: '2026-01-01T00:00:00.000Z',
     }
-    const { dbPalsu, tulisan } = buatDbTransaksiPalsu([], [existing])
+    const { dbPalsu, tulisan } = buatDbTransaksiPalsu([], [barisJoin(existing)])
 
     const hasil = await ajukanPendaftaran({ email: existing.email }, dbPalsu)
 
     // Baris existing apa adanya — status terverifikasi/keluar tidak pernah
     // tertimpa; idempoten = baris sama, `baru: false`.
-    expect(hasil).toEqual({ rekaman: existing, baru: false })
+    expect(hasil).toEqual({ rekaman: barisWire(existing), baru: false })
 
     // Satu-satunya tulisan = INSERT-CAS (DO NOTHING, payload hanya email);
     // TIDAK ada entry audit baru, TIDAK ada penulisan-ulang baris.

@@ -31,9 +31,9 @@ export default defineEventHandler(async (event) => {
 
   const today = jakartaDayKey(new Date())
 
-  // Job list scaffold (no-op sampai story pemiliknya) — pola: delegasi ke
-  // service modul domain, route tetap tipis.
-  const registration = await runRegistrationDailyJob(today)
+  // Job pendaftaran (Story 1.5): pengingat H-3 via outbox + CAS kedaluwarsa
+  // hari-7 + audit — batas hari dihitung di dalam service dari `today`.
+  const registration = await runRegistrationDailyJob(today, useDb())
   // Pengiriman outbox (AR-6) ikut jadwal harian; error-isolated — kegagalan
   // dispatch dicatat via log alert di modul proofs, tidak menggagalkan job lain.
   let outbox: Awaited<ReturnType<typeof dispatchPendingOutboxEmails>>

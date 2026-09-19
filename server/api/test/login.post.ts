@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { defineEventHandler, getRequestProtocol, getHeader, readBody } from 'h3'
 import { encode } from 'next-auth/jwt'
+import { asDayKey } from '#shared/domain/calendar'
 import { CALON_OWNER_STATUSES, OWNER_STATUSES, type OwnerStatus } from '#shared/domain/identity'
 import {
   closeActiveCooTenures,
@@ -39,6 +40,11 @@ const PREFIX_COOKIE_AMAN = '__Secure-'
 const DOMAIN_EMAIL_GOOGLE = '@gmail.com'
 const PREFIX_EMAIL_UJI = 'uji.snddash.e2e.'
 
+/** Jam UTC yang jatuh siang WIB (12:00) — instant kanonik dari DayKey
+ *  `diajukanPada` (backdate seeding Story 1.5): tengah hari Jakarta agar
+ *  `jakartaDayKey` selalu mengembalikan hari yang sama. */
+const JAM_UTC_SIANG_WIB = 5
+
 /** Umur maksimum sesi mint — pin default next-auth v4 (30 hari). */
 const HARI_UMUR_SESI = 30
 const JAM_PER_HARI = 24
@@ -67,6 +73,9 @@ interface LoginUjiBody {
   cooAktif?: boolean
   punyaSaham?: boolean
   alasanPenolakan?: string
+  /** DayKey 'YYYY-MM-DD' kalender Jakarta (Story 1.5) — backdate
+   *  `owners.createdAt` untuk seeding jendela H-3/hari-7 cron. */
+  diajukanPada?: string
 }
 
 /** Secret header vs env — bandingkan panjang BYTE sebelum timingSafeEqual. */
@@ -188,17 +197,43 @@ export default defineEventHandler(async (event) => {
         details: { status },
       })
     }
-    const alasanPenolakan = status === 'ditolak'
-      ? (body.alasanPenolakan ?? preset?.alasanPenolakan ?? 'Alasan penolakan sintetis untuk uji.')
-      : null
+  const alasanPenolakan = status === 'ditolak'
+    ? (body.alasanPenolakan ?? preset?.alasanPenolakan ?? 'Alasan penolakan sintetis untuk uji.')
+    : null
 
-    const now = new Date()
-    const owner = await upsertOwnerByEmail(db, {
-      email,
-      status,
-      rejectionReason: alasanPenolakan,
-      firstEffectiveAt: punyaSaham ? now.toISOString() : null,
-    })
+  // `diajukanPada` divalidasi bentuk+semantik DayKey (asDayKey melempar bila
+  // tidak sah) sebelum disentuh DB — seeding backdate Story 1.5.
+  let createdAt: string | undefined
+  if (body.diajukanPada !== undefined) {
+    if (typeof body.diajukanPada !== 'string') {
+      return sendApiError(event, HTTP_STATUS.badRequest, {
+        code: 'BAD_REQUEST',
+        message: 'diajukanPada harus berupa kunci hari "YYYY-MM-DD" kalender Jakarta.',
+        details: {},
+      })
+    }
+    try {
+      const day = asDayKey(body.diajukanPada)
+      const instant = new Date(`${day}T00:00:00.000Z`)
+      instant.setUTCHours(JAM_UTC_SIANG_WIB)
+      createdAt = instant.toISOString()
+    } catch {
+      return sendApiError(event, HTTP_STATUS.badRequest, {
+        code: 'BAD_REQUEST',
+        message: `diajukanPada bukan kunci hari yang sah: '${body.diajukanPada}'.`,
+        details: {},
+      })
+    }
+  }
+
+  const now = new Date()
+  const owner = await upsertOwnerByEmail(db, {
+    email,
+    status,
+    rejectionReason: alasanPenolakan,
+    firstEffectiveAt: punyaSaham ? now.toISOString() : null,
+    ...(createdAt !== undefined ? { createdAt } : {}),
+  })
     if (cooAktif) {
       await openCooTenure(db, owner.id, now)
     } else {

@@ -32,7 +32,7 @@
 import type { Cookie, Playwright } from '@playwright/test'
 import { z } from 'zod'
 import { test, expect, log } from '../support/merged-fixtures'
-import { mintSesiPemilik } from '../support/helpers/sesi-minting'
+import { mintSesiPemilik, EMAIL_OWNER_UJI_TERDAFTAR } from '../support/helpers/sesi-minting'
 import { denganAuditKosong } from '../support/helpers/audit-reset'
 
 /** Secret guard endpoint dev-only — fallback wajib identik env TEST_AUTH_SECRET uji lokal. */
@@ -142,6 +142,10 @@ const headerCookieDariMint = (cookies: Cookie[]): Record<string, string> => ({
  * menjelaskan diri sendiri.
  */
 async function seedAuditUji(apiRequest: ApiRequestUji, jumlah: number): Promise<void> {
+  // Owner aktor seed deterministik dibuat endpoint (`uji.snddash.e2e.audit-
+  // seed@...`) di luar jalur mint — daftarkan ke registry agar flush cleanup
+  // mengenalinya (jaring akhir: global-teardown sweep prefix).
+  EMAIL_OWNER_UJI_TERDAFTAR.add('uji.snddash.e2e.audit-seed@gmail.com')
   const jawabSeed = await apiRequest({
     method: 'POST',
     path: '/api/test/audit-seed',

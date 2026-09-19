@@ -26,6 +26,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
 
   globalSetup: './tests/support/global-setup.ts',
+  globalTeardown: './tests/support/global-teardown.ts',
 
   reporter: [
     ['list'],

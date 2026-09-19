@@ -201,7 +201,7 @@ useHead({ title: 'Pendaftaran — Sip & Dip' })
           @click="bukaModalSyarat"
         >
           Syarat &amp; Ketentuan
-        </button>
+        </button> ini.
       </p>
 
       <p

@@ -67,6 +67,9 @@ export interface PrincipalOwner {
   /** Alasan penolakan pendaftaran — tampil apa adanya (UX-DR15); null bila bukan ditolak. */
   rejectionReason: string | null
   firstEffectiveAt: string | null
+  /** Profil Lampiran A #1–10 lengkap (Story 1.5, FR-22) — prasyarat verifikasi
+   *  COO; dihitung `profilLengkap()` per-request, bukan kolom DB. */
+  profilLengkap: boolean
 }
 
 /**

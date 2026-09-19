@@ -47,7 +47,7 @@
 import type { ApiRequestFixtureParams } from '@seontechnologies/playwright-utils/api-request'
 import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
-import { mintSesiPemilik } from '../support/helpers/sesi-minting'
+import { mintSesiPemilik, EMAIL_OWNER_UJI_TERDAFTAR } from '../support/helpers/sesi-minting'
 import { denganAuditKosong } from '../support/helpers/audit-reset'
 
 /** Tanda tangan minimal fixture apiRequest (playwright-utils) untuk helper seed. */
@@ -74,6 +74,10 @@ const SECRET_TEST_AUTH = process.env.TEST_AUTH_SECRET ?? 'test-secret-lokal'
  * (append-only; kontrak pembersihan menyusul Story 1.4).
  */
 async function seedEntryAudit(apiRequest: ApiRequestUji, jumlah: number): Promise<void> {
+  // Owner aktor seed deterministik dibuat endpoint (`uji.snddash.e2e.audit-
+  // seed@...`) di luar jalur mint — daftarkan ke registry agar fixture
+  // cleanup me-reset barisnya pasca-test (laporan owner 2026-09-18).
+  EMAIL_OWNER_UJI_TERDAFTAR.add('uji.snddash.e2e.audit-seed@gmail.com')
   const { status, body } = await apiRequest<{ jumlah?: number }>({
     method: 'POST',
     path: '/api/test/audit-seed',

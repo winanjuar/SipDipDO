@@ -54,21 +54,31 @@ export const ownerStatus = pgEnum('owner_status', OWNER_STATUSES)
 
 /**
  * IDENTITY — owners (AD-5/AD-11): satu baris per email (UNIQUE — re-daftar =
- * baris yang sama, bukan baris baru). Kolom minimal Story 1.2 + kode referral
- * (Story 1.4, keputusan owner 2026-09-18); profile 11 field (Story 1.5) dan
- * kontak (1.8) menyusul lewat migrasi BARU — bukan ALTER ini.
+ * baris yang sama, bukan baris baru). Normalisasi owner 2026-09-18 (Epic 1,
+ * struktur fix): kolom English, hanya atribut milik owner sendiri +
+ * lifecycle; kontak darurat & rekening bank dipisah ke tabel anak 1:1
+ * (`owner_emergency_contacts`, `owner_bank_accounts`) — tiap tabel
+ * mendeskripsikan tepat satu entitas (3NF). Kolom `used_referral_code`
+ * TETAP text (keputusan owner 2026-09-18 — bukan FK; dormant sampai Epic 3).
  */
 export const owners = pgTable('owners', {
   id: uuid('id').primaryKey().defaultRandom(),
-  /** Email akun Google — kunci pencocokan sesi → owner (AD-8, migrasi). */
+  /** Lampiran A #1. */
+  fullName: text('full_name'),
+  /** Lampiran A #2. */
+  alias: text('alias'),
+  /** Email akun Google — kunci pencocokan sesi → owner (AD-8, migrasi);
+   *  sekaligus field #3 Gmail (tanpa kolom profil terpisah). */
   email: text('email').notNull().unique(),
+  /** Lampiran A #4. */
+  phoneNumber: text('phone_number'),
   status: ownerStatus('status').notNull().default('diajukan'),
   /** Wajib terisi bila status 'ditolak' — tampil apa adanya kepada pendaftar. */
   rejectionReason: text('rejection_reason'),
   /** Di-set HANYA oleh event Pembelian Pertama efektif (AD-11). */
   firstEffectiveAt: timestamp('first_effective_at', { withTimezone: true, mode: 'string' }),
   /** Kode referral MILIK owner — alfanumerik 8 karakter, dibuat saat baris
-   *  owner dibuat (dipakai Epic 3); UNIQUE, backfill migrasi dari md5(id). */
+   *  owner dibuat (dipakai Epic 3); UNIQUE. */
   referralCode: text('referral_code').notNull().unique(),
   /** Kode referral yang DIPAKAI pendaftar saat mendaftar — DORMANT sampai
    *  Epic 3 mengimplementasikan param link ?ref= (keputusan owner
@@ -76,6 +86,44 @@ export const owners = pgTable('owners', {
   usedReferralCode: text('used_referral_code'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+})
+
+/**
+ * IDENTITY — owner_emergency_contacts (normalisasi owner 2026-09-18): entitas
+ * ORANG kontak darurat (Lampiran A #5–7), 1:1 dengan owner — PK `owner_id`
+ * menegakkan maksimum satu baris per owner + integritas FK. Tanpa kolom
+ * timestamp: perubahan selalu satu tx dengan `owners.updated_at`.
+ */
+export const ownerEmergencyContacts = pgTable('owner_emergency_contacts', {
+  ownerId: uuid('owner_id')
+    .primaryKey()
+    .references(() => owners.id),
+  /** Lampiran A #5 — nama orang kontak darurat. */
+  name: text('name'),
+  /** Lampiran A #6. */
+  phoneNumber: text('phone_number'),
+  /** Lampiran A #7 — enum `DAFTAR_HUBUNGAN` (nilai Indonesia, shared/domain/profil). */
+  relationship: text('relationship'),
+})
+
+/**
+ * IDENTITY — owner_bank_accounts (normalisasi owner 2026-09-18): entitas
+ * REKENING bank pencairan (Lampiran A #8–10), 1:1 dengan owner — PK
+ * `owner_id` menegakkan maksimum satu baris per owner. `bank_name` menyimpan
+ * SATU nilai: nama bank dari combobox (enum 7 bank) ATAU teks bebas dari
+ * input "Bank Lainnya" (derivation `namaBankKeTersimpan`/`namaBankKeWire`
+ * shared/domain/profil — tanpa kolom other-bank bersyarat).
+ */
+export const ownerBankAccounts = pgTable('owner_bank_accounts', {
+  ownerId: uuid('owner_id')
+    .primaryKey()
+    .references(() => owners.id),
+  /** Lampiran A #8 — nilai enum bank ATAU teks bebas "Bank Lainnya". */
+  bankName: text('bank_name'),
+  /** Lampiran A #9 — bisa berbeda dari nama owner. */
+  accountHolderName: text('account_holder_name'),
+  /** Lampiran A #10 — string digit/tanda minus (AD-10), bukan number. */
+  accountNumber: text('account_number'),
 })
 
 /**
@@ -99,6 +147,10 @@ export const cooTenures = pgTable(
 
 export type Owner = typeof owners.$inferSelect
 export type NewOwner = typeof owners.$inferInsert
+export type OwnerEmergencyContact = typeof ownerEmergencyContacts.$inferSelect
+export type NewOwnerEmergencyContact = typeof ownerEmergencyContacts.$inferInsert
+export type OwnerBankAccount = typeof ownerBankAccounts.$inferSelect
+export type NewOwnerBankAccount = typeof ownerBankAccounts.$inferInsert
 export type CooTenure = typeof cooTenures.$inferSelect
 
 /**

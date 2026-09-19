@@ -24,6 +24,7 @@ import {
   type AuthOptions,
   type AuthProvider,
 } from '@seontechnologies/playwright-utils/auth-session'
+import { EMAIL_OWNER_UJI_TERDAFTAR, emailMintDefault } from './helpers/sesi-minting'
 
 /** Nama cookie session next-auth v4 — varian `__Secure-` di https; diturunkan
  *  dari skema BASE_URL (sinkron dengan derivasi di server/api/test/login.post.ts
@@ -104,6 +105,11 @@ export const authProviderNuxtAuth: AuthProvider = {
     if (userIdentifier === 'default') {
       return { cookies: [], origins: [] }
     }
+
+    // Daftarkan email owner sintetis (derivation cermin login.post) — baris
+    // yang dibuat endpoint direset fixture cleanup pasca-test (Story 1.5:
+    // laporan penumpukan baris `uji.snddash.e2e.*`).
+    EMAIL_OWNER_UJI_TERDAFTAR.add(emailMintDefault(userIdentifier))
 
     const response = await request.post(`${baseUrl}/api/test/login`, {
       data: { userIdentifier },

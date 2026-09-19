@@ -53,4 +53,14 @@ export const TEST_IDS = {
     paginasi: 'audit-trail-paginasi',
     ukuran: 'audit-trail-ukuran',
   },
+  // Story 1.5 — kelengkapan profile (kontrak ATDD red-phase; region indikator
+  // langkah UX-DR16 diimplementasikan dengan data-testid ini). Zona
+  // TERPISAH (owner 2026-09-19): klaim DB (server-truth) & kelengkapan
+  // isian form — simpan parsial menghapus alert gagal-lengkapi.
+  kelengkapanProfil: {
+    indikator: 'kelengkapan-indikator',
+    alertSukses: 'kelengkapan-alert-tersimpan',
+    catatanForm: 'kelengkapan-catatan-form',
+    saklarPemilik: 'kelengkapan-saklar-pemilik',
+  },
 } as const

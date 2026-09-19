@@ -26,6 +26,10 @@ import { createResendMailClient, type MailClient, type MailSendResult } from './
 const OUTBOX_KINDS = ['otp', 'bukti_transaksi', 'notifikasi'] as const
 export type OutboxKind = (typeof OUTBOX_KINDS)[number]
 
+/** Jenis `notifikasi` eksplisit — dipakai modul lain (mis. pengingat Story 1.5)
+ *  untuk enqueue sekaligus cek idempotensi, tanpa magic string (AD-5). */
+export const OUTBOX_KIND_NOTIFIKASI: OutboxKind = 'notifikasi'
+
 const MAX_ATTEMPTS = 5
 /** Backoff retry menit: [1, 5, 30, 120] menit untuk percobaan ke-2..5. */
 // Tabel data operasional milik konstanta bernama — angka di sini adalah
@@ -125,8 +129,9 @@ export async function dispatchPendingOutboxEmails(options: { now?: Date, mailCli
       }
       sent++
     } else {
-      const backoffMinutes = result.retryable ? BACKOFF_MINUTES[Math.min(row.attempts, BACKOFF_MINUTES.length - 1)] : 0
-      const nextSendAfter = new Date(now.getTime() + backoffMinutes * MS_PER_MINUTE)
+      const indeksBackoff = Math.min(row.attempts, BACKOFF_MINUTES.length - 1)
+      const menitBackoff = result.retryable ? (BACKOFF_MINUTES[indeksBackoff] ?? 0) : 0
+      const nextSendAfter = new Date(now.getTime() + menitBackoff * MS_PER_MINUTE)
       const marked = await markOutboxEmailAttemptFailed(db, {
         id: row.id,
         readAttempts: row.attempts,
