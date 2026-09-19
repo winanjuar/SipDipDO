@@ -19,7 +19,8 @@ import type { LandingRespons } from '~/lib/landing'
 /**
  * Kelengkapan Profile — khusus calon owner `diajukan` (Story 1.5, CAP-1/2/3/6;
  * FR-22 Lampiran A #1–10; UX-DR14/DR16/DR19). Form dikelompokkan per fieldset
- * ber-legend: Profil Pemilik (Nama Lengkap, Alias, Email, No HP) / Info
+ * ber-legend: Profil Pemilik (Nama Lengkap, Nama Panggilan atau Alias,
+ * Email, No HP) / Info
  * Kontak Darurat (Nama, No HP, Hubungan) / Info Rekening (Bank, Nama,
  * No. Rekening) /
  * Referal (kode milik owner + referal dari — display-only, DORMANT Epic 3).
@@ -376,7 +377,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="profil-alias" class="text-sm font-medium">Alias</label>
+          <label for="profil-alias" class="text-sm font-medium">Nama Panggilan atau Alias</label>
           <input
             id="profil-alias"
             v-model="isian.alias"
