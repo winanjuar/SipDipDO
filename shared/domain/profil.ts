@@ -103,6 +103,19 @@ export type HubunganDarurat = (typeof DAFTAR_HUBUNGAN)[number]
 /** Karakter sah Nomor HP / Nomor Rekening: digit dan tanda minus saja. */
 const POLA_NOMOR = /^[-0-9]+$/
 
+/** Karakter selain digit/"-" — dibuang penapis masukan `sanitasiNomor`. */
+const POLA_BUKAN_NOMOR = /[^0-9-]/g
+
+/**
+ * Penapis masukan nomor (permintaan owner 2026-09-19): textfield Nomor HP &
+ * Nomor Rekening MENOLAK karakter di luar digit dan "-" saat diketik/di-
+ * paste — bukan sekadar error validasi. Murni; satu sumber kebijakan
+ * karakter dengan `POLA_NOMOR` (validasi format tetap di `validasiProfil`).
+ */
+export function sanitasiNomor(nilai: string): string {
+  return nilai.replaceAll(POLA_BUKAN_NOMOR, '')
+}
+
 /** Nomor HP valid: mulai '0', total 9–15 digit (tanda "-" diabaikan). */
 const POLA_DIGIT_HP = /^0\d{8,14}$/
 

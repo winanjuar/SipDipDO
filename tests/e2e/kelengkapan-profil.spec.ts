@@ -546,14 +546,16 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await page.goto(HALAMAN_KELENGKAPAN)
       await tungguHidrasi(page)
 
-      await log.step('WHEN seluruh field diisi valid KECUALI No HP memuat huruf, lalu simpan diklik')
+      await log.step('WHEN seluruh field diisi valid KECUALI No HP berisi huruf (ditolak penapis masukan → tersisa digit/"-"), lalu simpan diklik')
       const nilaiSesuai = new Map<string, string>()
       for (const { legend, label, kunci, jenis } of FIELD_EDITABLE) {
+        // Penapis masukan nomor: huruf di '08-ABC-9999' ditolak langsung —
+        // tersisa '08--9999' (digit < 9 → server tetap menjawab format-salah).
         const nilai = kunci === 'phoneNumber'
-          ? '08-ABC-9999'
+          ? '08--9999'
           : kunci === 'bankName' ? BANK_UJI : kunci === 'emergencyContactRelationship' ? HUBUNGAN_UJI : nilaiSintetisUntuk(kunci)
         nilaiSesuai.set(kunci, nilai)
-        await isiField(recurse, page, legend, label, jenis, nilai)
+        await isiField(recurse, page, legend, label, jenis, kunci === 'phoneNumber' ? '08-ABC-9999' : nilai)
       }
       await recurse(
         async () => {
@@ -713,6 +715,34 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await log.step('AND nilai ASLI dipulihkan → catatan perubahan hilang')
       await locatorField(page, LEGEND_PRIBADI, 'Nama').fill(namaTersimpan)
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
+    },
+  )
+
+  test(
+    '[P1] textfield nomor menolak karakter di luar digit/"-" saat diketik/di-paste (penapis masukan)',
+    async ({ page, context, apiRequest }) => {
+      await log.step('GIVEN sesi calon owner diajukan membuka /profile-completeness')
+      const cookies = await mintSesiPemilik(apiRequest, {
+        userIdentifier: 'tanpa-saham',
+        status: 'diajukan',
+        email: emailSintetisUji(),
+      })
+      await context.addCookies(cookies)
+      await page.goto(HALAMAN_KELENGKAPAN)
+      await tungguHidrasi(page)
+
+      await log.step('WHEN mengisi No HP, No HP kontak darurat, dan No. Rekening dengan huruf/spasi diselingi')
+      const noHp = locatorField(page, LEGEND_PRIBADI, 'No HP')
+      await noHp.fill('0812-AB7C 90')
+      const noHpKontak = locatorField(page, LEGEND_KONTAK_DARURAT, 'No HP')
+      await noHpKontak.fill('08A13-987B6')
+      const noRek = locatorField(page, LEGEND_REKENING, 'No. Rekening')
+      await noRek.fill('7638-04XY93Z63')
+
+      await log.step('THEN hanya digit dan "-" yang tertinggal di ketiga field')
+      await expect(noHp).toHaveValue('0812-790')
+      await expect(noHpKontak).toHaveValue('0813-9876')
+      await expect(noRek).toHaveValue('7638-049363')
     },
   )
 })

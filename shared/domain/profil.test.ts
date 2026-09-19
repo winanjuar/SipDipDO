@@ -16,6 +16,7 @@ import {
   namaBankKeTersimpan,
   namaBankKeWire,
   profilLengkap,
+  sanitasiNomor,
   sanitasiTeks,
   sisaFieldKosong,
   validasiProfil,
@@ -34,6 +35,16 @@ const nilaiLengkap = (): ProfilNilai => ({
   otherBankName: '',
   accountHolderName: 'Budi Santoso',
   accountNumber: '123-456-7890',
+})
+
+describe('sanitasiNomor — penapis masukan digit/"-"', () => {
+  it('membuang seluruh karakter di luar digit dan tanda "-"', () => {
+    expect(sanitasiNomor('0812-AB7C 90')).toBe('0812-790')
+    expect(sanitasiNomor('abc')).toBe('')
+    expect(sanitasiNomor('123 456')).toBe('123456')
+    expect(sanitasiNomor('0812-3456-7890')).toBe('0812-3456-7890')
+    expect(sanitasiNomor('')).toBe('')
+  })
 })
 
 describe('sanitasiTeks', () => {

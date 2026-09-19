@@ -9,6 +9,7 @@ import {
   PANJANG_MAKS_ALIAS,
   PANJANG_MAKS_NAMA,
   PANJANG_MAKS_REKENING,
+  sanitasiNomor,
   sisaFieldKosong,
   type KodeKesalahanProfil,
   type KunciFieldProfil,
@@ -125,6 +126,27 @@ const statusServer = reactive({
 
 /** Snapshot baseline isian (pasca prefill Google) — acuan deteksi perubahan. */
 const snapshotAwal = { ...isian } as Record<KunciFieldProfil, string>
+
+/** Kunci field nomor yang disaring masukannya (hanya digit + "-"). */
+type KunciFieldNomor = Extract<KunciFieldProfil, 'phoneNumber' | 'emergencyContactPhoneNumber' | 'accountNumber'>
+
+/**
+ * Penapis masukan textfield nomor (permintaan owner 2026-09-19): karakter di
+ * luar digit/"-" DITOLAK saat diketik/di-paste — nilai disaring via
+ * `sanitasiNomor` (satu sumber kebijakan karakter dengan validasi server),
+ * kursor dipertahankan pada posisi sahnya (jumlah karakter sah sebelum
+ * posisi kursor lama).
+ */
+function tapiskanNomor(event: Event, kunci: KunciFieldNomor): void {
+  const input = event.target as HTMLInputElement
+  const bersih = sanitasiNomor(input.value)
+  if (bersih === input.value) return
+  const posisiKursor = input.selectionStart ?? bersih.length
+  const sahSebelumKursor = sanitasiNomor(input.value.slice(0, posisiKursor)).length
+  isian[kunci] = bersih
+  input.value = bersih
+  input.setSelectionRange(sahSebelumKursor, sahSebelumKursor)
+}
 
 /** Ada isian yang menyimpang dari baseline terakhir yang diketahui server. */
 const kotor = computed(() => FIELD_PROFIL_SIMPAN.some(kunci => isian[kunci] !== snapshotAwal[kunci]))
@@ -343,6 +365,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             type="text"
             inputmode="tel"
             autocomplete="off"
+            @input="tapiskanNomor($event, 'phoneNumber')"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
           <p v-if="salah.phoneNumber" class="text-xs text-destructive">{{ salah.phoneNumber }}</p>
@@ -385,6 +408,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             type="text"
             inputmode="tel"
             autocomplete="off"
+            @input="tapiskanNomor($event, 'emergencyContactPhoneNumber')"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
           <p v-if="salah.emergencyContactPhoneNumber" class="text-xs text-destructive">{{ salah.emergencyContactPhoneNumber }}</p>
@@ -424,6 +448,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             inputmode="numeric"
             :maxlength="PANJANG_MAKS_REKENING"
             autocomplete="off"
+            @input="tapiskanNomor($event, 'accountNumber')"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
           >
           <p v-if="salah.accountNumber" class="text-xs text-destructive">{{ salah.accountNumber }}</p>
