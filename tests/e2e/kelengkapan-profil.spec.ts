@@ -48,7 +48,7 @@ const INTERVAL_RECURSE_MS = 500
 const BATAS_RECURSE_SUBMIT_MS = 30_000
 
 /** Legenda grup form (re-negotiasi owner 2026-09-18). */
-const LEGEND_PRIBADI = 'Pribadi'
+const LEGEND_PRIBADI = 'Profil Pemilik'
 const LEGEND_KONTAK_DARURAT = 'Info Kontak Darurat'
 const LEGEND_REKENING = 'Info Rekening'
 const LEGEND_REFERAL = 'Referal'
@@ -61,14 +61,14 @@ const LEGEND_REFERAL = 'Referal'
  * "Lainnya" (dipin test alur khusus).
  */
 const FIELD_EDITABLE: readonly { legend: string, label: string, kunci: string, jenis: 'input' | 'select' }[] = [
-  { legend: LEGEND_PRIBADI, label: 'Nama', kunci: 'fullName', jenis: 'input' },
+  { legend: LEGEND_PRIBADI, label: 'Nama Lengkap', kunci: 'fullName', jenis: 'input' },
   { legend: LEGEND_PRIBADI, label: 'Alias', kunci: 'alias', jenis: 'input' },
   { legend: LEGEND_PRIBADI, label: 'No HP', kunci: 'phoneNumber', jenis: 'input' },
   { legend: LEGEND_KONTAK_DARURAT, label: 'Nama', kunci: 'emergencyContactName', jenis: 'input' },
   { legend: LEGEND_KONTAK_DARURAT, label: 'No HP', kunci: 'emergencyContactPhoneNumber', jenis: 'input' },
   { legend: LEGEND_KONTAK_DARURAT, label: 'Hubungan', kunci: 'emergencyContactRelationship', jenis: 'select' },
   { legend: LEGEND_REKENING, label: 'Bank', kunci: 'bankName', jenis: 'select' },
-  { legend: LEGEND_REKENING, label: 'Pemilik', kunci: 'accountHolderName', jenis: 'input' },
+  { legend: LEGEND_REKENING, label: 'Nama', kunci: 'accountHolderName', jenis: 'input' },
   { legend: LEGEND_REKENING, label: 'No. Rekening', kunci: 'accountNumber', jenis: 'input' },
 ]
 
@@ -150,9 +150,9 @@ async function tungguHidrasi(page: Page): Promise<void> {
  * teks trigger (nilai pra-hidrasi bisa ter-reset oleh hidrasi; pola lama
  * selectOption tidak berlaku untuk komponen non-native).
  *
- * Field Pemilik Rekening default TERKUNCI oleh saklar "Sama dengan pemilik"
- * (permintaan owner 2026-09-19) — saklar dimatikan dulu bila masih ON agar
- * fill() tidak menabrak input disabled.
+ * Field Pemilik Rekening (label "Nama" di Info Rekening) default TERKUNCI
+ * oleh saklar "sama dengan pemilik" (permintaan owner 2026-09-19) — saklar
+ * dimatikan dulu bila masih ON agar fill() tidak menabrak input disabled.
  */
 async function isiField(recurse: RecurseSesi, page: Page, legend: string, label: string, jenis: 'input' | 'select', nilai: string): Promise<void> {
   const lokasi = locatorField(page, legend, label)
@@ -171,7 +171,7 @@ async function isiField(recurse: RecurseSesi, page: Page, legend: string, label:
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: `Menunggu pilihan ${label} menempel pasca-hidrasi` },
     )
   } else {
-    if (legend === LEGEND_REKENING && label === 'Pemilik') {
+    if (legend === LEGEND_REKENING && label === 'Nama') {
       const saklar = page.getByTestId(TEST_IDS.kelengkapanProfil.saklarPemilik)
       if ((await saklar.getAttribute('aria-checked')) === 'true') await saklar.click()
     }
@@ -258,7 +258,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(indikator.getByText('Nomor Rekening')).toBeVisible()
 
     await log.step('AND Nama ter-prefill dari profil Google sesi (kolom masih kosong) — tetap editable')
-    const namaAwal = locatorField(page, LEGEND_PRIBADI, 'Nama')
+    const namaAwal = locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap')
     await expect(namaAwal).toHaveValue(NAMA_SESI_MINT)
     await expect(namaAwal).toBeEditable()
 
@@ -321,7 +321,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await page.reload()
 
     await log.step('THEN nilai field pertama & terakhir tersimpan persisten (CAP-1)')
-    await expect(locatorField(page, LEGEND_PRIBADI, 'Nama')).toHaveValue(nilaiField.get('fullName') ?? '')
+    await expect(locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap')).toHaveValue(nilaiField.get('fullName') ?? '')
     await expect(locatorField(page, LEGEND_REKENING, 'No. Rekening')).toHaveValue(nilaiField.get('accountNumber') ?? '')
   })
 
@@ -351,7 +351,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
       await log.step('WHEN 3 field diisi lalu tombol simpan diklik (dibungkus recurse hidrasi)')
       const isian: readonly { legend: string, label: string, nilai: string }[] = [
-        { legend: LEGEND_PRIBADI, label: 'Nama', nilai: nilaiSintetisUntuk('fullName') },
+        { legend: LEGEND_PRIBADI, label: 'Nama Lengkap', nilai: nilaiSintetisUntuk('fullName') },
         { legend: LEGEND_PRIBADI, label: 'Alias', nilai: nilaiSintetisUntuk('alias') },
         { legend: LEGEND_PRIBADI, label: 'No HP', nilai: nilaiSintetisUntuk('phoneNumber') },
       ]
@@ -621,7 +621,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     const otherBankNameInput = locatorField(page, LEGEND_REKENING, 'Bank Lainnya')
     await expect(otherBankNameInput).toBeVisible()
 
-    await log.step('THEN simpan tanpa otherBankName → indikator menyebut field wajib "Bank Lainnya" (nama Lampiran penuh)')
+    await log.step('THEN simpan tanpa otherBankName → zona CATATAN (form-truth) menyebut field wajib "Bank Lainnya"; indikator server-truth tak tersentuh')
     await recurse(
       async () => {
         try {
@@ -629,11 +629,12 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         } catch {
           // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
         }
-        return page.getByTestId(TEST_IDS.kelengkapanProfil.indikator).getByText('Bank Lainnya').isVisible()
+        return page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan).getByText('Bank Lainnya').isVisible()
       },
       tampil => tampil === true,
-      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu indikator memuat Bank Lainnya' },
+      { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu catatan form memuat Bank Lainnya' },
     )
+    await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)).not.toContainText('Bank Lainnya')
 
     await log.step('WHEN otherBankName diisi lalu simpan → profil lengkap')
     await otherBankNameInput.fill('SeaBank')
@@ -712,16 +713,19 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
 
       await log.step('WHEN field Nama dikosongkan (perubahan belum disimpan)')
-      const namaTersimpan = await locatorField(page, LEGEND_PRIBADI, 'Nama').inputValue()
-      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill('')
+      const namaTersimpan = await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').inputValue()
+      await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').fill('')
 
       await log.step('THEN indikator TETAP menyatakan lengkap — TIDAK membalik ke "belum lengkap" (data DB utuh)')
       await expect(indikator).toContainText('Menunggu verifikasi')
       await expect(indikator).not.toContainText('Profil belum lengkap')
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toBeVisible()
+      // Zona TERPISAH (permintaan owner 2026-09-19): catatan form hidup di box
+      // sendiri (aksen amber) — TIDAK lagi menempel di dalam box indikator.
+      await expect(indikator).not.toContainText('Perubahan belum disimpan')
 
       await log.step('AND nilai ASLI dipulihkan → catatan perubahan hilang')
-      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill(namaTersimpan)
+      await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').fill(namaTersimpan)
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanBelumTersimpan)).toHaveCount(0)
     },
   )
@@ -769,14 +773,14 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
       await log.step('THEN saklar default ON — field Pemilik terkunci bernilai prefill Nama (profil Google)')
       const saklar = page.getByTestId(TEST_IDS.kelengkapanProfil.saklarPemilik)
-      const pemilik = locatorField(page, LEGEND_REKENING, 'Pemilik')
+      const pemilik = locatorField(page, LEGEND_REKENING, 'Nama')
       await expect(saklar).toHaveAttribute('aria-checked', 'true')
       await expect(pemilik).toBeDisabled()
       await expect(pemilik).toHaveValue(NAMA_SESI_MINT)
 
       await log.step('WHEN Nama diedit — nilai Pemilik mengikuti live selama saklar ON')
       const namaBaru = `Uji ${faker.string.alphanumeric(6)}`
-      await locatorField(page, LEGEND_PRIBADI, 'Nama').fill(namaBaru)
+      await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').fill(namaBaru)
       await expect(pemilik).toHaveValue(namaBaru)
 
       await log.step('AND saklar dimatikan + Pemilik diisi manual + seluruh field lain diisi lalu Simpan sukses')

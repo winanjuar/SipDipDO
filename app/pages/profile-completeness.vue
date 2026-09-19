@@ -19,8 +19,9 @@ import type { LandingRespons } from '~/lib/landing'
 /**
  * Kelengkapan Profile — khusus calon owner `diajukan` (Story 1.5, CAP-1/2/3/6;
  * FR-22 Lampiran A #1–10; UX-DR14/DR16/DR19). Form dikelompokkan per fieldset
- * ber-legend: Pribadi (Nama, Alias, Email, No HP) / Info Kontak Darurat
- * (Nama, No HP, Hubungan) / Info Rekening (Bank, Pemilik, No. Rekening) /
+ * ber-legend: Profil Pemilik (Nama Lengkap, Alias, Email, No HP) / Info
+ * Kontak Darurat (Nama, No HP, Hubungan) / Info Rekening (Bank, Nama,
+ * No. Rekening) /
  * Referal (kode milik owner + referal dari — display-only, DORMANT Epic 3).
  *
  * Validasi & sanitasi (re-negotiasi owner 2026-09-18): batas panjang
@@ -291,6 +292,9 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
           {{ PESAN_GAGAL_LENGKAPI }}
         </Alert>
 
+        <!-- Zona TERPISAH (permintaan owner 2026-09-19): klaim kelengkapan
+             (data tersimpan) dan catatan form (belum disimpan) masing-masing
+             box sendiri — catatan beraksen amber agar sifatnya menonjol. -->
         <p
           data-testid="kelengkapan-indikator"
           class="rounded-md border p-3 text-sm leading-relaxed"
@@ -302,11 +306,15 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
           <template v-else>
             Profil lengkap — seluruh field terisi. Menunggu verifikasi.
           </template>
-          <span
-            v-if="kotor"
-            data-testid="kelengkapan-catatan-belum-tersimpan"
-            class="mt-2 block text-muted-foreground"
-          >{{ teksCatatan }}</span>
+        </p>
+
+        <p
+          v-if="kotor"
+          data-testid="kelengkapan-catatan-belum-tersimpan"
+          class="rounded-md border border-amber-500/60 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900"
+          aria-live="polite"
+        >
+          {{ teksCatatan }}
         </p>
 
         <!-- Referal: tampilan ONLY (DI LUAR body PUT dan DI LUAR kelengkapan —
@@ -343,13 +351,13 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
       </aside>
 
       <form class="flex flex-col gap-4" @submit.prevent="simpan">
-      <!-- Grup 1 — Pribadi (Lampiran A #1-4); Email = email sesi, readonly;
-           Nama ter-prefill dari profil Google bila kolom masih kosong. -->
+      <!-- Grup 1 — Profil Pemilik (Lampiran A #1-4); Email = email sesi,
+            readonly; Nama ter-prefill dari profil Google bila kolom kosong. -->
       <fieldset class="flex flex-col gap-4 rounded-lg border p-4 lg:grid lg:grid-cols-2 lg:gap-4">
-        <legend class="px-1 text-sm font-semibold">Pribadi</legend>
+        <legend class="px-1 text-sm font-semibold">Profil Pemilik</legend>
 
         <div class="flex flex-col gap-1 lg:col-span-2">
-          <label for="profil-fullName" class="text-sm font-medium">Nama</label>
+          <label for="profil-fullName" class="text-sm font-medium">Nama Lengkap</label>
           <input
             id="profil-fullName"
             v-model="isian.fullName"
@@ -472,13 +480,16 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
         </div>
 
         <div class="flex flex-col gap-1">
-          <!-- Saklar "Sama dengan pemilik" (permintaan owner 2026-09-19) —
-               kanan-atas field: ON = terkunci mengikuti Nama; OFF = editable. -->
-          <div class="flex items-center justify-end gap-2">
-            <label for="profil-saklar-pemilik" class="text-sm text-muted-foreground">Sama dengan pemilik</label>
-            <Switch id="profil-saklar-pemilik" v-model="samaPemilik" data-testid="kelengkapan-saklar-pemilik" />
+          <!-- Label field & saklar "sama dengan pemilik" sejajar SATU BARIS
+               persis di atas textfield (permintaan owner 2026-09-19): label
+               kiri, grup saklar kanan; ON = terkunci mengikuti Nama. -->
+          <div class="flex items-center justify-between gap-2">
+            <label for="profil-accountHolderName" class="text-sm font-medium">Nama</label>
+            <div class="flex items-center gap-2">
+              <label for="profil-saklar-pemilik" class="text-sm text-muted-foreground">sama dengan pemilik</label>
+              <Switch id="profil-saklar-pemilik" v-model="samaPemilik" data-testid="kelengkapan-saklar-pemilik" />
+            </div>
           </div>
-          <label for="profil-accountHolderName" class="text-sm font-medium">Pemilik</label>
           <input
             id="profil-accountHolderName"
             v-model="isian.accountHolderName"
