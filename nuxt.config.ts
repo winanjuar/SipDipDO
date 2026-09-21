@@ -31,6 +31,9 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
     typeCheck: false, // typecheck dijalankan eksplisit via `npm run typecheck`
+    tsConfig: {
+      include: ['../shared/**/*'],
+    },
   },
 
   // --- Autentikasi (AD-8) --------------------------------------------------
@@ -109,6 +112,11 @@ export default defineNuxtConfig({
   // agar file tetap hidup di server/jobs sesuai Structural Seed.
   nitro: {
     handlers: [{ route: '/jobs/daily', handler: './server/jobs/daily.post', method: 'post' }],
+    typescript: {
+      tsConfig: {
+        include: ['../shared/**/*'],
+      },
+    },
   },
 
   // --- Env (kredensial hanya via env — AD-9; local + production saja) --------
