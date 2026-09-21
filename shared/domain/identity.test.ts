@@ -171,15 +171,15 @@ describe('shared/domain/identity — permukaanDibolehkan registry matriks keterb
 
 /** Item nav terpin — {label, path} (label paritas navigasi.spec.ts). */
 const ITEM = {
-  antrian: { label: 'Antrian Beli', path: '/order-queue' },
   dashboard: { label: 'Dashboard', path: '/dashboard' },
-  audit: { label: 'Audit Trail', path: '/audit-trail' },
   personal: { label: 'Personal', path: '/personal' },
+  order: { label: 'Order', path: '/order-queue' },
+  audit: { label: 'Audit', path: '/audit-trail' },
 } as const
 
 describe('shared/domain/identity — itemNavigasi registry per role (Story 1.7, ATDD — UX-DR14)', () => {
   test('registry eksak per role — item terkunci tidak pernah masuk daftar', () => {
-    expect(itemNavigasi('coo', true)).toEqual([ITEM.antrian, ITEM.dashboard, ITEM.audit, ITEM.personal])
+    expect(itemNavigasi('coo', true)).toEqual([ITEM.dashboard, ITEM.personal, ITEM.order, ITEM.audit])
     expect(itemNavigasi('pemegang_saham', true)).toEqual([ITEM.dashboard, ITEM.personal])
     expect(itemNavigasi('tanpa_saham', false)).toEqual([ITEM.personal])
     expect(itemNavigasi('tanpa_saham', true)).toEqual([ITEM.personal, ITEM.dashboard])

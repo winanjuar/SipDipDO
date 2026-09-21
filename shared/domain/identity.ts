@@ -227,15 +227,15 @@ export interface ItemNavigasi {
 
 /** Katalog item navigasi Epic 1 — label dipin kontrak ATDD (by-role name). */
 export const KATALOG_ITEM_NAVIGASI = {
-  orderQueue: { label: 'Antrian Beli', path: '/order-queue' },
+  orderQueue: { label: 'Order', path: '/order-queue' },
   dashboard: { label: 'Dashboard', path: '/dashboard' },
-  auditTrail: { label: 'Audit Trail', path: '/audit-trail' },
+  auditTrail: { label: 'Audit', path: '/audit-trail' },
   personal: { label: 'Personal', path: '/personal' },
 } as const satisfies Readonly<Record<string, ItemNavigasi>>
 
 /**
  * Item navigasi untuk role — MURNI, registry-driven (UX-DR14):
- * - `coo` = Dashboard, Antrian Beli, Audit Trail, Personal.
+ * - `coo` = Dashboard, Personal, Order, Audit (urutan keputusan owner 2026-09-21).
  * - `pemegang_saham` = Dashboard, Personal.
  * - `tanpa_saham` = Halaman Personal (+ Dashboard bila `sudahAksesPenuh`).
  * - `calon_owner` = TANPA nav (perilaku 1.5 tetap).
@@ -247,10 +247,10 @@ export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly Ite
   switch (role) {
     case 'coo':
       return [
-        KATALOG_ITEM_NAVIGASI.orderQueue,
         KATALOG_ITEM_NAVIGASI.dashboard,
-        KATALOG_ITEM_NAVIGASI.auditTrail,
         KATALOG_ITEM_NAVIGASI.personal,
+        KATALOG_ITEM_NAVIGASI.orderQueue,
+        KATALOG_ITEM_NAVIGASI.auditTrail,
       ]
     case 'pemegang_saham':
       return [KATALOG_ITEM_NAVIGASI.dashboard, KATALOG_ITEM_NAVIGASI.personal]

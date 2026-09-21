@@ -75,13 +75,13 @@ const gagalMuat = hasilAudit === null
 const kosong = hasilAudit !== null && hasilAudit.data.length === 0
 const nextPage = hasilAudit?.nextPage ?? null
 
-useHead({ title: 'Audit Trail — Sip & Dip' })
+useHead({ title: 'Audit — Sip & Dip' })
 </script>
 
 <template>
   <main data-testid="audit-trail-halaman" class="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-4 py-8">
     <header>
-      <h1 class="text-2xl font-semibold">Audit Trail</h1>
+      <h1 class="text-2xl font-semibold">Audit</h1>
       <p class="text-sm text-muted-foreground">Catatan aksi pada sistem — hanya untuk COO.</p>
     </header>
 
@@ -89,7 +89,7 @@ useHead({ title: 'Audit Trail — Sip & Dip' })
       v-if="gagalMuat"
       class="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-10 text-center"
     >
-      <p class="text-sm text-muted-foreground">Audit Trail gagal dimuat.</p>
+      <p class="text-sm text-muted-foreground">Audit gagal dimuat.</p>
       <!-- Anchor biasa (bukan NuxtLink): muat ulang dokumen penuh agar SSR
            fetch berjalan lagi — NuxtLink ke rute sama adalah retry no-op. -->
       <a href="/audit-trail" class="text-sm font-medium underline underline-offset-4">
@@ -162,7 +162,7 @@ useHead({ title: 'Audit Trail — Sip & Dip' })
         v-if="halamanAktif > 1 || nextPage !== null"
         data-testid="audit-trail-paginasi"
         class="flex items-center justify-between"
-        aria-label="Paginasi Audit Trail"
+        aria-label="Paginasi Audit"
       >
         <NuxtLink
           v-if="halamanAktif > 1"

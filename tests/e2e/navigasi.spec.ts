@@ -53,9 +53,9 @@ const VIEWPORT_MOBILE = { width: 375, height: 812 }
 const VIEWPORT_DESKTOP = { width: 1280, height: 800 }
 
 /** Label item navigasi terpin (registry UX-DR14 — item = link by-role name). */
-const LABEL_ANTRIAN = 'Antrian Beli'
+const LABEL_ORDER = 'Order'
 const LABEL_DASHBOARD = 'Dashboard'
-const LABEL_AUDIT = 'Audit Trail'
+const LABEL_AUDIT = 'Audit'
 const LABEL_PERSONAL = 'Personal'
 
 /** Pemicu Sheet "Lainnya" — hanya bila item > MAKS_ITEM_NAV_MOBILE (4). */
@@ -65,7 +65,7 @@ const LABEL_PEMICU_LAINNYA = 'Lainnya'
 const BATAS_RECURSE_KELUAR_MS = 15_000
 
 /** Registry navigasi coo (satu-satunya role Epic 1 dengan 3 item). */
-const ITEM_NAV_COO = [LABEL_DASHBOARD, LABEL_ANTRIAN, LABEL_AUDIT, LABEL_PERSONAL] as const
+const ITEM_NAV_COO = [LABEL_DASHBOARD, LABEL_ORDER, LABEL_AUDIT, LABEL_PERSONAL] as const
 
 test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)', () => {
   test.use({ viewport: VIEWPORT_MOBILE })
@@ -89,7 +89,7 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await expect(batangBawah.getByRole('button', { name: LABEL_PEMICU_LAINNYA })).toHaveCount(0)
 
     await log.step('AND item halaman aktif ditandai aria-current="page"')
-    await expect(batangBawah.getByRole('link', { name: LABEL_ANTRIAN })).toHaveAttribute('aria-current', 'page')
+    await expect(batangBawah.getByRole('link', { name: LABEL_ORDER })).toHaveAttribute('aria-current', 'page')
   })
 
   test('[P0] pemegang saham mobile: hanya Dashboard — Audit Trail & Antrian Beli absen sama sekali (item terkunci TIDAK TAMPIL)', async ({ page, context, apiRequest }) => {
@@ -109,7 +109,7 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
 
     await log.step('AND item terkunci TIDAK TAMPIL sama sekali — bukan disembunyikan (UX-DR14)')
     await expect(batangBawah.getByRole('link', { name: LABEL_AUDIT })).toHaveCount(0)
-    await expect(batangBawah.getByRole('link', { name: LABEL_ANTRIAN })).toHaveCount(0)
+    await expect(batangBawah.getByRole('link', { name: LABEL_ORDER })).toHaveCount(0)
   })
 
   test('[P1] tanpa saham belum-beli mobile: hanya Personal — Dashboard absen sama sekali', async ({ page, context, apiRequest }) => {

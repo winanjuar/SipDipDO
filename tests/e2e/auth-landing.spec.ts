@@ -122,10 +122,9 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await page.goto('/')
     await log.step('THEN dialandingkan ke /order-queue (UX-DR19: state kosong)')
     await expect(page).toHaveURL(/\/order-queue$/)
-    // by-role heading — getByText('Antrian Beli') ambigu: NuxtRouteAnnouncer
-    // mengumumkan document.title ("Antrian Beli — Sip & Dip") yang memuat
+    // by-role heading — judul halaman kini 'Order' (keputusan owner 2026-09-21)
     // substring yang sama (racy strict-mode violation antar browser).
-    await expect(page.getByRole('heading', { name: 'Antrian Beli' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Order' })).toBeVisible()
   })
 
   test('[P1] login pemegang saham dialandingkan ke dashboard', async ({ page, context, apiRequest }) => {
