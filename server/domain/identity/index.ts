@@ -20,6 +20,7 @@ export {
   aksesPenuh,
   itemNavigasi,
   KATALOG_ITEM_NAVIGASI,
+  KUNCI_COOKIE_INFO_TRANSPARANSI,
   layakPilihanReferral,
   MAKS_ITEM_NAV_MOBILE,
   PERMUKAAN_PERAN,

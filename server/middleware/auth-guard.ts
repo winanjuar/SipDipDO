@@ -2,6 +2,7 @@ import {
   aksesPenuh,
   buildPrincipal,
   createIdentityRepo,
+  KUNCI_COOKIE_INFO_TRANSPARANSI,
   LANDING_PATH,
   permukaanDibolehkan,
 } from '../domain/identity'
@@ -16,7 +17,7 @@ import { useDb } from '../utils/db'
  *
  * Gerbang calon belum lengkap (Story 1.5, UX-DR14/AD-8): calon `diajukan`
  * dengan Profil belum lengkap yang membuka permukaan lain di luar
- * `/profile-completeness` dan `/status-pendaftaran` dialihkan ke
+ * `/profile-completeness` dan `/registration-status` dialihkan ke
  * `/profile-completeness` DI BATAS SERVER. Calon `lengkap`/`ditolak`/
  * `kedaluwarsa` dan non-calon TIDAK berubah (landing 1.2 tetap).
  *
@@ -28,8 +29,9 @@ import { useDb } from '../utils/db'
  * memetakan `keluar` → `tanpa_saham` SEBELUM melihat `firstEffectiveAt`,
  * sehingga keluar-PERNAH-beli (role tanpa_saham, `aksesPenuh=true`) TETAP
  * boleh `/dashboard`; hanya `tanpa_saham`+`!aksesPenuh` yang dialihkan ke
- * `/personal?info=transparansi` (pesan verbatim `PESAN_TRANSPARANSI` — via
- * query param karena redirect server tidak dapat menulis sessionStorage);
+  * `/personal` (pesan verbatim `PESAN_TRANSPARANSI` — dikirim via flash-cookie
+ * `KUNCI_COOKIE_INFO_TRANSPARANSI` karena redirect server tidak dapat menulis
+ * sessionStorage; cookie dihapus halaman saat mount);
  * salah permukaan role-lain → landing role-nya. Route handler tetap wajib
  * auth sendiri (AD-8: middleware + route handler).
  */
@@ -38,8 +40,9 @@ const PATH_KELENGKAPAN_PROFIL = '/profile-completeness'
 /** Permukaan COO di luar nilai `LANDING_PATH` (Story 1.3/1.7). */
 const PATH_AUDIT_TRAIL = '/audit-trail'
 
-/** Query pesan transparensi — kontrak Halaman Personal (spec Story 1.7). */
-const QUERY_INFO_TRANSPARANSI = '?info=transparansi'
+/** Umur flash-cookie pesan transparensi (detik) — dihapus halaman saat
+ *  mount; batas umur hanya jaga-jaga bila halaman tak pernah dibuka. */
+const UMUR_COOKIE_TRANSPARANSI_DETIK = 600
 
 const HALAMAN_TERPROTEKSI: ReadonlySet<string> = new Set([
   ...Object.values(LANDING_PATH),
@@ -75,10 +78,10 @@ export default defineEventHandler(async (event) => {
   // Gerbang calon 1.5 — dievaluasi SEBELUM gerbang role (precedence). Hanya
   // calon `diajukan` yang diurus gerbang ini; calon `ditolak`/`kedaluwarsa`
   // JATUH ke gerbang role di bawah (matriks baris "calon × permukaan" —
-  // landing calon `/status-pendaftaran`, bukan shell permukaan terkunci).
+  // landing calon `/registration-status`, bukan shell permukaan terkunci).
   if (principal.role === 'calon_owner' && principal.owner.status === 'diajukan') {
     // Calon `diajukan` Lengkap lolos gerbang kelengkapan — kembali ke landing
-    // calonnya (UX-DR14: calon tetap di /status-pendaftaran), bukan ke
+    // calonnya (UX-DR14: calon tetap di /registration-status), bukan ke
     // /profile-completeness.
     if (principal.owner.profilLengkap) return sendRedirect(event, LANDING_PATH.calon_owner)
     return sendRedirect(event, PATH_KELENGKAPAN_PROFIL)
@@ -89,8 +92,16 @@ export default defineEventHandler(async (event) => {
   if (!permukaanDibolehkan(principal, path)) {
     // tanpa_saham belum-pernah-beli × permukaan terkunci matriks → pesan
     // transparensi (AD-8/UX-DR14 — bukan sekadar disembunyikan di UI).
+    // Flash-cookie (keputusan owner 2026-09-21, menggantikan query param):
+    // server TIDAK bisa menulis sessionStorage, TAPI bisa set cookie —
+    // Halaman Personal membaca (SSR ikut), menampilkan SEKALI, lalu menghapus.
     if (principal.role === 'tanpa_saham' && !aksesPenuh(principal.owner)) {
-      return sendRedirect(event, `${LANDING_PATH.tanpa_saham}${QUERY_INFO_TRANSPARANSI}`)
+      setCookie(event, KUNCI_COOKIE_INFO_TRANSPARANSI, '1', {
+        path: LANDING_PATH.tanpa_saham,
+        sameSite: 'lax',
+        maxAge: UMUR_COOKIE_TRANSPARANSI_DETIK,
+      })
+      return sendRedirect(event, LANDING_PATH.tanpa_saham)
     }
     // Salah permukaan role-lain → landing role-nya (UX-DR14).
     return sendRedirect(event, LANDING_PATH[principal.role])

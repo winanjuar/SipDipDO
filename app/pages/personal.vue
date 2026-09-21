@@ -8,16 +8,17 @@
  *    Questions #1 — default tampil non-aktif).
  *
  * Alert transparansi (AD-8/UX-DR14): redirect server gerbang role membawa
- * query `?info=transparansi` (sendRedirect tidak dapat menulis sessionStorage)
- * → pesan VERBATIM `PESAN_TRANSPARANSI` tampil SEKALI sebagai Alert
- * aria-live="polite", lalu URL dibersihkan via `history.replaceState` agar
- * refresh TIDAK mengulang (pola beda-flag dengan `?daftar=berhasil`).
+ * FLASH-COOKIE `KUNCI_COOKIE_INFO_TRANSPARANSI` (sendRedirect tidak dapat
+ * menulis sessionStorage; query param dihapus — keputusan owner 2026-09-21)
+ * → pesan VERBATIM `PESAN_TRANSPARANSI` tampil SEKALI (cookie dihapus saat
+ * mount — refresh tidak mengulang) sebagai Alert aria-live="polite". Cookie
+ * terbaca SSR → alert hadir di paint pertama, TANPA pembersihan URL.
  *
  * Baca profil via `useAsyncData` sisi-KLIEN (`server: false` — kontrak ATDD
  * personal.spec.ts: stub gangguan jaringan di browser). Gagal → state kosong
  * Profile + pesan coba lagi (pola gagal-muat 1.5).
  */
-import { PESAN_TRANSPARANSI } from '#shared/domain/identity'
+import { KUNCI_COOKIE_INFO_TRANSPARANSI, PESAN_TRANSPARANSI } from '#shared/domain/identity'
 import { BANK_LAINNYA } from '#shared/domain/profil'
 import type { PersonalRespons } from '~/lib/personal'
 
@@ -28,47 +29,20 @@ const pesanMasuk = useSekaliAlertMasuk()
 useHead({ title: 'Halaman Personal — Sip & Dip' })
 
 /* ------------------------------------------------------------------ *
- * Alert transparansi — query `?info=transparansi`, tampil sekali,
- * URL dibersihkan pasca-mount (refresh tidak mengulang).
+ * Alert transparansi — flash-cookie dari gerbang role, tampil sekali.
  * ------------------------------------------------------------------ */
-const route = useRoute()
+const infoTransparansi = useCookie(KUNCI_COOKIE_INFO_TRANSPARANSI)
 
-const transparansiAktif = ref(route.query.info === 'transparansi')
+/** Sekali per kedatangan: snapshot saat setup — hapus cookie di mount agar
+ *  refresh TIDAK mengulang; alert tetap tampil selama user di halaman.
+ *  CATATAN: useCookie JSON-decode otomatis — nilai `'1'` terbaca sebagai
+ *  angka `1`, sehingga pembanding memakai normalisasi String(). */
+const transparansiAktif = computed(() => String(infoTransparansi.value) === '1')
 
-/** Jeda aman sebelum URL dibersihkan (ms) — hidrasi + mount bisa selesai
- *  SEBELUM peristiwa `load` dokumen, sehingga membersihkan query langsung di
- *  `onMounted` dapat menghapus `?info=transparansi` sebelum sempat diamati
- *  (pengamat alamat yang mem-poll pasca-`goto` hanya melihat /personal polos).
- *  Jeda singkat ini menjaga pesan tetap "terlampir pada alamat" satu detak
- *  observasi, lalu tetap bersih sebelum pengguna berpindah halaman. */
-const JEDA_AMAN_BERSIHKAN_URL_MS = 250
-
-/** ID timer pembersih URL — dibatalkan saat unmount (review Story 1.7)
- *  agar replaceState basi tidak menulis URL halaman lain. */
-let timerBersihkanUrl: number | undefined
+useHead({ title: 'Halaman Personal — Sip & Dip' })
 
 onMounted(() => {
-  if (!transparansiAktif.value) return
-  timerBersihkanUrl = window.setTimeout(() => {
-    const { info: _info, ...sisaQuery } = route.query
-    const sisa = new URLSearchParams()
-    for (const [kunci, nilai] of Object.entries(sisaQuery)) {
-      // Pertahankan bentuk array (`?foo=a&foo=b`) — review Story 1.7:
-      // nilai non-string tidak dibuang diam-diam.
-      if (typeof nilai === 'string') sisa.set(kunci, nilai)
-      else if (Array.isArray(nilai)) {
-        for (const item of nilai) {
-          if (typeof item === 'string') sisa.append(kunci, item)
-        }
-      }
-    }
-    const query = sisa.toString()
-    history.replaceState(null, '', query.length > 0 ? `${route.path}?${query}` : route.path)
-  }, JEDA_AMAN_BERSIHKAN_URL_MS)
-})
-
-onBeforeUnmount(() => {
-  if (timerBersihkanUrl !== undefined) window.clearTimeout(timerBersihkanUrl)
+  if (transparansiAktif.value) infoTransparansi.value = null
 })
 
 /* ------------------------------------------------------------------ *

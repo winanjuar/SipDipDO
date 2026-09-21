@@ -9,14 +9,14 @@
  *
  * ASUMSI KONTRAK (red-phase, dipin):
  * - Gerbang role middleware SSR (AD-8): tanpa_saham BELUM-pernah-beli
- *   (terverifikasi/keluar, firstEffectiveAt null) × /dashboard|/antrian-beli|
- *   /audit-trail (URL langsung) → sendRedirect('/personal?info=transparansi');
+ *   (terverifikasi/keluar, firstEffectiveAt null) × /dashboard|/order-queue|
+ *   /audit-trail (URL langsung) → flash-cookie → sendRedirect('/personal');
  *   keluar-PERNAH-beli (firstEffectiveAt terisi) × /dashboard → 200
  *   (aksesPenuh — middleware konsultasi predikat atas snapshot owner, BUKAN
  *   role saja: resolveRole memetakan keluar → tanpa_saham SEBELUM melihat
  *   firstEffectiveAt, server/domain/identity/access.service.ts);
- *   pemegang_saham × /antrian-beli|/audit-trail → redirect /dashboard;
- *   coo × /personal → redirect /antrian-beli; calon diajukan × /dashboard →
+ *   pemegang_saham × /order-queue|/audit-trail → redirect /dashboard;
+ *   coo × /personal → redirect /order-queue; calon diajukan × /dashboard →
  *   TETAP gerbang calon 1.5 (/profile-completeness — precedence, gerbang role
  *   tidak tersentuh).
  * - Pesan transparansi VERBATIM
@@ -56,11 +56,13 @@ const emailSintetisUji = (): string => {
 /** Pesan transparansi VERBATIM — cermin PESAN_TRANSPARANSI shared/domain. */
 const PESAN_TRANSPARANSI = 'Transparansi penuh terbuka setelah Pembelian Pertama Anda efektif.'
 
-/** Pola URL redirect gerbang role — query param paten `?info=transparansi`. */
-const URL_TRANSPARANSI = /\/personal\?info=transparansi/
+/** Pola URL landing Halaman Personal — redirect gerbang role TANPA query
+ *  (keputusan owner 2026-09-21: pesan transparensi dikirim flash-cookie,
+ *  bukan `?info=transparansi`). */
+const URL_PERSONAL = /\/personal$/
 
 test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-15 §4.8)', () => {
-  test('[P0] tanpa saham belum-beli membuka /dashboard → redirect /personal?info=transparansi, alert verbatim tampil SEKALI', async ({ page, context, apiRequest }) => {
+  test('[P0] tanpa saham belum-beli membuka /dashboard → redirect /personal polos, alert verbatim (flash-cookie) tampil SEKALI', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham', email: emailSintetisUji() })
     await context.addCookies(cookies)
@@ -68,8 +70,8 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await log.step('WHEN membuka /dashboard secara langsung')
     await page.goto('/dashboard')
 
-    await log.step('THEN dialihkan di batas server ke /personal?info=transparansi (AD-8)')
-    await expect(page).toHaveURL(URL_TRANSPARANSI)
+    await log.step('THEN dialihkan di batas server ke /personal POLOS (AD-8 — pesan via flash-cookie, bukan query)')
+    await expect(page).toHaveURL(URL_PERSONAL)
 
     await log.step('AND alert transparansi tampil dengan pesan VERBATIM + aria-live polite')
     const alert = page.getByTestId(TEST_IDS.personal.alertTransparansi)
@@ -77,32 +79,27 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await expect(alert).toContainText(PESAN_TRANSPARANSI)
     await expect(alert).toHaveAttribute('aria-live', 'polite')
 
-    await log.step('AND URL dibersihkan setelah mount (/personal tanpa query)')
-    await expect(page).toHaveURL(/\/personal$/)
-
-    await log.step('WHEN halaman dimuat ulang (reload kedua)')
+    await log.step('WHEN halaman dimuat ulang (reload kedua — cookie sudah dihapus halaman saat mount)')
     await page.reload()
 
     await log.step('THEN alert TIDAK muncul lagi (pin sekali-tampil)')
     await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toHaveCount(0)
   })
 
-  test('[P0] tanpa saham belum-beli membuka /antrian-beli → redirect /personal?info=transparansi', async ({ page, context, apiRequest }) => {
+  test('[P0] tanpa saham belum-beli membuka /order-queue → redirect /personal polos', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham', email: emailSintetisUji() })
     await context.addCookies(cookies)
 
-    await log.step('WHEN membuka /antrian-beli secara langsung')
-    await page.goto('/antrian-beli')
+    await log.step('WHEN membuka /order-queue secara langsung')
+    await page.goto('/order-queue')
 
-    await log.step('THEN dialihkan di batas server ke /personal?info=transparansi (AD-8)')
-    await expect(page).toHaveURL(URL_TRANSPARANSI)
-
-    await log.step('AND alert transparansi membawa pesan VERBATIM')
+    await log.step('THEN dialihkan di batas server ke /personal polos dengan alert transparansi VERBATIM (AD-8)')
+    await expect(page).toHaveURL(URL_PERSONAL)
     await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
   })
 
-  test('[P0] tanpa saham belum-beli membuka /audit-trail → redirect /personal?info=transparansi', async ({ page, context, apiRequest }) => {
+  test('[P0] tanpa saham belum-beli membuka /audit-trail → redirect /personal polos', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham', email: emailSintetisUji() })
     await context.addCookies(cookies)
@@ -110,8 +107,8 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await log.step('WHEN membuka /audit-trail secara langsung')
     await page.goto('/audit-trail')
 
-    await log.step('THEN dialihkan di batas server ke /personal?info=transparansi (AD-8 — middleware MENAMBAH penegakan, resolver 1.3 tetap defensif)')
-    await expect(page).toHaveURL(URL_TRANSPARANSI)
+    await log.step('THEN dialihkan di batas server ke /personal polos + alert VERBATIM (AD-8 — middleware MENAMBAH penegakan, resolver 1.3 tetap defensif)')
+    await expect(page).toHaveURL(URL_PERSONAL)
 
     await log.step('AND alert transparansi membawa pesan VERBATIM')
     await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
@@ -125,8 +122,8 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await log.step('WHEN membuka /dashboard secara langsung')
     await page.goto('/dashboard')
 
-    await log.step('THEN dialihkan ke /personal?info=transparansi (resolveRole keluar → tanpa_saham sebelum firstEffectiveAt; aksesPenuh false)')
-    await expect(page).toHaveURL(URL_TRANSPARANSI)
+    await log.step('THEN dialihkan ke /personal polos + alert VERBATIM (resolveRole keluar → tanpa_saham sebelum firstEffectiveAt; aksesPenuh false)')
+    await expect(page).toHaveURL(URL_PERSONAL)
 
     await log.step('AND alert transparansi membawa pesan VERBATIM')
     await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
@@ -146,13 +143,13 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
-  test('[P1] pemegang saham membuka /antrian-beli → redirect landing-nya /dashboard', async ({ page, context, apiRequest }) => {
+  test('[P1] pemegang saham membuka /order-queue → redirect landing-nya /dashboard', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'pemegang-saham' terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham', email: emailSintetisUji() })
     await context.addCookies(cookies)
 
-    await log.step('WHEN membuka /antrian-beli (permukaan role coo) secara langsung')
-    await page.goto('/antrian-beli')
+    await log.step('WHEN membuka /order-queue (permukaan role coo) secara langsung')
+    await page.goto('/order-queue')
 
     await log.step('THEN dialihkan ke landing role-nya /dashboard')
     await expect(page).toHaveURL(/\/dashboard$/)
@@ -170,7 +167,7 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 
-  test('[P1] coo membuka /personal → redirect /antrian-beli', async ({ page, context, apiRequest }) => {
+  test('[P1] coo membuka /personal → redirect /order-queue', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
@@ -178,8 +175,8 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await log.step('WHEN membuka /personal (permukaan tanpa_saham) secara langsung')
     await page.goto('/personal')
 
-    await log.step('THEN dialihkan ke landing role-nya /antrian-beli')
-    await expect(page).toHaveURL(/\/antrian-beli$/)
+    await log.step('THEN dialihkan ke landing role-nya /order-queue')
+    await expect(page).toHaveURL(/\/order-queue$/)
   })
 
   test('[P1] calon diajukan membuka /dashboard → gerbang calon 1.5 menang (precedence atas gerbang role)', async ({ page, context, apiRequest }) => {
@@ -194,7 +191,7 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await expect(page).toHaveURL(/\/profile-completeness$/)
   })
 
-  test('[P1] calon ditolak dan kedaluwarsa membuka /dashboard → landing calon /status-pendaftaran (review Story 1.7 #1 — jatuh ke gerbang role)', async ({ page, context, apiRequest }) => {
+  test('[P1] calon ditolak dan kedaluwarsa membuka /dashboard → landing calon /registration-status (review Story 1.7 #1 — jatuh ke gerbang role)', async ({ page, context, apiRequest }) => {
     // Matriks baris "calon × permukaan mana pun": `ditolak`/`kedaluwarsa`
     // diurus gerbang calon 1.5 DULU (yang tidak me-redirect mereka), lalu
     // gerbang role menutup sisanya → landing calon. Tanpa ini calon
@@ -208,8 +205,8 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
       await log.step('WHEN membuka /dashboard secara langsung')
       await page.goto('/dashboard')
 
-      await log.step('THEN dialihkan ke landing calon /status-pendaftaran — registry menolak calon_owner di semua permukaan')
-      await expect(page).toHaveURL(/\/status-pendaftaran$/)
+      await log.step('THEN dialihkan ke landing calon /registration-status — registry menolak calon_owner di semua permukaan')
+      await expect(page).toHaveURL(/\/registration-status$/)
     }
   })
 
@@ -221,7 +218,7 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await log.step('WHEN membuka /dashboard/ (varian trailing slash)')
     await page.goto('/dashboard/')
 
-    await log.step('THEN tetap dialihkan ke /personal?info=transparansi — lookup gerbang tidak meleset')
-    await expect(page).toHaveURL(/\/personal\?info=transparansi/)
+    await log.step('THEN tetap dialihkan ke /personal polos + alert VERBATIM — lookup gerbang tidak meleset')
+    await expect(page).toHaveURL(URL_PERSONAL)
   })
 })

@@ -48,10 +48,10 @@ export function buatKodeReferral(angkaAcak: () => number = Math.random): string 
 
 /** Peta landing role→route — ter-pin spec Story 1.2 (UX-DR14). */
 export const LANDING_PATH: Record<Role, string> = {
-  coo: '/antrian-beli',
+  coo: '/order-queue',
   pemegang_saham: '/dashboard',
   tanpa_saham: '/personal',
-  calon_owner: '/status-pendaftaran',
+  calon_owner: '/registration-status',
 }
 
 /**
@@ -94,11 +94,22 @@ export type Principal =
 
 /**
  * Pesan transparensi VERBATIM (spec Story 1.7) — diteruskan Halaman Personal
- * via query `?info=transparansi` (redirect server tidak dapat menulis
- * sessionStorage), tampil sekali sebagai Alert aria-live="polite".
+ * via flash-cookie `KUNCI_COOKIE_INFO_TRANSPARANSI` (keputusan owner
+ * 2026-09-21, menggantikan query param), tampil sekali sebagai Alert
+ * aria-live="polite".
  */
 export const PESAN_TRANSPARANSI
   = 'Transparansi penuh terbuka setelah Pembelian Pertama Anda efektif.'
+
+/**
+ * Kunci flash-cookie pesan transparensi (keputusan owner 2026-09-21: query
+ * param `?info=transparansi` DIHAPUS — server `sendRedirect` tak bisa menulis
+ * sessionStorage, TAPI bisa set cookie): middleware gerbang role set cookie
+ * ini (path `/personal`) lalu redirect `/personal` polos; Halaman Personal
+ * membaca (SSR ikut — alert tampil di paint pertama), menampilkan alert
+ * SEKALI, lalu menghapus cookie saat mount — refresh tidak mengulang.
+ */
+export const KUNCI_COOKIE_INFO_TRANSPARANSI = 'snd-dash.info-transparency'
 
 /**
  * Jumlah item MAKSIMUM bottom nav mobile (<lg) sebelum overflow masuk
@@ -166,7 +177,7 @@ export type PrasyaratPermukaan
  */
 export const PERMUKAAN_PERAN: Readonly<Record<string, PrasyaratPermukaan>> = {
   '/dashboard': PRASYARAT_AKSES_PENUH,
-  '/antrian-beli': PRASYARAT_COO,
+  '/order-queue': PRASYARAT_COO,
   '/audit-trail': PRASYARAT_COO,
   '/personal': PRASYARAT_TANPA_SAHAM,
 }
@@ -208,7 +219,7 @@ export interface ItemNavigasi {
 
 /** Katalog item navigasi Epic 1 — label dipin kontrak ATDD (by-role name). */
 export const KATALOG_ITEM_NAVIGASI = {
-  antrianBeli: { label: 'Antrian Beli', path: '/antrian-beli' },
+  orderQueue: { label: 'Antrian Beli', path: '/order-queue' },
   dashboard: { label: 'Dashboard', path: '/dashboard' },
   auditTrail: { label: 'Audit Trail', path: '/audit-trail' },
   personal: { label: 'Personal', path: '/personal' },
@@ -226,7 +237,7 @@ export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly Ite
   switch (role) {
     case 'coo':
       return [
-        KATALOG_ITEM_NAVIGASI.antrianBeli,
+        KATALOG_ITEM_NAVIGASI.orderQueue,
         KATALOG_ITEM_NAVIGASI.dashboard,
         KATALOG_ITEM_NAVIGASI.auditTrail,
       ]

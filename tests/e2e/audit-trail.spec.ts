@@ -12,11 +12,11 @@
  *   LANDING_PATH[role] = /dashboard (penegakan AD-8 sisi halaman).
  * - [P1] belum login membuka /audit-trail → redirect /login (lapis halaman;
  *   endpoint /api/landing tanpa sesi menjawab 401 → navigateTo('/login')).
- * - [P2] DB tanpa entry → empty state (pola antrian-beli.vue).
+ * - [P2] DB tanpa entry → empty state (pola order-queue.vue).
  *
  * Catatan mandate playwright-utils:
  * - DEVIASI TERCATAT (intercept): fetch `/api/audit` terjadi DI SERVER (pola
- *   `useRequestFetch` SSR, ref app/pages/status-pendaftaran.vue) sehingga
+ *   `useRequestFetch` SSR, ref app/pages/registration-status.vue) sehingga
  *   TIDAK tampak di jaringan browser → `interceptNetworkCall` tidak dipakai
  *   untuk fetch SSR halaman ini; asersi langsung ke elemen tampil di HTML
  *   awal (pola tests/e2e/smoke.ui.spec.ts).
@@ -230,7 +230,7 @@ test.describe('E2E Story 1.3 — audit trail khusus COO (1-E2E-002 sisi halaman 
       await log.step('WHEN COO membuka /audit-trail')
       await page.goto('/audit-trail')
 
-      await log.step('THEN empty state tampil (pola antrian-beli) tanpa satu pun baris tabel')
+      await log.step('THEN empty state tampil (pola order-queue) tanpa satu pun baris tabel')
       await expect(page.getByTestId(TEST_IDS.auditTrail.halaman)).toBeVisible()
       await expect(page.getByTestId(TEST_IDS.auditTrail.kosong)).toBeVisible()
       await expect(page.getByTestId(TEST_IDS.auditTrail.baris)).toHaveCount(0)

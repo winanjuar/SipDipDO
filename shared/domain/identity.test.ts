@@ -28,10 +28,10 @@ import {
 
 /** Landing map ter-pin spec Story 1.2 (UX-DR14). */
 const LANDING_PATH_TERPIN = {
-  coo: '/antrian-beli',
+  coo: '/order-queue',
   pemegang_saham: '/dashboard',
   tanpa_saham: '/personal',
-  calon_owner: '/status-pendaftaran',
+  calon_owner: '/registration-status',
 } as const
 
 describe('shared/domain/identity — LANDING_PATH (1-UNIT-001 subset)', () => {
@@ -143,17 +143,17 @@ const principalUji = (role: Role, snapshot: OwnerAccessSnapshot): Principal => (
 /** Registry terpin (spec 1.7): path → keputusan per principal — matriks §4.8. */
 const KASUS_PERMUKAAN: readonly { deskripsi: string, principal: Principal, path: string, diizinkan: boolean }[] = [
   { deskripsi: 'tanpa_saham belum-beli × /dashboard', principal: principalUji('tanpa_saham', snapUji('terverifikasi', false)), path: '/dashboard', diizinkan: false },
-  { deskripsi: 'tanpa_saham belum-beli × /antrian-beli', principal: principalUji('tanpa_saham', snapUji('terverifikasi', false)), path: '/antrian-beli', diizinkan: false },
+  { deskripsi: 'tanpa_saham belum-beli × /order-queue', principal: principalUji('tanpa_saham', snapUji('terverifikasi', false)), path: '/order-queue', diizinkan: false },
   { deskripsi: 'tanpa_saham belum-beli × /audit-trail', principal: principalUji('tanpa_saham', snapUji('terverifikasi', false)), path: '/audit-trail', diizinkan: false },
   { deskripsi: 'tanpa_saham belum-beli × /personal', principal: principalUji('tanpa_saham', snapUji('terverifikasi', false)), path: '/personal', diizinkan: true },
   { deskripsi: 'keluar-pernah-beli × /dashboard (aksesPenuh — kunci AD-8)', principal: principalUji('tanpa_saham', snapUji('keluar', true)), path: '/dashboard', diizinkan: true },
   { deskripsi: 'keluar-pernah-beli × /personal', principal: principalUji('tanpa_saham', snapUji('keluar', true)), path: '/personal', diizinkan: true },
-  { deskripsi: 'keluar-pernah-beli × /antrian-beli', principal: principalUji('tanpa_saham', snapUji('keluar', true)), path: '/antrian-beli', diizinkan: false },
+  { deskripsi: 'keluar-pernah-beli × /order-queue', principal: principalUji('tanpa_saham', snapUji('keluar', true)), path: '/order-queue', diizinkan: false },
   { deskripsi: 'pemegang_saham × /dashboard', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/dashboard', diizinkan: true },
-  { deskripsi: 'pemegang_saham × /antrian-beli', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/antrian-beli', diizinkan: false },
+  { deskripsi: 'pemegang_saham × /order-queue', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/order-queue', diizinkan: false },
   { deskripsi: 'pemegang_saham × /audit-trail', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/audit-trail', diizinkan: false },
   { deskripsi: 'pemegang_saham × /personal', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/personal', diizinkan: false },
-  { deskripsi: 'coo × /antrian-beli', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/antrian-beli', diizinkan: true },
+  { deskripsi: 'coo × /order-queue', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/order-queue', diizinkan: true },
   { deskripsi: 'coo × /audit-trail', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/audit-trail', diizinkan: true },
   { deskripsi: 'coo × /dashboard (aksesPenuh via saham)', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/dashboard', diizinkan: true },
   { deskripsi: 'coo × /personal', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/personal', diizinkan: false },
@@ -171,7 +171,7 @@ describe('shared/domain/identity — permukaanDibolehkan registry matriks keterb
 
 /** Item nav terpin — {label, path} (label paritas navigasi.spec.ts). */
 const ITEM = {
-  antrian: { label: 'Antrian Beli', path: '/antrian-beli' },
+  antrian: { label: 'Antrian Beli', path: '/order-queue' },
   dashboard: { label: 'Dashboard', path: '/dashboard' },
   audit: { label: 'Audit Trail', path: '/audit-trail' },
   personal: { label: 'Personal', path: '/personal' },

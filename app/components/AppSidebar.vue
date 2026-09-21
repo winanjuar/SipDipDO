@@ -25,6 +25,7 @@ const aktif = (path: string): boolean => route.path === path
   <div data-testid="nav-sidebar" class="hidden w-56 shrink-0 flex-col border-r bg-background lg:flex">
     <NuxtLink
       :to="landingPath"
+      data-testid="login-brand-logo"
       class="flex min-h-11 items-center gap-2 rounded-md p-4"
       aria-label="Ke halaman utama"
     >

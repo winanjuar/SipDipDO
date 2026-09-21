@@ -12,7 +12,7 @@ import type { AuditRespons } from '~/lib/audit'
  * (20/40/80, default 20) — TANPA filter aktor/aksi/rentang waktu dan TANPA
  * infinite scroll. Non-COO membuka URL langsung → kembali ke landing
  * role-nya (penegakan server di /api/audit; sisi halaman memakai pola
- * status-pendaftaran.vue).
+ * registration-status.vue).
  *
  * `key: route.fullPath` WAJIB — tanpa itu, klik Berikutnya/Sebelumnya hanya
  * mengubah query sehingga Nuxt MEMAKAI ULANG komponen: setup (fetch SSR dan

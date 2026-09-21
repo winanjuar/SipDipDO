@@ -34,7 +34,7 @@ import type { LandingRespons } from '~/lib/landing'
  *
  * Feedback aksi simpan (permintaan owner 2026-09-18): setiap Simpan selalu
  * menjawab — tombol "Menyimpan…" saat in-flight; sukses → alert "Profil
- * tersimpan." DI ATAS halaman auto-hilang 3 detik (pola status-pendaftaran —
+ * tersimpan." DI ATAS halaman auto-hilang 3 detik (pola registration-status —
  * toast bawah tak terlihat). SIMPAN PARSIAL (owner 2026-09-19): field kosong
  * tidak lagi menolak simpan — form = state penuh, field terisi wajib lolos
  * validasi format (kode `digit-hp` = pesan digit/prefix HP relevan).
@@ -96,7 +96,7 @@ const { data: profilTersimpan } = await useAsyncData('profil-kelengkapan', () =>
 if (!profilTersimpan.value) {
   // Sesi berubah status di antara dua panggilan (mis. kedaluwarsa cron) →
   // kembali ke pintu sah calon.
-  await navigateTo('/status-pendaftaran')
+  await navigateTo('/registration-status')
 }
 
 const gmail = computed(() => profilTersimpan.value?.gmail ?? '')
@@ -194,7 +194,7 @@ const gagalSimpan = ref(false)
 const sedangSimpan = ref(false)
 
 /** Alert sukses simpan — DI ATAS halaman, auto-hilang 3 detik (pola
- *  status-pendaftaran; toast bawah tak terlihat — keputusan owner 2026-09-18). */
+ *  registration-status; toast bawah tak terlihat — keputusan owner 2026-09-18). */
 const PESAN_TERSIMPAN = 'Profil tersimpan.'
 const pesanTersimpan = ref('')
 let timerPesanTersimpan: ReturnType<typeof setTimeout> | undefined
@@ -264,7 +264,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 <template>
   <div>
     <!-- Feedback sukses simpan — alert atas halaman auto-hilang 3 detik
-         (pola status-pendaftaran; toast bawah tak terlihat). -->
+         (pola registration-status; toast bawah tak terlihat). -->
     <Alert
       v-if="pesanTersimpan"
       data-testid="kelengkapan-alert-tersimpan"

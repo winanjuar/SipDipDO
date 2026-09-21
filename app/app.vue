@@ -18,7 +18,7 @@ useHead({
     <!-- Prompt pembaruan PWA (AD-12: registerType 'prompt', tanpa auto-reload). -->
     <PwaUpdatePrompt />
     <!-- NuxtLayout sejak Story 1.7 — meta `layout: 'app'` halaman ber-nav
-         (dashboard/personal/antrian-beli/audit-trail) kini benar-benar
+         (dashboard/personal/order-queue/audit-trail) kini benar-benar
          dirender; halaman tanpa meta layout memakai default (slot apa adanya —
          tidak ada app/layouts/default.vue). -->
     <NuxtLayout>

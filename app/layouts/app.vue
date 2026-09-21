@@ -2,8 +2,8 @@
 /**
  * Layout "app" — shell permukaan BER-NAV (Story 1.7, UX-DR14): sidebar kiri
  * desktop (≥lg) + header ringkas & bottom nav mobile (<lg). HANYA dipakai
- * halaman dashboard/personal/antrian-beli/audit-trail — halaman publik &
- * calon (login, register, status-pendaftaran, profile-completeness, index,
+ * halaman dashboard/personal/order-queue/audit-trail — halaman publik &
+ * calon (login, register, registration-status, profile-completeness, index,
  * offline, smoke) TIDAK memakai layout ini.
  *
  * Item navigasi REGISTRY-DRIVEN (satu sumber kebenaran dengan gerbang server):

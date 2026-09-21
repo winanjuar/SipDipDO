@@ -10,7 +10,7 @@
  * ASUMSI KONTRAK (red-phase, dipin — UX-DR14):
  * - Mobile (<lg): bottom nav data-testid="nav-batang-bawah"; Desktop (≥lg):
  *   sidebar kiri data-testid="nav-sidebar".
- * - Item = link by-role name, label terpin: 'Antrian Beli'→/antrian-beli,
+ * - Item = link by-role name, label terpin: 'Antrian Beli'→/order-queue,
  *   'Dashboard'→/dashboard, 'Audit Trail'→/audit-trail, 'Personal'→/personal.
  * - Registry item per role (Epic 1): coo=[Antrian Beli, Dashboard, Audit
  *   Trail]; pemegang_saham=[Dashboard]; tanpa_saham belum-beli=[Personal];
@@ -22,7 +22,7 @@
  * - Logo sidebar: diasumsikan BrandLogo dengan testid yang sama dengan
  *   halaman login (TEST_IDS.login.brandLogo — sumber auth-landing.spec.ts)
  *   dirender ulang di sidebar; ketuk logo → landing role (coo →
- *   /antrian-beli). Bila implementasi memakai testid berbeda, selaraskan
+ *   /order-queue). Bila implementasi memakai testid berbeda, selaraskan
  *   saat green-phase (tersangkut testid, bukan asersi perilaku).
  * - Sesi uji: mintSesiPemilik + context.addCookies (pola auth-landing.spec.ts).
  *
@@ -72,7 +72,7 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
     await page.goto('/')
-    await expect(page).toHaveURL(/\/antrian-beli$/)
+    await expect(page).toHaveURL(/\/order-queue$/)
 
     await log.step('THEN bottom nav tampil berisi TEPAT 3 link registry coo')
     const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
@@ -152,7 +152,7 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
 test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14)', () => {
   test.use({ viewport: VIEWPORT_DESKTOP })
 
-  test('[P1] coo desktop: sidebar 3 item + ketuk logo → landing role /antrian-beli', async ({ page, context, apiRequest }) => {
+  test('[P1] coo desktop: sidebar 3 item + ketuk logo → landing role /order-queue', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan membuka permukaan ber-nav /dashboard")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
@@ -174,7 +174,7 @@ test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14
     await log.step('WHEN menekan logo di sidebar (link asli — ketuk → landing role)')
     await sidebar.getByTestId(TEST_IDS.login.brandLogo).click()
 
-    await log.step('THEN kembali ke landing role coo /antrian-beli')
-    await expect(page).toHaveURL(/\/antrian-beli$/)
+    await log.step('THEN kembali ke landing role coo /order-queue')
+    await expect(page).toHaveURL(/\/order-queue$/)
   })
 })

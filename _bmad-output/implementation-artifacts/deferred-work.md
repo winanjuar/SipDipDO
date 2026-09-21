@@ -47,3 +47,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
   summary: Penyesuaian lanjutan alert sukses (masuk/daftar) — tampilan/posisi/durasi masih perlu dipoles oleh owner.
   evidence: Owner 2026-09-18 — "secara fungsi sudah jalan, untuk alert masih harus disesuaikan lagi nanti" (pola saat ini: Alert shadcn varian success di atas halaman, auto-hide 3 detik).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-role-matriks-keterbukaan-navigasi.md`
+  summary: Flake full-parallel E2E — writer audit lintas-worker (register/profil/personal seeding) menulis `audit_logs` tanpa `pg_advisory_lock`, mengganggu test stateful audit (audit.api/audit-trail) yang menggenggam lock `denganAuditKosong`.
+  evidence: Direproduksi 2026-09-21 — full-parallel (workers default) = 4–7 gagal acak di audit.api/audit-trail (+1 kelengkapan/register sekali lewat); test yang sama hijau 38/38 saat `--workers=2` dan hijau terisolasi; sudah muncul di run pra-rename (17 gagal) sehingga bukan sebab perubahan Story 1.7. Fix kandidat: semua jalur uji yang menulis audit wajib genggam `KUNCI_ADVISORY_RESET_AUDIT`, atau seed audit per-worker, atau pin workers=2 lokal (CI sudah 2).

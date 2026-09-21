@@ -12,9 +12,6 @@ import type { LandingRespons, StatusPendaftaranRespons } from '~/lib/landing'
  */
 definePageMeta({ auth: true })
 
-/** Flag konfirmasi dari hard-navigasi pasca-daftar (pendaftaran.vue). */
-const FLAG_DAFTAR_BERHASIL = 'berhasil'
-
 /** Peta status → badge (teks + varian token semantik UX-DR2/DR4). */
 const PETA_BADGE: Record<OwnerStatus, { label: string, variant: 'warn' | 'success' | 'destructive' | 'muted' }> = {
   diajukan: { label: 'Diajukan', variant: 'warn' },
@@ -56,22 +53,11 @@ const perluLengkapiProfil = hasilProfil !== null && hasilProfil.profileComplete 
 
 /** Alert konfirmasi pasca-daftar (permintaan owner 2026-09-18, direvisi:
  *  alert di ATAS halaman menggantikan toast bawah — auto-hilang 3 detik):
- *  flag query dari register.vue → alert SEKALI lalu query dibersihkan agar
- *  refresh/bagikan URL tidak mengulang konfirmasi. Klien-saja (onMounted).
+ *  flag sessionStorage dari register.vue (keputusan owner 2026-09-21 — URL
+ *  polos tanpa query) → alert SEKALI. Klien-saja (onMounted).
  *  Alert "Masuk berhasil." dilewati bila alert daftar tampil. */
-const route = useRoute()
-const router = useRouter()
 const pesanMasuk = useSekaliAlertMasuk()
-const pesanDaftar = ref('')
-onMounted(() => {
-  if (route.query.daftar === FLAG_DAFTAR_BERHASIL) {
-    pesanDaftar.value = 'Pendaftaran berhasil diajukan.'
-    setTimeout(() => {
-      pesanDaftar.value = ''
-    }, DURASI_ALERT_SUKSES_MS)
-    void router.replace({ query: { ...route.query, daftar: undefined } })
-  }
-})
+const pesanDaftar = useSekaliAlertPendaftaran()
 
 useHead({ title: 'Status Pendaftaran — Sip & Dip' })
 </script>

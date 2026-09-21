@@ -5,8 +5,8 @@
  * seluruh asersi ter-pin dari red-phase tidak berubah.
  *
  * Cakupan OTOMASI: proteksi rute SSR, redirect root→login, landing map per
- * role (coo→/antrian-beli, pemegang_saham→/dashboard, tanpa_saham & keluar→
- * /personal, calon_owner→/status-pendaftaran), badge status + alasan penolakan
+ * role (coo→/order-queue, pemegang_saham→/dashboard, tanpa_saham & keluar→
+ * /personal, calon_owner→/registration-status), badge status + alasan penolakan
  * (UX-DR4: by text, bukan warna), jalur akun Google belum terhubung, dan
  * perilaku halaman login saat query `?error` (callback OAuth gagal — halaman
  * tetap ter-render dengan pemberitahuan netral). OAuth Google ASLI (klik CTA +
@@ -47,7 +47,7 @@ const INTERVAL_RECURSE_MS = 500
 const BATAS_RECURSE_DAFTAR_MS = 15_000
 
 /** Halaman terproteksi (landing map ter-pin) — proteksi SSR diharapkan seragam. */
-const HALAMAN_TERPROTEKSI = ['/dashboard', '/personal', '/antrian-beli', '/status-pendaftaran'] as const
+const HALAMAN_TERPROTEKSI = ['/dashboard', '/personal', '/order-queue', '/registration-status'] as const
 
 /** Owner non-calon yang landing-nya halaman personal (UX landing map). */
 const IDENTIFIER_PERSONAL = ['tanpa-saham', 'keluar'] as const
@@ -120,8 +120,8 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await context.addCookies(cookies)
     await log.step('WHEN membuka root aplikasi')
     await page.goto('/')
-    await log.step('THEN dialandingkan ke /antrian-beli (UX-DR19: state kosong)')
-    await expect(page).toHaveURL(/\/antrian-beli$/)
+    await log.step('THEN dialandingkan ke /order-queue (UX-DR19: state kosong)')
+    await expect(page).toHaveURL(/\/order-queue$/)
     // by-role heading — getByText('Antrian Beli') ambigu: NuxtRouteAnnouncer
     // mengumumkan document.title ("Antrian Beli — Sip & Dip") yang memuat
     // substring yang sama (racy strict-mode violation antar browser).
@@ -163,8 +163,8 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await context.addCookies(cookies)
     await log.step('WHEN membuka root aplikasi')
     await page.goto('/')
-    await log.step('THEN dialandingkan ke /status-pendaftaran dengan badge Ditolak + alasan verbatim')
-    await expect(page).toHaveURL(/\/status-pendaftaran$/)
+    await log.step('THEN dialandingkan ke /registration-status dengan badge Ditolak + alasan verbatim')
+    await expect(page).toHaveURL(/\/registration-status$/)
     const badge = page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)
     await expect(badge).toContainText('Ditolak')
     // Pin varian token (UX-DR2: Ditolak = destructive) — teks tetap pembawa
@@ -173,12 +173,12 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.alasanPenolakan)).toContainText(ALASAN_SINTETIS)
   })
 
-  test('[P1] non-calon yang membuka /status-pendaftaran langsung dialihkan ke landing role-nya', async ({ page, context, apiRequest }) => {
+  test('[P1] non-calon yang membuka /registration-status langsung dialihkan ke landing role-nya', async ({ page, context, apiRequest }) => {
     await log.step('GIVEN sesi pemegang saham (bukan calon) sudah diinjeksikan')
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
     await context.addCookies(cookies)
-    await log.step('WHEN membuka /status-pendaftaran secara langsung')
-    await page.goto('/status-pendaftaran')
+    await log.step('WHEN membuka /registration-status secara langsung')
+    await page.goto('/registration-status')
     await log.step('THEN dialihkan ke landing role-nya /dashboard')
     await expect(page).toHaveURL(/\/dashboard$/)
   })
@@ -266,20 +266,20 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await page.evaluate(() => sessionStorage.setItem('snd-dash.pendaftaran-syarat-setuju', '1'))
       await recurse(
         async () => {
-          if (page.url().includes('/status-pendaftaran')) return true
+          if (page.url().includes('/registration-status')) return true
           try {
             await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
           } catch {
             // Klik kalah race hidrasi — dievaluasi ulang iterasi berikutnya.
           }
-          return page.url().includes('/status-pendaftaran')
+          return page.url().includes('/registration-status')
         },
         selesai => selesai === true,
         { timeout: BATAS_RECURSE_DAFTAR_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA mengirim POST lalu redirect' },
       )
 
       await log.step('THEN dialihkan ke status pendaftaran dengan badge Diajukan (hard navigation + flag toast)')
-      await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: 15_000 })
+      await expect(page).toHaveURL(/\/registration-status(\?.*)?$/, { timeout: 15_000 })
       await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
     },
   )
@@ -291,8 +291,8 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
       await context.addCookies(cookies)
       await log.step('WHEN membuka root aplikasi')
       await page.goto('/')
-      await log.step('THEN dialandingkan ke /status-pendaftaran dengan badge per status')
-      await expect(page).toHaveURL(/\/status-pendaftaran$/)
+      await log.step('THEN dialandingkan ke /registration-status dengan badge per status')
+      await expect(page).toHaveURL(/\/registration-status$/)
       // Pin teks badge per status (UX-DR4: by text); status non-ditolak tidak
       // merender blok alasan penolakan.
       await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText(labelBadge)
@@ -304,10 +304,10 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     // Kontrak flag: kunci sessionStorage milik app/composables/useSekaliAlert.ts
     // (halaman login menandai sebelum signIn; landing pertama mengonsumsi).
     const KUNCI_FLAG_MASUK = 'snd-dash.alert-masuk-berhasil'
-    await log.step("GIVEN sesi COO sudah diinjeksikan di landing /antrian-beli")
+    await log.step("GIVEN sesi COO sudah diinjeksikan di landing /order-queue")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
     await context.addCookies(cookies)
-    await page.goto('/antrian-beli')
+    await page.goto('/order-queue')
 
     await log.step('AND flag alert masuk ditandai (simulasi halaman login pre-signIn)')
     await page.evaluate(kunci => sessionStorage.setItem(kunci, '1'), KUNCI_FLAG_MASUK)
@@ -328,7 +328,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     // sewaan (gmail sintetis mint uji) sehingga baris ownernya terpisah dari persona 'coo'
     // deterministik yang dipakai suite lain (hindari race mint paralel dan
     // cache sesi .auth), lalu tenure-nya ditutup via re-mint cooAktif false.
-    await log.step("GIVEN persona 'coo' dengan tenure aktif dialandingkan ke /antrian-beli")
+    await log.step("GIVEN persona 'coo' dengan tenure aktif dialandingkan ke /order-queue")
     const cookiesCoo = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'coo',
       email: 'uji.snddash.e2e.coo.sewa@gmail.com',
@@ -336,7 +336,7 @@ test.describe('E2E Story 1.2 — autentikasi Google & halaman login (1-E2E-002 s
     })
     await context.addCookies(cookiesCoo)
     await page.goto('/')
-    await expect(page).toHaveURL(/\/antrian-beli$/)
+    await expect(page).toHaveURL(/\/order-queue$/)
 
     await log.step('WHEN tenure COO ditutup (re-mint identifier sama, cooAktif false)')
     const cookiesNonCoo = await mintSesiPemilik(apiRequest, {

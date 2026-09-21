@@ -20,7 +20,7 @@
  * "persis"; satu sumber shared/domain/profil) — asersi indikator tak berubah.
  *
  * Penambahan PASCA-REVIEW sebelumnya: tautan "Lengkapi Profile" di
- * /status-pendaftaran (pintu nav tunggal), gerbang calon diajukan LENGKAP,
+ * /registration-status (pintu nav tunggal), gerbang calon diajukan LENGKAP,
  * dan submit PARTIAL sukses 200 (re-negotiasi owner 2026-09-19 — field
  * kosong tidak lagi menolak simpan; zona Sistem tetap menyebut sisa,
  * isian dipertahankan).
@@ -405,10 +405,10 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page).toHaveURL(/\/profile-completeness$/)
   })
 
-  test('[P1] non-calon membuka /profile-completeness → dialihkan ke landing role-nya (pola status-pendaftaran)', async ({ page, context, apiRequest }) => {
+  test('[P1] non-calon membuka /profile-completeness → dialihkan ke landing role-nya (pola registration-status)', async ({ page, context, apiRequest }) => {
     // Penutup baris matriks I/O "Halaman kelengkapan non-calon": resolver
     // halaman mengarahkan non-calon ke LANDING_PATH role-nya (pola
-    // status-pendaftaran.vue); middleware TIDAK menghalangi non-calon.
+    // registration-status.vue); middleware TIDAK menghalangi non-calon.
     await log.step('GIVEN sesi pemegang saham (bukan calon) terinjeksikan')
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
     await context.addCookies(cookies)
@@ -420,7 +420,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 
-  test('[P1] tautan "Lengkapi Profile" di /status-pendaftaran → menuju /profile-completeness (pasca-review)', async ({ page, context, apiRequest }) => {
+  test('[P1] tautan "Lengkapi Profile" di /registration-status → menuju /profile-completeness (pasca-review)', async ({ page, context, apiRequest }) => {
     // Satu-satunya pintu nav fitur (UX-DR14): calon diajukan belum lengkap
     // melihat tautan di halaman status; klik mengantar ke halaman kelengkapan.
     await log.step('GIVEN sesi calon owner diajukan dengan Profil belum lengkap')
@@ -431,8 +431,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     })
     await context.addCookies(cookies)
 
-    await log.step('WHEN membuka /status-pendaftaran lalu mengeklik "Lengkapi Profile"')
-    await page.goto('/status-pendaftaran')
+    await log.step('WHEN membuka /registration-status lalu mengeklik "Lengkapi Profile"')
+    await page.goto('/registration-status')
     const tautan = page.getByRole('link', { name: 'Lengkapi Profile' })
     await expect(tautan).toBeVisible()
     await tautan.click()
@@ -441,7 +441,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page).toHaveURL(/\/profile-completeness$/)
   })
 
-  test('[P1] calon diajukan dengan Profil LENGKAP lolos gerbang → kembali ke landing calon /status-pendaftaran (pasca-review)', async ({ page, context, apiRequest }) => {
+  test('[P1] calon diajukan dengan Profil LENGKAP lolos gerbang → kembali ke landing calon /registration-status (pasca-review)', async ({ page, context, apiRequest }) => {
     // Gerbang kelengkapan HANYA untuk belum lengkap: calon lengkap dialihkan
     // ke landing calonnya (UX-DR14), BUKAN ke /profile-completeness.
     await log.step('GIVEN sesi calon owner diajukan yang menyimpan profil lengkap via endpoint langsung')
@@ -469,8 +469,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await log.step('WHEN membuka /dashboard secara langsung')
     await page.goto('/dashboard')
 
-    await log.step('THEN dialihkan ke /status-pendaftaran (landing calon), BUKAN /profile-completeness')
-    await expect(page).toHaveURL(/\/status-pendaftaran$/)
+    await log.step('THEN dialihkan ke /registration-status (landing calon), BUKAN /profile-completeness')
+    await expect(page).toHaveURL(/\/registration-status$/)
     await expect(page).not.toHaveURL(/profile-completeness/)
   })
 
