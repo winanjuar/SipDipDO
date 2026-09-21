@@ -198,6 +198,9 @@ const profilLengkapUji = (): Record<string, string> => ({
 })
 
 /** Email sintetis unik pola mint dev-only (prefix terkunci — pola register.spec.ts). */
+/** Batas recurse logout (ms) — interval memakai INTERVAL_RECURSE_MS eksisting. */
+const BATAS_RECURSE_KELUAR_MS = 15_000
+
 const emailSintetisUji = (): string => {
   const lokalUji = faker.internet.username().toLowerCase().replace(/[^a-z0-9]+/g, '.')
   return `uji.snddash.e2e.${lokalUji}@gmail.com`
@@ -995,4 +998,67 @@ test('[P1] wayfinding calon: logo & "Kembali ke Status Pendaftaran" di form meng
 
   await log.step('THEN kembali ke /registration-status')
   await expect(page).toHaveURL(/\/registration-status$/)
+})
+
+test.describe('[P1] logout dari halaman calon (keputusan owner 2026-09-21 — AppTombolKeluar)', () => {
+  // Klon pola teruji: tunggu hidrasi (isHydrating===false) -> klik langsung.
+  // Pintu keluar icon+dialog tersedia di kedua halaman calon.
+  test('[P1] logout dari /profile-completeness → Dialog konfirmasi → sesi berakhir ke /login', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan membuka /profile-completeness")
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await page.waitForFunction(() => {
+      try {
+        const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
+        return typeof app === 'function' && app().isHydrating === false
+      } catch {
+        return false
+      }
+    }, { timeout: BATAS_RECURSE_KELUAR_MS })
+
+    await log.step('WHEN menekan icon Keluar lalu mengonfirmasi (klik-daur ulang: binding trigger reka-ui selesai sesaat pasca-hidrasi)')
+    await expect(async () => {
+      if (!(await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).isVisible().catch(() => false))) {
+        await page.getByTestId(TEST_IDS.navigasi.tombolKeluarMobile).click()
+      }
+      await expect(page.getByTestId(TEST_IDS.navigasi.dialogKeluar)).toBeVisible()
+      await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).getByRole('button', { name: 'Keluar' }).click()
+    }).toPass({ timeout: 15_000 })
+
+    await log.step('THEN kembali ke /login — sesi berakhir')
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 })
+
+    await log.step('AND form calon tak lagi terjangkau tanpa sesi')
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await expect(page).toHaveURL(/\/login/)
+  })
+
+  test('[P1] logout dari /registration-status → Dialog konfirmasi → sesi berakhir ke /login', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan membuka /registration-status")
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+    await page.goto('/registration-status')
+    await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toBeVisible()
+
+    await log.step('WHEN menekan icon Keluar lalu mengonfirmasi (klik-daur ulang: binding trigger reka-ui selesai sesaat pasca-hidrasi)')
+    await expect(async () => {
+      if (!(await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).isVisible().catch(() => false))) {
+        await page.getByTestId(TEST_IDS.navigasi.tombolKeluarMobile).click()
+      }
+      await expect(page.getByTestId(TEST_IDS.navigasi.dialogKeluar)).toBeVisible()
+      await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).getByRole('button', { name: 'Keluar' }).click()
+    }).toPass({ timeout: 15_000 })
+
+    await log.step('THEN kembali ke /login — sesi berakhir')
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 })
+  })
 })

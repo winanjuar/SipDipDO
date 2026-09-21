@@ -114,6 +114,13 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
     {{ pesanMasuk }}
   </Alert>
   <main class="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-4 py-10">
+    <!-- Wayfinding calon (keputusan owner 2026-09-21): logo + pintu logout
+         (komponen bersama) — halaman calon tidak memakai layout ber-nav. -->
+    <div class="flex items-center justify-between">
+      <BrandLogo size="header" />
+      <AppTombolKeluar />
+    </div>
+
     <header>
       <h1 class="text-2xl font-semibold">Status Pendaftaran</h1>
       <p class="text-sm text-muted-foreground">Status pendaftaran kepemilikan saham Anda.</p>

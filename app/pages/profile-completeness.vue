@@ -278,21 +278,25 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 
     <main class="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-10 lg:max-w-5xl">
     <!-- Wayfinding calon (keputusan owner 2026-09-21): logo & link kembali —
-         dua halaman inilah "dunia" calon owner (UX-DR14: tanpa nav lain). -->
-    <div class="flex items-center gap-3">
-      <NuxtLink
-        to="/registration-status"
-        class="flex items-center rounded-md"
-        aria-label="Ke halaman utama"
-      >
-        <BrandLogo size="header" />
-      </NuxtLink>
-      <NuxtLink
-        to="/registration-status"
-        class="text-sm font-medium text-primary underline-offset-4 hover:underline"
-      >
-        ← Kembali ke Status Pendaftaran
-      </NuxtLink>
+         dua halaman inilah "dunia" calon owner (UX-DR14: tanpa nav lain) —
+         plus pintu logout (komponen bersama dengan header owner). -->
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <NuxtLink
+          to="/registration-status"
+          class="flex items-center rounded-md"
+          aria-label="Ke halaman utama"
+        >
+          <BrandLogo size="header" />
+        </NuxtLink>
+        <NuxtLink
+          to="/registration-status"
+          class="text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          ← Kembali ke Status Pendaftaran
+        </NuxtLink>
+      </div>
+      <AppTombolKeluar />
     </div>
 
     <header>
