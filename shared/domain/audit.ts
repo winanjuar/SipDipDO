@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = [
   'profil-kelengkapan',
   // Kelola data owner (FR-13).
   'kelola-owner-perubahan',
+  'kelola-owner-penambahan',
   // Pergantian mandat COO (FR-17).
   'pergantian-coo',
 ] as const
