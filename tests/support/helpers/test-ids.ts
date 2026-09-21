@@ -63,4 +63,19 @@ export const TEST_IDS = {
     catatanForm: 'kelengkapan-catatan-form',
     saklarPemilik: 'kelengkapan-saklar-pemilik',
   },
+  // Story 1.6 — verifikasi & penolakan pendaftar oleh COO (halaman
+  // /pendaftar + endpoint /api/pendaftar[-/keputusan]).
+  pendaftar: {
+    halaman: 'pendaftar-halaman',
+    tabel: 'pendaftar-tabel',
+    baris: 'pendaftar-baris',
+    kosong: 'pendaftar-kosong',
+    aksiVerifikasi: 'pendaftar-aksi-verifikasi',
+    aksiTolak: 'pendaftar-aksi-tolak',
+    dialogTolak: 'pendaftar-dialog-tolak',
+    inputAlasan: 'pendaftar-input-alasan',
+    kirimTolak: 'pendaftar-kirim-tolakan',
+    batalTolak: 'pendaftar-batal-tolakan',
+    pesanStatusBerubah: 'pendaftar-pesan-status-berubah',
+  },
 } as const

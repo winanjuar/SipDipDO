@@ -10,7 +10,8 @@
  *   diberi label modul pemiliknya; modul tetangga menulis hanya lewat API
  *   publik modul pemilik (index.ts).
  */
-import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { OWNER_STATUSES } from '../shared/domain/identity'
 
 /**
@@ -86,7 +87,17 @@ export const owners = pgTable('owners', {
   usedReferralCode: text('used_referral_code'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
-})
+}, (t) => [
+  /**
+   * Penolakan wajib beralasan (Story 1.6, FR-22): status `ditolak` TANPA
+   * `rejection_reason` non-kosong (setelah btrim) ditolak di level DB —
+   * divalidasi handler/service dan ditegakkan sekali lagi di sini.
+   */
+  check(
+    'owners_ditolak_wajib_rejection_reason',
+    sql`(${t.status} <> 'ditolak' OR (${t.rejectionReason} IS NOT NULL AND btrim(${t.rejectionReason}) <> ''))`,
+  ),
+])
 
 /**
  * IDENTITY — owner_emergency_contacts (normalisasi owner 2026-09-18): entitas

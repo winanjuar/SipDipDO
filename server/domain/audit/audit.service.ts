@@ -21,11 +21,12 @@ import {
   AUDIT_LIMIT_DEFAULT,
   isAuditAction,
   type AuditActor,
+  type AuditAction,
   type AuditEntryInput,
   type AuditLimit,
 } from '#shared/domain/audit'
 import type { DbClient } from '../../utils/db'
-import { insertAuditEntry, listAuditEntries, type AuditEntryRecord } from './audit.repo'
+import { insertAuditEntry, hitungEntryAksi as hitungRepo, listAuditEntries, type AuditEntryRecord } from './audit.repo'
 
 /** Bentuk wire entry audit untuk lapis tampilan (envelope aktor AD-3). */
 export interface AuditEntryWire {
@@ -121,4 +122,21 @@ export async function listForCoo(db: DbClient, page: number, limit: AuditLimit =
   const offset = (page - 1) * limit
   const hasil = await listAuditEntries(db, { limit, offset })
   return { data: hasil.data.map(mapKeWire), nextPage: hasil.nextPage }
+}
+
+/**
+ * Hitung entry audit untuk satu pasangan (action, target) — API publik baca
+ * modul audit (Story 1.6): dipakai modul identity menghitung
+ * `details.hitunganPenolakan` DI DALAM transaksi keputusan yang sama (AD-5).
+ * `action` divalidasi registry terpusat SEBELUM query — pola
+ * `writeAuditEntry`.
+ */
+export async function hitungEntryAksi(db: DbClient, input: { action: AuditAction, target: string }): Promise<number> {
+  if (!isAuditAction(input.action)) {
+    throw new Error(
+      `hitungEntryAksi menolak action di luar registry AUDIT_ACTIONS: "${String(input.action)}" `
+      + '— daftarkan anggota baru di shared/domain/audit.ts.',
+    )
+  }
+  return hitungRepo(db, { action: input.action, target: input.target })
 }

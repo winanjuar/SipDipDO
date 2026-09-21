@@ -16,19 +16,33 @@ export {
   daftarOwnerByEmail,
   findActiveCooTenure,
   findOwnerByEmail,
+  findOwnerById,
   kedaluwarsakanCalon,
   listCalonDiajukan,
+  listCalonVerifikasi,
   openCooTenure,
   simpanProfilCalon,
+  tolakCalon,
   upsertOwnerByEmail,
+  verifikasiCalon,
 } from './owner.repo'
 export type { BarisCalonJob, HasilDaftarOwner, OwnerRecord, ReferralOwner } from './owner.repo'
 export {
+  KEPUTUSAN_COO,
+  PANJANG_MAKS_ALASAN_PENOLAKAN,
   REGISTRATION_EXPIRY_DAYS,
   REGISTRATION_REMINDER_DAYS_BEFORE,
   ajukanPendaftaran,
+  daftarCalonVerifikasi,
+  keputusanCalon,
   registrationDeadline,
   runRegistrationDailyJob,
   simpanProfil,
 } from './registration.service'
-export type { HasilJobHarianPendaftaran, RegistrationDeadline } from './registration.service'
+export type {
+  AkhirKeputusanCalon,
+  BarisCalonVerifikasi,
+  HasilJobHarianPendaftaran,
+  KeputusanCoo,
+  RegistrationDeadline,
+} from './registration.service'

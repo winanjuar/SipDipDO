@@ -1,0 +1,1 @@
+ALTER TABLE "owners" ADD CONSTRAINT "owners_ditolak_wajib_rejection_reason" CHECK (("owners"."status" <> 'ditolak' OR ("owners"."rejection_reason" IS NOT NULL AND btrim("owners"."rejection_reason") <> '')));
