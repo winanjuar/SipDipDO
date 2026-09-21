@@ -1,0 +1,185 @@
+/**
+ * ATDD RED-PHASE — Story 1.7 "Role, Matriks Keterbukaan & Navigasi"
+ * (matriks keterbukaan di batas server — AD-8, FR-15 §4.8).
+ *
+ * Seluruh test DIAKTIFKAN pada tugas green-phase middleware `auth-guard`
+ * (gerbang role registry-driven) + Alert transparansi Halaman Personal;
+ * kegagalan merah diverifikasi sebelum implementasi (asersi ter-pin dari
+ * red-phase tidak berubah).
+ *
+ * ASUMSI KONTRAK (red-phase, dipin):
+ * - Gerbang role middleware SSR (AD-8): tanpa_saham BELUM-pernah-beli
+ *   (terverifikasi/keluar, firstEffectiveAt null) × /dashboard|/antrian-beli|
+ *   /audit-trail (URL langsung) → sendRedirect('/personal?info=transparansi');
+ *   keluar-PERNAH-beli (firstEffectiveAt terisi) × /dashboard → 200
+ *   (aksesPenuh — middleware konsultasi predikat atas snapshot owner, BUKAN
+ *   role saja: resolveRole memetakan keluar → tanpa_saham SEBELUM melihat
+ *   firstEffectiveAt, server/domain/identity/access.service.ts);
+ *   pemegang_saham × /antrian-beli|/audit-trail → redirect /dashboard;
+ *   coo × /personal → redirect /antrian-beli; calon diajukan × /dashboard →
+ *   TETAP gerbang calon 1.5 (/profile-completeness — precedence, gerbang role
+ *   tidak tersentuh).
+ * - Pesan transparansi VERBATIM
+ *   `Transparansi penuh terbuka setelah Pembelian Pertama Anda efektif.`
+ *   (cermin PESAN_TRANSPARANSI shared/domain/identity.ts yang ditambahkan
+ *   saat green-phase — dipin lokal agar file mandiri saat red-phase), Alert
+ *   aria-live="polite" via data-testid="personal-alert-transparansi", tampil
+ *   SEKALI; URL dibersihkan setelah mount → /personal tanpa query; reload
+ *   kedua → alert TIDAK muncul lagi.
+ * - Sesi uji: mintSesiPemilik + context.addCookies (pola auth-landing.spec.ts;
+ *   preset 'tanpa-saham' = {terverifikasi, punyaSaham:false}, preset 'keluar'
+ *   = {keluar, punyaSaham:true}, override punyaSaham:false = keluar-belum-beli
+ *   dengan firstEffectiveAt null).
+ *
+ * Catatan mandate playwright-utils (deviasi tercatat): redirect diputuskan
+ * server-side saat request dokumen SSR — TIDAK ada panggilan API client-side
+ * yang layak di-spy → interceptNetworkCall sengaja TIDAK dipakai di file ini
+ * (pola auth-landing.spec.ts); asersi web-first (toHaveURL / toBeVisible /
+ * toContainText) auto-retry. Tanpa page.route, tanpa waitForTimeout, tanpa
+ * console.log; selector by-role/by-testid/by-text (tanpa CSS/XPath/has-text).
+ */
+import { test, expect, log } from '../support/merged-fixtures'
+import { TEST_IDS } from '../support/helpers/test-ids'
+import { mintSesiPemilik } from '../support/helpers/sesi-minting'
+
+/** Pesan transparansi VERBATIM — cermin PESAN_TRANSPARANSI shared/domain. */
+const PESAN_TRANSPARANSI = 'Transparansi penuh terbuka setelah Pembelian Pertama Anda efektif.'
+
+/** Pola URL redirect gerbang role — query param paten `?info=transparansi`. */
+const URL_TRANSPARANSI = /\/personal\?info=transparansi/
+
+test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-15 §4.8)', () => {
+  test.skip('[P0] tanpa saham belum-beli membuka /dashboard → redirect /personal?info=transparansi, alert verbatim tampil SEKALI', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /dashboard secara langsung')
+    await page.goto('/dashboard')
+
+    await log.step('THEN dialihkan di batas server ke /personal?info=transparansi (AD-8)')
+    await expect(page).toHaveURL(URL_TRANSPARANSI)
+
+    await log.step('AND alert transparansi tampil dengan pesan VERBATIM + aria-live polite')
+    const alert = page.getByTestId(TEST_IDS.personal.alertTransparansi)
+    await expect(alert).toBeVisible()
+    await expect(alert).toContainText(PESAN_TRANSPARANSI)
+    await expect(alert).toHaveAttribute('aria-live', 'polite')
+
+    await log.step('AND URL dibersihkan setelah mount (/personal tanpa query)')
+    await expect(page).toHaveURL(/\/personal$/)
+
+    await log.step('WHEN halaman dimuat ulang (reload kedua)')
+    await page.reload()
+
+    await log.step('THEN alert TIDAK muncul lagi (pin sekali-tampil)')
+    await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toHaveCount(0)
+  })
+
+  test.skip('[P0] tanpa saham belum-beli membuka /antrian-beli → redirect /personal?info=transparansi', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /antrian-beli secara langsung')
+    await page.goto('/antrian-beli')
+
+    await log.step('THEN dialihkan di batas server ke /personal?info=transparansi (AD-8)')
+    await expect(page).toHaveURL(URL_TRANSPARANSI)
+
+    await log.step('AND alert transparansi membawa pesan VERBATIM')
+    await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
+  })
+
+  test.skip('[P0] tanpa saham belum-beli membuka /audit-trail → redirect /personal?info=transparansi', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /audit-trail secara langsung')
+    await page.goto('/audit-trail')
+
+    await log.step('THEN dialihkan di batas server ke /personal?info=transparansi (AD-8 — middleware MENAMBAH penegakan, resolver 1.3 tetap defensif)')
+    await expect(page).toHaveURL(URL_TRANSPARANSI)
+
+    await log.step('AND alert transparansi membawa pesan VERBATIM')
+    await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
+  })
+
+  test.skip('[P1] keluar belum-beli membuka /dashboard → redirect sama (cakupan AD-11 — perluReferral)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'keluar' yang BELUM pernah beli (override punyaSaham:false → firstEffectiveAt null)")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'keluar', punyaSaham: false })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /dashboard secara langsung')
+    await page.goto('/dashboard')
+
+    await log.step('THEN dialihkan ke /personal?info=transparansi (resolveRole keluar → tanpa_saham sebelum firstEffectiveAt; aksesPenuh false)')
+    await expect(page).toHaveURL(URL_TRANSPARANSI)
+
+    await log.step('AND alert transparansi membawa pesan VERBATIM')
+    await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
+  })
+
+  test.skip('[P0] keluar PERNAH-beli membuka /dashboard → 200 aksesPenuh (bukan role saja — kunci AD-8)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'keluar' yang PERNAH membeli (preset 'keluar' = punyaSaham:true → firstEffectiveAt terisi)")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'keluar' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /dashboard secara langsung')
+    await page.goto('/dashboard')
+
+    await log.step('THEN halaman TAMPIL 200 — role tanpa_saham tetap boleh karena aksesPenuh (matriks terbuka otomatis pasca Pembelian Pertama)')
+    await expect(page).toHaveURL(/\/dashboard$/)
+    // by-role heading — hindari ambigu NuxtRouteAnnouncer (pola auth-landing).
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  })
+
+  test.skip('[P1] pemegang saham membuka /antrian-beli → redirect landing-nya /dashboard', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi 'pemegang-saham' terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /antrian-beli (permukaan role coo) secara langsung')
+    await page.goto('/antrian-beli')
+
+    await log.step('THEN dialihkan ke landing role-nya /dashboard')
+    await expect(page).toHaveURL(/\/dashboard$/)
+  })
+
+  test.skip('[P1] pemegang saham membuka /audit-trail → redirect landing-nya /dashboard', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi 'pemegang-saham' terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /audit-trail (permukaan role coo) secara langsung')
+    await page.goto('/audit-trail')
+
+    await log.step('THEN dialihkan ke landing role-nya /dashboard')
+    await expect(page).toHaveURL(/\/dashboard$/)
+  })
+
+  test.skip('[P1] coo membuka /personal → redirect /antrian-beli', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi 'coo' terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /personal (permukaan tanpa_saham) secara langsung')
+    await page.goto('/personal')
+
+    await log.step('THEN dialihkan ke landing role-nya /antrian-beli')
+    await expect(page).toHaveURL(/\/antrian-beli$/)
+  })
+
+  test.skip('[P1] calon diajukan membuka /dashboard → gerbang calon 1.5 menang (precedence atas gerbang role)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner berstatus 'diajukan' (Profil belum lengkap) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'calon-diajukan' })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /dashboard secara langsung')
+    await page.goto('/dashboard')
+
+    await log.step('THEN dialihkan ke /profile-completeness — gerbang calon 1.5 dievaluasi SEBELUM gerbang role (perilaku 1.5 TIDAK tersentuh)')
+    await expect(page).toHaveURL(/\/profile-completeness$/)
+  })
+})

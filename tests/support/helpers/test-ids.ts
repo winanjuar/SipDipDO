@@ -63,4 +63,24 @@ export const TEST_IDS = {
     catatanForm: 'kelengkapan-catatan-form',
     saklarPemilik: 'kelengkapan-saklar-pemilik',
   },
+  // Story 1.7 — navigasi registry-driven (kontrak ATDD red-phase; elemen
+  // layout app.vue diimplementasikan dengan data-testid ini). Item nav
+  // di-assert by-role name (label registry); "Lainnya" = Sheet bila item
+  // > MAKS_ITEM_NAV_MOBILE — Epic 1 maks 3 item, pemicunya tak pernah tampil.
+  navigasi: {
+    batangBawah: 'nav-batang-bawah',
+    sidebar: 'nav-sidebar',
+  },
+  // Story 1.7 — Halaman Personal (kontrak ATDD red-phase; 4 section matriks
+  // §4.8 diimplementasikan dengan data-testid ini; Alert transparansi
+  // aria-live="polite" tampil sekali lalu URL dibersihkan).
+  personal: {
+    alertTransparansi: 'personal-alert-transparansi',
+    sectionProfil: 'personal-section-profil',
+    sectionPortofolio: 'personal-section-portofolio',
+    statusKosong: 'personal-status-kosong',
+    sectionHargaRkap: 'personal-section-harga-rkap',
+    pintuPesanan: 'personal-pintu-pesanan',
+    pesanGagalProfil: 'personal-pesan-gagal-profil',
+  },
 } as const
