@@ -32,7 +32,10 @@ async function keluarAplikasi(): Promise<void> {
         <LogOut class="pointer-events-none size-5" />
       </button>
     </DialogTrigger>
-    <DialogContent data-testid="nav-dialog-keluar" class="max-w-sm">
+    <!-- Tanpa tombol X bawaan (keputusan owner 2026-09-21, selaras modal
+         Pendaftaran): penutupan hanya via Batal/Keluar; ESC & klik overlay
+         tetap menutup. -->
+    <DialogContent data-testid="nav-dialog-keluar" class="max-w-sm" :show-close-button="false">
       <DialogHeader>
         <DialogTitle>Keluar dari aplikasi?</DialogTitle>
         <DialogDescription>
