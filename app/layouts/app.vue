@@ -71,7 +71,7 @@ const { data: navigasi } = await useAsyncData('nav-app', async (): Promise<Hasil
         class="flex min-h-11 items-center rounded-md p-1"
         aria-label="Ke halaman utama"
       >
-        <BrandLogo size="header" />
+        <BrandLogo size="header" variant="app" />
       </NuxtLink>
 
       <Dialog v-model:open="keluarTerbuka">

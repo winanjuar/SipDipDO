@@ -42,7 +42,7 @@ async function keluarAplikasi(): Promise<void> {
       class="flex min-h-11 items-center gap-2 rounded-md p-4"
       aria-label="Ke halaman utama"
     >
-      <BrandLogo size="header" />
+      <BrandLogo size="header" variant="app" />
     </NuxtLink>
 
     <nav aria-label="Navigasi utama" class="flex flex-col px-2">

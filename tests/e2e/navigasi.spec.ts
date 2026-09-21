@@ -247,6 +247,9 @@ test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14
 
     await log.step('AND item halaman aktif di sidebar ditandai aria-current="page" (review Story 1.7 #10)')
     await expect(navItem.getByRole('link', { name: LABEL_DASHBOARD })).toHaveAttribute('aria-current', 'page')
+    await log.step('AND logo sidebar memakai aset logo-app (varian app — keputusan owner 2026-09-21)')
+    await expect(sidebar.locator('img')).toHaveAttribute('src', '/logo-app.png')
+
 
     await log.step('WHEN menekan logo di sidebar (link asli — ketuk → landing role)')
     await sidebar.getByTestId(TEST_IDS.login.brandLogo).click()
