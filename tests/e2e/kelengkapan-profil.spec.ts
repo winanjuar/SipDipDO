@@ -973,3 +973,26 @@ test.describe('[P2] polish form profile (keputusan owner 2026-09-21)', () => {
     await expect(indikator).toContainText('Profile lengkap. Tunggu verifikasi COO')
   })
 })
+
+test('[P1] wayfinding calon: logo & "Kembali ke Status Pendaftaran" di form mengantar kembali ke halaman status', async ({ page, context, apiRequest }) => {
+  await log.step("GIVEN sesi calon owner diajukan membuka /profile-completeness")
+  const cookies = await mintSesiPemilik(apiRequest, {
+    userIdentifier: 'tanpa-saham',
+    status: 'diajukan',
+    email: emailSintetisUji(),
+  })
+  await context.addCookies(cookies)
+  await page.goto(HALAMAN_KELENGKAPAN)
+  await tungguHidrasi(page)
+
+    await log.step('THEN baris wayfinding tampil: logo + link "Kembali ke Status Pendaftaran"')
+    const kembali = page.getByRole('link', { name: 'Kembali ke Status Pendaftaran' })
+    await expect(kembali).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ke halaman utama' }).locator('img')).toBeVisible()
+
+  await log.step('WHEN mengeklik link kembali')
+  await kembali.click()
+
+  await log.step('THEN kembali ke /registration-status')
+  await expect(page).toHaveURL(/\/registration-status$/)
+})
