@@ -65,19 +65,19 @@ const LABEL_PEMICU_LAINNYA = 'Lainnya'
 const BATAS_RECURSE_KELUAR_MS = 15_000
 
 /** Registry navigasi coo (satu-satunya role Epic 1 dengan 3 item). */
-const ITEM_NAV_COO = [LABEL_ANTRIAN, LABEL_DASHBOARD, LABEL_AUDIT] as const
+const ITEM_NAV_COO = [LABEL_DASHBOARD, LABEL_ANTRIAN, LABEL_AUDIT, LABEL_PERSONAL] as const
 
 test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)', () => {
   test.use({ viewport: VIEWPORT_MOBILE })
 
-  test('[P1] coo mobile: bottom nav 3 item tanpa pemicu "Lainnya", item aktif aria-current="page"', async ({ page, context, apiRequest }) => {
+  test('[P1] coo mobile: bottom nav 4 item tanpa pemicu "Lainnya", item aktif aria-current="page"', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan di landing role-nya")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
     await page.goto('/')
     await expect(page).toHaveURL(/\/order-queue$/)
 
-    await log.step('THEN bottom nav tampil berisi TEPAT 3 link registry coo')
+    await log.step('THEN bottom nav tampil berisi TEPAT 4 link registry coo (Personal masuk — keputusan owner 2026-09-21)')
     const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
     await expect(batangBawah).toBeVisible()
     await expect(batangBawah.getByRole('link')).toHaveCount(ITEM_NAV_COO.length)
@@ -99,11 +99,12 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await page.goto('/')
     await expect(page).toHaveURL(/\/dashboard$/)
 
-    await log.step('THEN bottom nav tampil berisi TEPAT 1 link: Dashboard (registry pemegang_saham)')
+    await log.step('THEN bottom nav tampil berisi TEPAT 2 link: Dashboard + Personal (registry pemegang_saham — keputusan owner 2026-09-21)')
     const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
     await expect(batangBawah).toBeVisible()
-    await expect(batangBawah.getByRole('link')).toHaveCount(1)
+    await expect(batangBawah.getByRole('link')).toHaveCount(2)
     await expect(batangBawah.getByRole('link', { name: LABEL_DASHBOARD })).toBeVisible()
+    await expect(batangBawah.getByRole('link', { name: LABEL_PERSONAL })).toBeVisible()
     await expect(batangBawah.getByRole('link', { name: LABEL_DASHBOARD })).toHaveAttribute('aria-current', 'page')
 
     await log.step('AND item terkunci TIDAK TAMPIL sama sekali — bukan disembunyikan (UX-DR14)')
@@ -228,14 +229,14 @@ test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14
     await expect(page).toHaveURL(/\/login/)
   })
 
-  test('[P1] coo desktop: sidebar 3 item + ketuk logo → landing role /order-queue', async ({ page, context, apiRequest }) => {
+  test('[P1] coo desktop: sidebar 4 item + ketuk logo → landing role /order-queue', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan membuka permukaan ber-nav /dashboard")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
     await page.goto('/dashboard')
     await expect(page).toHaveURL(/\/dashboard$/)
 
-    await log.step('THEN sidebar kiri tampil berisi TEPAT 3 link registry coo (di-scope ke nav item — logo link di luar <nav>, semantik link utuh)')
+    await log.step('THEN sidebar kiri tampil berisi TEPAT 4 link registry coo (di-scope ke nav item — logo link di luar <nav>, semantik link utuh)')
     const sidebar = page.getByTestId(TEST_IDS.navigasi.sidebar)
     await expect(sidebar).toBeVisible()
     const navItem = sidebar.getByRole('navigation')

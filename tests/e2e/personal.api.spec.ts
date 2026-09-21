@@ -178,6 +178,30 @@ const SkemaPersonalKeluar = z.object({
 type PersonalKeluar = z.infer<typeof SkemaPersonalKeluar>
 
 /**
+ * Bentuk wire owner umum (keputusan owner 2026-09-21): status
+ * terverifikasi/keluar, field profil boleh kosong, firstEffectiveAt wajib
+ * ada (datum predikat aksesPenuh).
+ */
+const SkemaPersonalOwnerUmum = z.object({
+  email: z.string().email(),
+  status: z.enum(['terverifikasi', 'keluar']),
+  fullName: z.string(),
+  alias: z.string(),
+  gmail: z.string().email(),
+  phoneNumber: z.string(),
+  emergencyContactName: z.string(),
+  emergencyContactPhoneNumber: z.string(),
+  emergencyContactRelationship: z.string(),
+  bankName: z.string(),
+  accountHolderName: z.string(),
+  accountNumber: z.string(),
+  otherBankName: z.string(),
+  profileComplete: z.boolean(),
+  firstEffectiveAt: z.string().nullable(),
+})
+type PersonalOwnerUmum = z.infer<typeof SkemaPersonalOwnerUmum>
+
+/**
  * Factory 10 field Profil sintetis (data-factories; tiruan bentuk
  * `profilLengkapUji` profil.api.spec.ts — duplikasi disengaja agar spec
  * mandiri). Nilai patuh batas validasi: nama <=25, alias <=10, HP prefix
@@ -266,9 +290,42 @@ test.describe('[P0] GET /api/personal role tanpa_saham — profil milik-sendiri 
   })
 })
 
-test.describe('[P1] GET /api/personal gerbang role — role di luar tanpa_saham ditolak (FR-15, AD-8)', () => {
-  test('[P1] sesi calon_owner (diajukan) → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
-    // GAGAL saat red: 404 — endpoint belum ada; validasi envelope gagal lebih dulu.
+test.describe('[P1] GET /api/personal dibuka untuk SEMUA owner (keputusan owner 2026-09-21 — PRASYARAT_OWNER)', () => {
+  test('[P1] sesi pemegang_saham → 200 profil milik-sendiri read-only', async ({ apiRequest }) => {
+    await log.step("GIVEN sesi owner 'pemegang-saham' (terverifikasi + punyaSaham)")
+    const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham', email: emailSintetisUji() })
+
+    await log.step('WHEN GET /api/personal')
+    const { status, body } = await apiRequest<PersonalOwnerUmum>({
+      method: 'GET',
+      path: PATH_PERSONAL,
+      headers: headerCookieDariMint(cookieSesi),
+    }).validateSchema(SkemaPersonalOwnerUmum)
+
+    await log.step('THEN 200 — status terverifikasi + firstEffectiveAt terisi (semua owner melihat profil dirinya)')
+    expect(status).toBe(STATUS_OK)
+    expect(body.status).toBe('terverifikasi')
+    expect(typeof body.firstEffectiveAt).toBe('string')
+  })
+
+  test('[P1] sesi coo → 200 profil milik-sendiri read-only', async ({ apiRequest }) => {
+    await log.step("GIVEN sesi owner 'coo' (tenure COO aktif)")
+    const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
+
+    await log.step('WHEN GET /api/personal')
+    const { status, body } = await apiRequest<PersonalOwnerUmum>({
+      method: 'GET',
+      path: PATH_PERSONAL,
+      headers: headerCookieDariMint(cookieSesi),
+    }).validateSchema(SkemaPersonalOwnerUmum)
+
+    await log.step('THEN 200 — status terverifikasi + firstEffectiveAt terisi (COO preset punya saham)')
+    expect(status).toBe(STATUS_OK)
+    expect(body.status).toBe('terverifikasi')
+    expect(typeof body.firstEffectiveAt).toBe('string')
+  })
+
+  test('[P1] sesi calon_owner (diajukan) → 403 envelope — calon dilayani halaman status, TANPA baca data', async ({ apiRequest }) => {
     await log.step("GIVEN sesi owner berstatus 'diajukan' (role calon_owner)")
     const cookieSesi = await mintSesiPemilik(apiRequest, {
       userIdentifier: 'tanpa-saham',
@@ -283,41 +340,7 @@ test.describe('[P1] GET /api/personal gerbang role — role di luar tanpa_saham 
       headers: headerCookieDariMint(cookieSesi),
     }).validateSchema(SkemaEnvelopeError)
 
-    await log.step('THEN 403 envelope — calon_owner di luar keterbukaan endpoint, TIDAK ada baca data')
-    expect(status).toBe(STATUS_FORBIDDEN)
-    expect(body.code.length).toBeGreaterThan(0)
-    expect(body.message.length).toBeGreaterThan(0)
-  })
-
-  test('[P1] sesi pemegang_saham → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
-    await log.step("GIVEN sesi owner 'pemegang-saham' (terverifikasi + punyaSaham)")
-    const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
-
-    await log.step('WHEN GET /api/personal')
-    const { status, body } = await apiRequest<EnvelopeError>({
-      method: 'GET',
-      path: PATH_PERSONAL,
-      headers: headerCookieDariMint(cookieSesi),
-    }).validateSchema(SkemaEnvelopeError)
-
-    await log.step('THEN 403 envelope — pemegang_saham di luar keterbukaan endpoint')
-    expect(status).toBe(STATUS_FORBIDDEN)
-    expect(body.code.length).toBeGreaterThan(0)
-    expect(body.message.length).toBeGreaterThan(0)
-  })
-
-  test('[P1] sesi coo → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
-    await log.step("GIVEN sesi owner 'coo' (tenure COO aktif)")
-    const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
-
-    await log.step('WHEN GET /api/personal')
-    const { status, body } = await apiRequest<EnvelopeError>({
-      method: 'GET',
-      path: PATH_PERSONAL,
-      headers: headerCookieDariMint(cookieSesi),
-    }).validateSchema(SkemaEnvelopeError)
-
-    await log.step('THEN 403 envelope — coo di luar keterbukaan endpoint')
+    await log.step('THEN 403 envelope — calon_owner tetap di luar keterbukaan endpoint')
     expect(status).toBe(STATUS_FORBIDDEN)
     expect(body.code.length).toBeGreaterThan(0)
     expect(body.message.length).toBeGreaterThan(0)

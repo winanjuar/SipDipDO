@@ -18,7 +18,7 @@
  * personal.spec.ts: stub gangguan jaringan di browser). Gagal → state kosong
  * Profile + pesan coba lagi (pola gagal-muat 1.5).
  */
-import { KUNCI_COOKIE_INFO_TRANSPARANSI, PESAN_TRANSPARANSI } from '#shared/domain/identity'
+import { aksesPenuh, KUNCI_COOKIE_INFO_TRANSPARANSI, PESAN_TRANSPARANSI } from '#shared/domain/identity'
 import { BANK_LAINNYA } from '#shared/domain/profil'
 import type { PersonalRespons } from '~/lib/personal'
 
@@ -67,6 +67,12 @@ const { data: muatanProfil } = useAsyncData<MuatanProfil | null>(
 
 const profil = computed(() => (muatanProfil.value?.sukses ? muatanProfil.value.profil : null))
 const gagalProfil = computed(() => muatanProfil.value?.sukses === false)
+
+/** Pembelian Pertama PERNAH efektif → section pintu Pesanan tidak relevan
+ *  (keterangan non-aktifnya menyasar yang belum pernah membeli — pemegang
+ *  saham/COO mendapat pintu pesanan lewat nav Epic 3). */
+const sudahPernahBeli = computed(() =>
+  profil.value !== null && aksesPenuh({ status: profil.value.status, firstEffectiveAt: profil.value.firstEffectiveAt }))
 
 /** Pasangan label-nilai Profile read-only (Lampiran A #1–10; gmail = email sesi).
  *  Bank "Lainnya" tampil sebagai nama bank isian (`otherBankName`) — bukan
@@ -199,8 +205,14 @@ const barisProfil = computed(() => {
         </p>
       </section>
 
-      <!-- Section 4: pintu Pesanan Pembelian — non-aktif + keterangan (Epic 3). -->
-      <section class="flex flex-col gap-3 rounded-lg border p-4">
+      <!-- Section 4: pintu Pesanan Pembelian — non-aktif + keterangan (Epic 3).
+           HANYA untuk yang belum pernah membeli — keterangan non-aktifnya
+           menyasar Pembelian Pertama (keputusan owner 2026-09-21: pemegang
+           saham/COO tidak melihat section ini). -->
+      <section
+        v-if="profil !== null && !sudahPernahBeli"
+        class="flex flex-col gap-3 rounded-lg border p-4"
+      >
         <h2 class="text-lg font-semibold">Pesanan Pembelian</h2>
         <div>
           <button

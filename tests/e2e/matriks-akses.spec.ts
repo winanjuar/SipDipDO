@@ -167,16 +167,17 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 
-  test('[P1] coo membuka /personal → redirect /order-queue', async ({ page, context, apiRequest }) => {
+  test('[P1] coo membuka /personal → Halaman Personal tampil (PRASYARAT_OWNER — keputusan owner 2026-09-21)', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
 
-    await log.step('WHEN membuka /personal (permukaan tanpa_saham) secara langsung')
+    await log.step('WHEN membuka /personal (semua owner melihat profil dirinya — read-only)')
     await page.goto('/personal')
 
-    await log.step('THEN dialihkan ke landing role-nya /order-queue')
-    await expect(page).toHaveURL(/\/order-queue$/)
+    await log.step('THEN Halaman Personal tampil 200 — heading Profile terlihat, TANPA redirect')
+    await expect(page).toHaveURL(/\/personal$/)
+    await expect(page.getByRole('heading', { name: 'Halaman Personal' })).toBeVisible()
   })
 
   test('[P1] calon diajukan membuka /dashboard → gerbang calon 1.5 menang (precedence atas gerbang role)', async ({ page, context, apiRequest }) => {

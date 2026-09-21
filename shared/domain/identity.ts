@@ -163,11 +163,17 @@ export const PRASYARAT_COO = 'coo' as const
 export const PRASYARAT_AKSES_PENUH = 'akses-penuh-atau-lebih' as const
 /** Prasyarat permukaan milik owner tanpa saham/Keluar (Halaman Personal). */
 export const PRASYARAT_TANPA_SAHAM = 'tanpa-saham' as const
+/** Prasyarat permukaan milik SEMUA owner terautentikasi (keputusan owner
+ *  2026-09-21: Halaman Personal read-only dibuka untuk COO & pemegang saham
+ *  juga — semua orang perlu melihat data profil dirinya; mutasi tetap via
+ *  COO/FR-13). */
+export const PRASYARAT_OWNER = 'owner' as const
 
 export type PrasyaratPermukaan
   = typeof PRASYARAT_COO
     | typeof PRASYARAT_AKSES_PENUH
     | typeof PRASYARAT_TANPA_SAHAM
+    | typeof PRASYARAT_OWNER
 
 /**
  * Registry permukaan terkunci Epic 1 — kunci path PERSIS rute halaman.
@@ -179,7 +185,7 @@ export const PERMUKAAN_PERAN: Readonly<Record<string, PrasyaratPermukaan>> = {
   '/dashboard': PRASYARAT_AKSES_PENUH,
   '/order-queue': PRASYARAT_COO,
   '/audit-trail': PRASYARAT_COO,
-  '/personal': PRASYARAT_TANPA_SAHAM,
+  '/personal': PRASYARAT_OWNER,
 }
 
 /**
@@ -197,6 +203,8 @@ export function permukaanDibolehkan(principal: Principal, path: string): boolean
   switch (prasyarat) {
     case PRASYARAT_COO:
       return principal.role === 'coo'
+    case PRASYARAT_OWNER:
+      return true
     case PRASYARAT_TANPA_SAHAM:
       return principal.role === 'tanpa_saham'
     case PRASYARAT_AKSES_PENUH:
@@ -227,10 +235,12 @@ export const KATALOG_ITEM_NAVIGASI = {
 
 /**
  * Item navigasi untuk role — MURNI, registry-driven (UX-DR14):
- * - `coo` = Antrian Beli, Dashboard, Audit Trail.
- * - `pemegang_saham` = Dashboard.
+ * - `coo` = Dashboard, Antrian Beli, Audit Trail, Personal.
+ * - `pemegang_saham` = Dashboard, Personal.
  * - `tanpa_saham` = Halaman Personal (+ Dashboard bila `sudahAksesPenuh`).
  * - `calon_owner` = TANPA nav (perilaku 1.5 tetap).
+ * Personal dibuka untuk SEMUA owner (keputusan owner 2026-09-21 — halaman
+ * read-only profil diri; urutan nav keputusan owner 2026-09-21 menyusul).
  * Item "Pesanan Saya" dst. ditambahkan story pemilik permukaannya (Epic 3).
  */
 export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly ItemNavigasi[] {
@@ -240,9 +250,10 @@ export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly Ite
         KATALOG_ITEM_NAVIGASI.orderQueue,
         KATALOG_ITEM_NAVIGASI.dashboard,
         KATALOG_ITEM_NAVIGASI.auditTrail,
+        KATALOG_ITEM_NAVIGASI.personal,
       ]
     case 'pemegang_saham':
-      return [KATALOG_ITEM_NAVIGASI.dashboard]
+      return [KATALOG_ITEM_NAVIGASI.dashboard, KATALOG_ITEM_NAVIGASI.personal]
     case 'tanpa_saham':
       return sudahAksesPenuh
         ? [KATALOG_ITEM_NAVIGASI.personal, KATALOG_ITEM_NAVIGASI.dashboard]

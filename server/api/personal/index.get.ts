@@ -5,12 +5,15 @@ import { useDb } from '../../utils/db'
 import { getSessionEmail } from '../../utils/session'
 
 /**
- * GET /api/personal — profil MILIK-SENDIRI read-only untuk role
- * `tanpa_saham` (Story 1.7, FR-15 matriks §4.8; AD-8). Handler tipis pola
- * `landing.get.ts`: sesi → 401 envelope seragam; `buildPrincipal` → role
- * lain (calon_owner/pemegang_saham/coo) → 403 envelope TANPA baca data;
- * role `tanpa_saham` → 200 `{ email, status, ...10 field wire Profil,
- * profileComplete, firstEffectiveAt }` via repo `findOwnerByEmail`.
+ * GET /api/personal — profil MILIK-SENDIRI read-only untuk SEMUA owner
+ * terautentikasi (Story 1.7, FR-15 matriks §4.8; AD-8; keputusan owner
+ * 2026-09-21: dibuka untuk coo & pemegang_saham juga — semua orang perlu
+ * melihat data profil dirinya; MUTASI tetap via COO/FR-13 Story 1.8).
+ * Handler tipis pola `landing.get.ts`: sesi → 401 envelope seragam;
+ * `buildPrincipal` → calon_owner → 403 envelope TANPA baca data (calon
+ * dilayani halaman status + /api/profile); role owner lain → 200
+ * `{ email, status, ...10 field wire Profil, profileComplete,
+ * firstEffectiveAt }` via repo `findOwnerByEmail`.
  *
  * `resolveRole` memetakan `keluar` → `tanpa_saham` SEBELUM melihat
  * `firstEffectiveAt` (access.service) — owner `keluar` yang PERNAH membeli
@@ -38,10 +41,10 @@ export default defineEventHandler(async (event) => {
       details: {},
     })
   }
-  if (principal.role !== 'tanpa_saham') {
+  if (principal.role === 'calon_owner') {
     return sendApiError(event, HTTP_STATUS.forbidden, {
       code: 'FORBIDDEN',
-      message: 'Hanya owner tanpa saham yang dapat membaca Halaman Personal.',
+      message: 'Calon owner dilayani halaman status pendaftaran.',
       details: {},
     })
   }

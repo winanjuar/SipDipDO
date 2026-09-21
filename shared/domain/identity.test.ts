@@ -152,11 +152,11 @@ const KASUS_PERMUKAAN: readonly { deskripsi: string, principal: Principal, path:
   { deskripsi: 'pemegang_saham × /dashboard', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/dashboard', diizinkan: true },
   { deskripsi: 'pemegang_saham × /order-queue', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/order-queue', diizinkan: false },
   { deskripsi: 'pemegang_saham × /audit-trail', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/audit-trail', diizinkan: false },
-  { deskripsi: 'pemegang_saham × /personal', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/personal', diizinkan: false },
+  { deskripsi: 'pemegang_saham × /personal (PRASYARAT_OWNER)', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/personal', diizinkan: true },
   { deskripsi: 'coo × /order-queue', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/order-queue', diizinkan: true },
   { deskripsi: 'coo × /audit-trail', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/audit-trail', diizinkan: true },
   { deskripsi: 'coo × /dashboard (aksesPenuh via saham)', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/dashboard', diizinkan: true },
-  { deskripsi: 'coo × /personal', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/personal', diizinkan: false },
+  { deskripsi: 'coo × /personal (PRASYARAT_OWNER — keputusan owner 2026-09-21)', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/personal', diizinkan: true },
   { deskripsi: 'calon_owner × /dashboard (gerbang calon urusan middleware)', principal: principalUji('calon_owner', snapUji('diajukan', false)), path: '/dashboard', diizinkan: false },
   { deskripsi: 'unlinked × /dashboard', principal: { unlinked: true }, path: '/dashboard', diizinkan: false },
 ]
@@ -179,8 +179,8 @@ const ITEM = {
 
 describe('shared/domain/identity — itemNavigasi registry per role (Story 1.7, ATDD — UX-DR14)', () => {
   test('registry eksak per role — item terkunci tidak pernah masuk daftar', () => {
-    expect(itemNavigasi('coo', true)).toEqual([ITEM.antrian, ITEM.dashboard, ITEM.audit])
-    expect(itemNavigasi('pemegang_saham', true)).toEqual([ITEM.dashboard])
+    expect(itemNavigasi('coo', true)).toEqual([ITEM.antrian, ITEM.dashboard, ITEM.audit, ITEM.personal])
+    expect(itemNavigasi('pemegang_saham', true)).toEqual([ITEM.dashboard, ITEM.personal])
     expect(itemNavigasi('tanpa_saham', false)).toEqual([ITEM.personal])
     expect(itemNavigasi('tanpa_saham', true)).toEqual([ITEM.personal, ITEM.dashboard])
     expect(itemNavigasi('calon_owner', false)).toEqual([])

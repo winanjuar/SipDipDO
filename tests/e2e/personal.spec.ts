@@ -159,6 +159,22 @@ test.describe('E2E Story 1.7 — Halaman Personal 4 section (UX-DR19, FR-15)', (
     await expect(pintuPesanan).toContainText(KETERANGAN_PINTU_PESANAN)
   })
 
+  test('[P1] pemegang saham membuka /personal → pintu Pesanan TIDAK tampil (hanya relevan bagi yang belum pernah membeli)', async ({ page, context, apiRequest }) => {
+    // Keputusan owner 2026-09-21: section pintu Pesanan (non-aktif + keterangan
+    // "pembelian pertama") menyasar yang belum pernah membeli; pemegang saham
+    // tidak melihatnya.
+    await log.step("GIVEN sesi owner 'pemegang-saham' (Pembelian Pertama sudah efektif)")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /personal')
+    await page.goto('/personal')
+
+    await log.step('THEN section Profile & Portofolio tampil, TANPA pintu Pesanan')
+    await expect(page.getByTestId(TEST_IDS.personal.sectionProfil)).toBeVisible()
+    await expect(page.getByTestId(TEST_IDS.personal.pintuPesanan)).toHaveCount(0)
+  })
+
   test('[P1] Bank "Lainnya" tampil sebagai nama bank isian di Profile — bukan literal enum (review Story 1.7 #3)', async ({ page, context, apiRequest }) => {
     await log.step('GIVEN owner tanpa saham dengan profil Bank "Lainnya" + otherBankName tersimpan (seed dua-langkah)')
     const emailUji = emailSintetisUji()
