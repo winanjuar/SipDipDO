@@ -1,12 +1,13 @@
 /**
- * ATDD RED-PHASE — Story 1.7 "Role, Matriks Keterbukaan & Navigasi" (API,
+ * ATDD GREEN-PHASE — Story 1.7 "Role, Matriks Keterbukaan & Navigasi" (API,
  * endpoint BARU GET /api/personal).
  *
- * Tests DI-AKTIFKAN (un-skip) pada tugas green-phase endpoint Personal (spec:
- * _bmad-output/implementation-artifacts/spec-1-7-role-matriks-keterbukaan-
- * navigasi.md, matriks baris "GET /api/personal"). Seluruh test di bungkus
- * `test.skip` selama red phase — kegagalan MERAH diverifikasi dulu sebelum
- * implementasi (aturan ATDD spec 1.7).
+ * Tests SUDAH DIAKTIFKAN (un-skip) pada tugas green-phase endpoint Personal
+ * (spec: _bmad-output/implementation-artifacts/spec-1-7-role-matriks-
+ * keterbukaan-navigasi.md, matriks baris "GET /api/personal"). Seluruh test
+ * dibungkus `test.skip` selama red phase — kegagalan MERAH diverifikasi dulu
+ * sebelum implementasi (aturan ATDD spec 1.7); kini aktif dengan asersi
+ * ter-pin tidak berubah.
  *
  * ASUMSI KONTRAK GET /api/personal (red-phase, dinyatakan eksplisit):
  * - Endpoint BARU `GET /api/personal` (server/api/personal/index.get.ts)
@@ -142,6 +143,9 @@ const SkemaPersonalLengkap = z.object({
   accountNumber: z.string().min(1),
   otherBankName: z.string(),
   profileComplete: z.literal(true),
+  // Datum snapshot AD-8 — input predikat kanonik `aksesPenuh()` di lapisan
+  // halaman/layout (review Story 1.7 #8: dipin skema + nilai, bukan implisit).
+  firstEffectiveAt: z.string().nullable(),
 })
 type PersonalLengkap = z.infer<typeof SkemaPersonalLengkap>
 
@@ -167,6 +171,9 @@ const SkemaPersonalKeluar = z.object({
   accountNumber: z.string(),
   otherBankName: z.string(),
   profileComplete: z.boolean(),
+  // Datum snapshot AD-8 — keluar-pernah-beli WAJIB mengirim instant terisi
+  // (review Story 1.7 #8: pin skema + nilai, bukan implisit).
+  firstEffectiveAt: z.string().min(1),
 })
 type PersonalKeluar = z.infer<typeof SkemaPersonalKeluar>
 
@@ -193,7 +200,7 @@ const profilLengkapUji = (overrides: Partial<Record<(typeof KUNCI_FIELD_PROFIL)[
 })
 
 test.describe('[P0] GET /api/personal tanpa sesi (AD-8 wajib auth)', () => {
-  test.skip('[P0] GET tanpa cookie sesi ditolak 401 envelope seragam', async ({ apiRequest }) => {
+  test('[P0] GET tanpa cookie sesi ditolak 401 envelope seragam', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — GET /api/personal belum ada; validasi
     // SkemaEnvelopeError melempar sebelum asersi status tercapai.
     await log.step('GIVEN permintaan GET /api/personal tanpa cookie sesi')
@@ -212,7 +219,7 @@ test.describe('[P0] GET /api/personal tanpa sesi (AD-8 wajib auth)', () => {
 })
 
 test.describe('[P0] GET /api/personal role tanpa_saham — profil milik-sendiri read-only (pola dua-langkah upsert-by-email)', () => {
-  test.skip('[P0] tanpa_saham terverifikasi profil LENGKAP → 200 email sesi, status terverifikasi, 10 field tersimpan, profileComplete true', async ({ apiRequest }) => {
+  test('[P0] tanpa_saham terverifikasi profil LENGKAP → 200 email sesi, status terverifikasi, 10 field tersimpan, profileComplete true', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — GET /api/personal belum ada; SkemaPersonalLengkap
     // melempar sebelum asersi status. PUT /api/profile adalah endpoint HIJAU
     // sejak Story 1.5 — langkah seed tidak gagal karena 404 Personal.
@@ -254,11 +261,13 @@ test.describe('[P0] GET /api/personal role tanpa_saham — profil milik-sendiri 
       expect(body[kunci]).toBe(profil[kunci])
     }
     expect(body.profileComplete).toBe(true)
+    // Snapshot belum-pernah-beli — datum predikat aksesPenuh (review #8).
+    expect(body.firstEffectiveAt).toBeNull()
   })
 })
 
 test.describe('[P1] GET /api/personal gerbang role — role di luar tanpa_saham ditolak (FR-15, AD-8)', () => {
-  test.skip('[P1] sesi calon_owner (diajukan) → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
+  test('[P1] sesi calon_owner (diajukan) → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada; validasi envelope gagal lebih dulu.
     await log.step("GIVEN sesi owner berstatus 'diajukan' (role calon_owner)")
     const cookieSesi = await mintSesiPemilik(apiRequest, {
@@ -280,7 +289,7 @@ test.describe('[P1] GET /api/personal gerbang role — role di luar tanpa_saham 
     expect(body.message.length).toBeGreaterThan(0)
   })
 
-  test.skip('[P1] sesi pemegang_saham → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
+  test('[P1] sesi pemegang_saham → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
     await log.step("GIVEN sesi owner 'pemegang-saham' (terverifikasi + punyaSaham)")
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
 
@@ -297,7 +306,7 @@ test.describe('[P1] GET /api/personal gerbang role — role di luar tanpa_saham 
     expect(body.message.length).toBeGreaterThan(0)
   })
 
-  test.skip('[P1] sesi coo → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
+  test('[P1] sesi coo → 403 envelope, tanpa baca data', async ({ apiRequest }) => {
     await log.step("GIVEN sesi owner 'coo' (tenure COO aktif)")
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
 
@@ -316,7 +325,7 @@ test.describe('[P1] GET /api/personal gerbang role — role di luar tanpa_saham 
 })
 
 test.describe('[P1] GET /api/personal owner keluar-pernah-beli tetap dilayani (AD-8)', () => {
-  test.skip("[P1] sesi 'keluar' (punyaSaham true) → 200 read-only dengan status keluar — resolveRole keluar → tanpa_saham SEBELUM firstEffectiveAt", async ({ apiRequest }) => {
+  test("[P1] sesi 'keluar' (punyaSaham true) → 200 read-only dengan status keluar — resolveRole keluar → tanpa_saham SEBELUM firstEffectiveAt", async ({ apiRequest }) => {
     // AD-8: role `tanpa_saham` untuk SEMUA `keluar` — endpoint layani meski
     // Pembelian Pertama sudah efektif (keluar-pernah-beli tetap tanpa_saham).
     // GAGAL saat red: 404 — endpoint belum ada; skema melempar lebih dulu.
@@ -338,5 +347,8 @@ test.describe('[P1] GET /api/personal owner keluar-pernah-beli tetap dilayani (A
     expect(status).toBe(STATUS_OK)
     expect(body.email).toBe(emailSesi)
     expect(body.status).toBe('keluar')
+    // Keluar-PERNAH-beli — instant Pembelian Pertama TERISI di wire
+    // (review #8: sumber predikat aksesPenuh lapisan halaman).
+    expect(typeof body.firstEffectiveAt).toBe('string')
   })
 })

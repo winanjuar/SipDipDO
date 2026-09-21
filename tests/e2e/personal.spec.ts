@@ -1,8 +1,8 @@
 /**
- * ATDD RED-PHASE — Story 1.7 "Role, Matriks Keterbukaan & Navigasi"
+ * ATDD GREEN-PHASE — Story 1.7 "Role, Matriks Keterbukaan & Navigasi"
  * (Halaman Personal 4 section — UX-DR19 kerangka, FR-15, AC 1.7 #4).
  *
- * Seluruh test DIAKTIFKAN pada tugas green-phase `app/pages/personal.vue`
+ * Seluruh test SUDAH DIAKTIFKAN pada tugas green-phase `app/pages/personal.vue`
  * (4 section + Alert transparansi + URL bersih) + endpoint GET /api/personal
  * + blok TEST_IDS.personal; kegagalan merah diverifikasi sebelum implementasi
  * (asersi ter-pin dari red-phase tidak berubah).
@@ -49,6 +49,9 @@ const STATUS_OK = 200
 /** Keterangan pintu Pesanan Pembelian non-aktif (Open Questions #1). */
 const KETERANGAN_PINTU_PESANAN = 'Terbuka saat pembelian pertama dibuka'
 
+/** Nama bank isian untuk Bank "Lainnya" (data sintetis — review #3). */
+const NAMA_BANK_LAINNYA_UJI = 'SeaBankUji'
+
 /** Nilai enum sah untuk dropdown profil (shared/domain/profil). */
 const BANK_UJI = 'BCA'
 const HUBUNGAN_UJI = 'Saudara'
@@ -87,7 +90,7 @@ const profilLengkapUji = () => ({
 })
 
 test.describe('E2E Story 1.7 — Halaman Personal 4 section (UX-DR19, FR-15)', () => {
-  test.skip('[P0] Halaman Personal menampilkan 4 section: Profile terisi, Portofolio & Pesanan state kosong, Harga & RKAP non-aktif, pintu Pesanan disabled', async ({ page, context, apiRequest }) => {
+  test('[P0] Halaman Personal menampilkan 4 section: Profile terisi, Portofolio & Pesanan state kosong, Harga & RKAP non-aktif, pintu Pesanan disabled', async ({ page, context, apiRequest }) => {
     await log.step('GIVEN owner tanpa saham dengan profil lengkap tersimpan (seed dua-langkah via endpoint — tanpa tulis lewat UI)')
     const emailUji = emailSintetisUji()
     const cookiesCalon = await mintSesiPemilik(apiRequest, {
@@ -126,6 +129,24 @@ test.describe('E2E Story 1.7 — Halaman Personal 4 section (UX-DR19, FR-15)', (
     await log.step('AND section Profile memuat fullName yang disimpan (dari GET /api/personal)')
     await expect(sectionProfil).toContainText(profil.fullName)
 
+    await log.step('AND SELURUH 10 baris Lampiran A tampil dengan nilai seed masing-masing (review Story 1.7 #9 — bukan hanya fullName)')
+    const BARIS_PROFIL_TERPIN = [
+      { label: 'Nama Lengkap', nilai: profil.fullName },
+      { label: 'Nama Panggilan atau Alias', nilai: profil.alias },
+      { label: 'Gmail', nilai: emailUji },
+      { label: 'Nomor HP', nilai: profil.phoneNumber },
+      { label: 'Kontak Darurat', nilai: profil.emergencyContactName },
+      { label: 'Nomor HP Kontak Darurat', nilai: profil.emergencyContactPhoneNumber },
+      { label: 'Hubungan dengan Owner', nilai: profil.emergencyContactRelationship },
+      { label: 'Nama Bank', nilai: profil.bankName },
+      { label: 'Pemilik Rekening', nilai: profil.accountHolderName },
+      { label: 'Nomor Rekening', nilai: profil.accountNumber },
+    ] as const
+    for (const baris of BARIS_PROFIL_TERPIN) {
+      await expect(sectionProfil).toContainText(baris.label)
+      await expect(sectionProfil).toContainText(baris.nilai)
+    }
+
     await log.step('AND Portofolio & status Pesanan jatuh ke state kosong (Epic 3 — jangan diimplementasi)')
     await expect(sectionPortofolio.getByTestId(TEST_IDS.personal.statusKosong)).toBeVisible()
 
@@ -138,7 +159,36 @@ test.describe('E2E Story 1.7 — Halaman Personal 4 section (UX-DR19, FR-15)', (
     await expect(pintuPesanan).toContainText(KETERANGAN_PINTU_PESANAN)
   })
 
-  test.skip(
+  test('[P1] Bank "Lainnya" tampil sebagai nama bank isian di Profile — bukan literal enum (review Story 1.7 #3)', async ({ page, context, apiRequest }) => {
+    await log.step('GIVEN owner tanpa saham dengan profil Bank "Lainnya" + otherBankName tersimpan (seed dua-langkah)')
+    const emailUji = emailSintetisUji()
+    const cookiesCalon = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailUji,
+    })
+    const profil = profilLengkapUji()
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: { ...profil, bankName: 'Lainnya', otherBankName: NAMA_BANK_LAINNYA_UJI },
+      headers: headerCookieDariMint(cookiesCalon),
+    })
+    expect(simpan.status).toBe(STATUS_OK)
+    await context.addCookies(await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      email: emailUji,
+    }))
+
+    await log.step('WHEN membuka /personal')
+    await page.goto('/personal')
+
+    await log.step('THEN baris Nama Bank menampilkan nama bank isian — bukan "Lainnya"')
+    const sectionProfil = page.getByTestId(TEST_IDS.personal.sectionProfil)
+    await expect(sectionProfil).toContainText(NAMA_BANK_LAINNYA_UJI)
+  })
+
+  test(
     '[P1] GET /api/personal gagal (500) → state kosong Profile + pesan coba lagi (pola 1.5)',
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
     async ({ page, context, apiRequest, interceptNetworkCall }) => {

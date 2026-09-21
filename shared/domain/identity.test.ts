@@ -4,22 +4,27 @@
  * (kontrak murni lintas lapis, tanpa I/O — AD-6). Story 1.4: konstanta +
  * generator kode referral (murni, sumber acak disuntikkan).
  *
- * Story 1.7 (ATDD RED-PHASE): blok `describe` bertanda RED-PHASE di bawah
- * memin kontrak predikat akses kanonik (`aksesPenuh`/`perluReferral`/
- * `layakPilihanReferral`), registry `permukaanDibolehkan`/`itemNavigasi`,
- * dan konstanta `PESAN_TRANSPARANSI`/`MAKS_ITEM_NAV_MOBILE` yang BELUM
- * diekspor modul. Scaffold memakai dynamic import + cast `Record<string,
- * unknown>` agar suite hijau eksisting dan typecheck TIDAK pecah selama
- * red phase — test-nya `test.skip` sehingga body tak pernah dieksekusi.
- * SAAT GREEN-PHASE: tambahkan ekspor di `identity.ts`, lalu un-skip dan
- * ganti dynamic import dengan impor statis biasa.
- *
- * GREEN: modul sudah ada (Story 1.2) — impor statis, asersi ter-pin dari
- * red-phase tidak berubah.
+ * Story 1.7 (GREEN-PHASE): blok predikat akses kanonik (`aksesPenuh`/
+ * `perluReferral`/`layakPilihanReferral`), registry
+ * `permukaanDibolehkan`/`itemNavigasi`, dan konstanta
+ * `PESAN_TRANSPARANSI`/`MAKS_ITEM_NAV_MOBILE` — DIAKTIFKAN (un-skip) dengan
+ * impor statis sesuai instruksi scaffold red-phase; asersi ter-pin dari
+ * red-phase TIDAK berubah.
  */
 import { describe, expect, test } from 'vitest'
 import type { OwnerAccessSnapshot, OwnerStatus, Principal, Role } from './identity'
-import { buatKodeReferral, LANDING_PATH, PANJANG_KODE_REFERRAL } from './identity'
+import {
+  aksesPenuh,
+  buatKodeReferral,
+  itemNavigasi,
+  LANDING_PATH,
+  layakPilihanReferral,
+  MAKS_ITEM_NAV_MOBILE,
+  PANJANG_KODE_REFERRAL,
+  permukaanDibolehkan,
+  PESAN_TRANSPARANSI,
+  perluReferral,
+} from './identity'
 
 /** Landing map ter-pin spec Story 1.2 (UX-DR14). */
 const LANDING_PATH_TERPIN = {
@@ -59,11 +64,10 @@ describe('shared/domain/identity — buatKodeReferral (Story 1.4, keputusan owne
 })
 
 /**
- * ═══ ATDD RED-PHASE Story 1.7 ═══ Blok di bawah pin kontrak predikat akses
- * kanonik + registry (spec 1.7, AD-8/AD-11; test design 1-UNIT-001 subset
- * lanjutan). Scaffold merah: kontrak belum diekspor `identity.ts` — modul
- * diakses dynamic import + cast agar suite hijau eksisting & typecheck tak
- * pecah; `test.skip` = intentional (un-skip + impor statis saat green).
+ * ═══ ATDD Story 1.7 (green-phase) ═══ Blok di bawah pin kontrak predikat
+ * akses kanonik + registry (spec 1.7, AD-8/AD-11; test design 1-UNIT-001
+ * subset lanjutan). Kontrak sudah diekspor `identity.ts` — impor statis,
+ * asersi ter-pin dari red-phase tidak berubah.
  */
 
 /** Instant kanonik Pembelian Pertama efektif — tengah hari WIB (pola DayKey). */
@@ -92,35 +96,28 @@ const MATRIKS_AKSES: readonly {
   { status: 'keluar', firstEffectiveAt: INSTANT_EFEKTIF, aksesPenuh: true, perluReferral: false, layakPilihanReferral: true },
 ]
 
-describe('shared/domain/identity — predikat akses kanonik (Story 1.7, ATDD RED-PHASE)', () => {
-  test.skip('aksesPenuh: true PERSIS saat firstEffectiveAt terisi — termasuk keluar-pernah-beli (AD-8)', async () => {
-    const mod = (await import('./identity')) as Record<string, unknown>
-    const aksesPenuh = mod.aksesPenuh as (snapshot: OwnerAccessSnapshot) => boolean
+describe('shared/domain/identity — predikat akses kanonik (Story 1.7, ATDD)', () => {
+  test('aksesPenuh: true PERSIS saat firstEffectiveAt terisi — termasuk keluar-pernah-beli (AD-8)', () => {
     for (const baris of MATRIKS_AKSES) {
       expect(aksesPenuh({ status: baris.status, firstEffectiveAt: baris.firstEffectiveAt })).toBe(baris.aksesPenuh)
     }
   })
 
-  test.skip('perluReferral: owner belum-pernah-beli dari status terverifikasi/keluar (cakupan AD-11)', async () => {
-    const mod = (await import('./identity')) as Record<string, unknown>
-    const perluReferral = mod.perluReferral as (snapshot: OwnerAccessSnapshot) => boolean
+  test('perluReferral: owner belum-pernah-beli dari status terverifikasi/keluar (cakupan AD-11)', () => {
     for (const baris of MATRIKS_AKSES) {
       expect(perluReferral({ status: baris.status, firstEffectiveAt: baris.firstEffectiveAt })).toBe(baris.perluReferral)
     }
   })
 
-  test.skip('layakPilihanReferral: pemegang saham (termasuk COO) atau owner belum-pernah-beli', async () => {
-    const mod = (await import('./identity')) as Record<string, unknown>
-    const layakPilihanReferral = mod.layakPilihanReferral as (snapshot: OwnerAccessSnapshot) => boolean
+  test('layakPilihanReferral: pemegang saham (termasuk COO) atau owner belum-pernah-beli', () => {
     for (const baris of MATRIKS_AKSES) {
       expect(layakPilihanReferral({ status: baris.status, firstEffectiveAt: baris.firstEffectiveAt })).toBe(baris.layakPilihanReferral)
     }
   })
 
-  test.skip('konstanta: PESAN_TRANSPARANSI verbatim + MAKS_ITEM_NAV_MOBILE = 4 (UX-DR14)', async () => {
-    const mod = (await import('./identity')) as Record<string, unknown>
-    expect(mod.PESAN_TRANSPARANSI as string).toBe(PARITAS_PESAN_TRANSPARANSI)
-    expect(mod.MAKS_ITEM_NAV_MOBILE as number).toBe(PARITAS_MAKS_ITEM_NAV_MOBILE)
+  test('konstanta: PESAN_TRANSPARANSI verbatim + MAKS_ITEM_NAV_MOBILE = 4 (UX-DR14)', () => {
+    expect(PESAN_TRANSPARANSI).toBe(PARITAS_PESAN_TRANSPARANSI)
+    expect(MAKS_ITEM_NAV_MOBILE).toBe(PARITAS_MAKS_ITEM_NAV_MOBILE)
   })
 })
 
@@ -164,10 +161,8 @@ const KASUS_PERMUKAAN: readonly { deskripsi: string, principal: Principal, path:
   { deskripsi: 'unlinked × /dashboard', principal: { unlinked: true }, path: '/dashboard', diizinkan: false },
 ]
 
-describe('shared/domain/identity — permukaanDibolehkan registry matriks keterbukaan (Story 1.7, ATDD RED-PHASE)', () => {
-  test.skip('matriks 17 kasus role × path sesuai registry terpin (§4.8 — snapshot, bukan shares live)', async () => {
-    const mod = (await import('./identity')) as Record<string, unknown>
-    const permukaanDibolehkan = mod.permukaanDibolehkan as (principal: Principal, path: string) => boolean
+describe('shared/domain/identity — permukaanDibolehkan registry matriks keterbukaan (Story 1.7, ATDD)', () => {
+  test('matriks 17 kasus role × path sesuai registry terpin (§4.8 — snapshot, bukan shares live)', () => {
     for (const kasus of KASUS_PERMUKAAN) {
       expect(permukaanDibolehkan(kasus.principal, kasus.path), kasus.deskripsi).toBe(kasus.diizinkan)
     }
@@ -182,10 +177,8 @@ const ITEM = {
   personal: { label: 'Personal', path: '/personal' },
 } as const
 
-describe('shared/domain/identity — itemNavigasi registry per role (Story 1.7, ATDD RED-PHASE — UX-DR14)', () => {
-  test.skip('registry eksak per role — item terkunci tidak pernah masuk daftar', async () => {
-    const mod = (await import('./identity')) as Record<string, unknown>
-    const itemNavigasi = mod.itemNavigasi as (role: Role, aksesPenuh: boolean) => readonly { label: string, path: string }[]
+describe('shared/domain/identity — itemNavigasi registry per role (Story 1.7, ATDD — UX-DR14)', () => {
+  test('registry eksak per role — item terkunci tidak pernah masuk daftar', () => {
     expect(itemNavigasi('coo', true)).toEqual([ITEM.antrian, ITEM.dashboard, ITEM.audit])
     expect(itemNavigasi('pemegang_saham', true)).toEqual([ITEM.dashboard])
     expect(itemNavigasi('tanpa_saham', false)).toEqual([ITEM.personal])
@@ -193,13 +186,11 @@ describe('shared/domain/identity — itemNavigasi registry per role (Story 1.7, 
     expect(itemNavigasi('calon_owner', false)).toEqual([])
   })
 
-  test.skip('guard mobile: seluruh registry ≤ MAKS_ITEM_NAV_MOBILE (Sheet "Lainnya" tak terpicu di Epic 1)', async () => {
-    const mod = (await import('./identity')) as Record<string, unknown>
-    const itemNavigasi = mod.itemNavigasi as (role: Role, aksesPenuh: boolean) => readonly { label: string, path: string }[]
+  test('guard mobile: seluruh registry ≤ MAKS_ITEM_NAV_MOBILE (Sheet "Lainnya" tak terpicu di Epic 1)', () => {
     for (const role of ['coo', 'pemegang_saham', 'tanpa_saham', 'calon_owner'] as const) {
-      for (const aksesPenuh of [false, true]) {
-        expect(itemNavigasi(role, aksesPenuh).length,
-          `${role} (aksesPenuh=${String(aksesPenuh)})`).toBeLessThanOrEqual(PARITAS_MAKS_ITEM_NAV_MOBILE)
+      for (const sudahAksesPenuh of [false, true]) {
+        expect(itemNavigasi(role, sudahAksesPenuh).length,
+          `${role} (aksesPenuh=${String(sudahAksesPenuh)})`).toBeLessThanOrEqual(PARITAS_MAKS_ITEM_NAV_MOBILE)
       }
     }
   })

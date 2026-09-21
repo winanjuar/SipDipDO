@@ -4,7 +4,7 @@
  * antrian pesanan, konfirmasi COO, dan input langsung adalah scope nyata
  * Story 1.7 (navigasi) dan Epic 3 — jangan diimplementasi di story ini.
  */
-definePageMeta({ auth: true })
+definePageMeta({ layout: 'app', auth: true })
 
 const pesanMasuk = useSekaliAlertMasuk()
 

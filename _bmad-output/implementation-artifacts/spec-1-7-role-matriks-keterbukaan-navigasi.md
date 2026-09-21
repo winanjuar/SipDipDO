@@ -3,7 +3,8 @@ title: 'Story 1.7 — Role, Matriks Keterbukaan & Navigasi'
 type: 'feature'
 created: '2026-09-21'
 baseline_commit: '9f25c43a138b33b294bf4dc2ba57a1a7fe5f5639'
-status: 'ready-for-dev'
+baseline_revision: '6fedfb094fc6dda88bf6aab6fa68e5442ce7c7f8'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -88,11 +89,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Predikat + registry + konstanta di `shared/domain/identity.ts` + unit test (un-skip 1-UNIT-001: 7 kombinasi status × firstEffectiveAt).
-- [ ] `auth-guard` gerbang role registry-driven + `GET /api/personal` (401/403/200) — un-skip API scaffold.
-- [ ] Layout `app.vue` + `AppSidebar` + `AppBottomNav` + Sheet "Lainnya" + `TEST_IDS.navigasi` — un-skip E2E navigasi.
-- [ ] `personal.vue` 4 section + Alert transparansi sekali + URL bersih — un-skip E2E matriks/halaman.
-- [ ] Regresi penuh: suite eksisting (auth-landing, audit-trail, kelengkapan-profil, register*, landing.api, cron-harian) tetap hijau + lint + typecheck.
+- [x] Predikat + registry + konstanta di `shared/domain/identity.ts` + unit test (un-skip 1-UNIT-001: 7 kombinasi status × firstEffectiveAt). — 11/11 unit hijau
+- [x] `auth-guard` gerbang role registry-driven + `GET /api/personal` (401/403/200) — un-skip API scaffold. — 18/18 API hijau (6×3 browser)
+- [x] Layout `app.vue` + `AppSidebar` + `AppBottomNav` + Sheet "Lainnya" + `TEST_IDS.navigasi` — un-skip E2E navigasi. — 12/12 hijau (4×3)
+- [x] `personal.vue` 4 section + Alert transparansi sekali + URL bersih — un-skip E2E matriks/halaman. — 33/33 hijau (9+2 ×3)
+- [x] Regresi penuh: suite eksisting (auth-landing, audit-trail, kelengkapan-profil, register*, landing.api, cron-harian) tetap hijau + lint + typecheck. — 302/302 playwright, lint exit 0, typecheck exit 0
 
 **Acceptance Criteria:**
 - Given owner tanpa saham belum-pernah-beli, when membuka `/dashboard`|`/antrian-beli`|`/audit-trail` URL langsung, then dialihkan ke `/personal?info=transparansi` di batas server dan pesan verbatim tampil sekali.
@@ -118,3 +119,18 @@ context:
 - `npx playwright test tests/e2e/matriks-akses.spec.ts tests/e2e/navigasi.spec.ts` -- expected: hijau setelah tugas middleware + nav (nama file final mengikuti scaffold ATDD).
 - `npx playwright test` -- expected: regresi penuh hijau (suite 1.1–1.5 tak tersentuh).
 - `npm run lint && npm run typecheck` -- expected: bersih.
+
+## Review Triage Log
+
+| # | Layer | Lokasi | Klaim | Verdict | Route | Bukti/Keputusan |
+|---|-------|--------|-------|---------|-------|-----------------|
+| 1 | blind-hunter + edge-case | `server/middleware/auth-guard.ts` (cabang calon) | Calon `ditolak`/`kedaluwarsa` lolos tanpa gerbang role — `/dashboard` dsb. render 200 shell; matriks baris 8 (calon × permukaan → landing calon) + pin unit `calon_owner × /dashboard → false` terlanggar | `medium` | patch | Terverifikasi: `if (status !== 'diajukan') return` memotong sebelum `permukaanDibolehkan`; data tetap aman (API 403) namun halaman shell bocor. Fix: calon non-`diajukan` jatuh ke gerbang role → redirect `/status-pendaftaran`; + e2e `ditolak`/`kedaluwarsa` × `/dashboard` |
+| 2 | edge-case | `server/middleware/auth-guard.ts` (lookup path) | Trailing slash (`/dashboard/`) meleset dari lookup registry persis → permukaan terkunci render tanpa gerbang sesi/role (vue-router strict:false merender) | `medium` | patch | Terverifikasi: `HALAMAN_TERPROTEKSI.has(path)` + `PERMUKAAN_PERAN[path]` exact-match tanpa normalisasi. Fix: normalisasi pathname buang trailing slash (kecuali root) di kepala handler |
+| 3 | blind-hunter | `app/pages/personal.vue` (`barisProfil`) | `otherBankName` di-wire tapi tak pernah tampil — owner Bank "Lainnya" melihat literal "Lainnya" alih-alih nama bank isian | `low` | patch | Terverifikasi: baris Profil hanya `bankName`. Fix: tampilan bank gabungan (Lainnya → otherBankName bila terisi), pola wire 1.5 |
+| 4 | blind-hunter | `app/components/AppSidebar.vue` (logo) | `role="button"` pada NuxtLink asli merusak semantik link (WCAG 4.1.2) — akal agar hitungan link nav = 3 | `low` | patch | Terverifikasi di file. Fix: logo jadi link murni di luar `<nav>` (wrapper `div` bawa testid `nav-sidebar`), test hitung link di-scope ke `getByRole('navigation')` — ekspektasi "TEPAT 3 item registry" tetap |
+| 5 | blind-hunter | `app/layouts/app.vue` (resolver nav) | `aksesPenuh` dinilai fetch kedua serial `/api/personal` — dua sumber kebenaran yang bisa divergen saat gangguan transien (item Dashboard hilang diam-diam) | `low` | defer | Real, namun fix (bawa `aksesPenuh` di `/api/landing`) MELANGGAR frozen Never (`TIDAK mengubah /api/landing`); fallback aman (sembunyikan nav) konsisten UX-DR14. Catat untuk Epic 2 saat kontrak landing berevolusi |
+| 6 | blind-hunter + edge-case | `app/pages/personal.vue` (pembersih URL) | Timer 250ms tanpa `clearTimeout` saat unmount (replaceState di URL halaman lain) + nilai query array/null dibuang diam-diam | `low` | patch | Terverifikasi. Fix: `onBeforeUnmount` + preserve nilai array pada query sisa |
+| 7 | verification-gap | `tests/e2e/navigasi.spec.ts` | Nav keluar-PERNAH-beli (Personal+Dashboard via `aksesPenuh`) tidak punya e2e — wiring layout bisa rusak tanpa sinyal (pre-verified) | `medium` | patch | Pre-verified. Fix: test mobile mint preset `'keluar'` → nav Personal+Dashboard, Personal `aria-current` |
+| 8 | verification-gap | `tests/e2e/personal.api.spec.ts` | `firstEffectiveAt` tidak dipin skema/nilai — datum snapshot AD-8 bisa drift tanpa sinyal (pre-verified) | `medium` | patch | Pre-verified. Fix: pin `z.string().nullable()` di kedua skema + assert null (belum-beli) / non-null (keluar-pernah-beli) |
+| 9 | verification-gap | `tests/e2e/personal.spec.ts` | Halaman Personal hanya di-assert `fullName` — 9 baris profil lain bisa hilang diam-diam (pre-verified) | `low` | patch | Pre-verified. Fix: assert 10 label Lampiran A + nilai seed pada test P0 |
+| 10 | verification-gap | `tests/e2e/navigasi.spec.ts` (desktop) | `aria-current="page"` sidebar tidak pernah di-assert (kontrak hanya dipin di bottom nav) (pre-verified) | `low` | patch | Pre-verified. Fix: assert `aria-current` pada item aktif sidebar coo desktop |

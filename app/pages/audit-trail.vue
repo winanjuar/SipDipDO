@@ -18,7 +18,7 @@ import type { AuditRespons } from '~/lib/audit'
  * mengubah query sehingga Nuxt MEMAKAI ULANG komponen: setup (fetch SSR dan
  * `halamanAktif`) tidak pernah jalan lagi dan tabel diam di halaman 1.
  */
-definePageMeta({ auth: true, key: route => route.fullPath })
+definePageMeta({ layout: 'app', auth: true, key: route => route.fullPath })
 
 const api = useRequestFetch()
 
