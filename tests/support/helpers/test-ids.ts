@@ -33,6 +33,7 @@ export const TEST_IDS = {
   statusPendaftaran: {
     badgeStatus: 'status-badge',
     alasanPenolakan: 'status-alasan-penolakan',
+    dataProfil: 'status-data-profil',
   },
   // Story 1.4 — halaman pendaftaran (kontrak ATDD green-phase + modal
   // konfirmasi T&C wajib sebelum aksi daftar/OAuth).

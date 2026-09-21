@@ -41,15 +41,58 @@ const badge = statusData ? PETA_BADGE[statusData.status] : null
 const alasanPenolakan = statusData?.rejectionReason ?? ''
 
 /**
- * Tautan "Lengkapi Profile" (Story 1.5, UX-DR14) — satu-satunya pintu nav
- * yang sah bagi calon `diajukan` dengan Profil belum lengkap; calon lengkap
- * maupun status lain tidak melihatnya. Kelengkapan dibaca dari GET
- * /api/profile (kanonik kontrak wire); gagal baca = tautan disembunyikan.
+ * Tautan "Lengkapi Profile" / "Perbarui Profile" (Story 1.5 + keputusan
+ * owner 2026-09-21) — satu-satunya pintu nav yang sah bagi calon `diajukan`;
+ * calon lengkap tetap dapat membuka form untuk melihat/memperbarui isian
+ * pra-verifikasi (simpan-parsial 1.5 tetap jalan; gerbang kelengkapan COO
+ * tetap melindungi). Kelengkapan dibaca dari GET /api/profile (kanonik
+ * kontrak wire); gagal baca = tautan disembunyikan.
  */
 const hasilProfil = statusData?.status === 'diajukan'
-  ? await api<{ profileComplete: boolean }>('/api/profile').catch(() => null)
+  ? await api<ProfilSaya>('/api/profile').catch(() => null)
   : null
 const perluLengkapiProfil = hasilProfil !== null && hasilProfil.profileComplete === false
+const profilLengkapDiajukan = hasilProfil !== null && hasilProfil.profileComplete === true
+
+/** Bentuk wire GET /api/profile yang ditampilkan (Lampiran A #1-10). */
+interface ProfilSaya {
+  fullName: string
+  alias: string
+  gmail: string
+  phoneNumber: string
+  emergencyContactName: string
+  emergencyContactPhoneNumber: string
+  emergencyContactRelationship: string
+  bankName: string
+  otherBankName: string
+  accountHolderName: string
+  accountNumber: string
+  profileComplete: boolean
+}
+
+/** Pasangan label-nilai Data Profile read-only (Lampiran A #1-10; nilai
+ *  kosong tampil '—') — keputusan owner 2026-09-21: calon yang sudah
+ *  melengkapi profil tetap dapat MELIHAT datanya selama menunggu
+ *  verifikasi COO. */
+const BARIS_DATA_PROFIL: readonly { label: string, kunci: keyof ProfilSaya }[] = [
+  { label: 'Nama Lengkap', kunci: 'fullName' },
+  { label: 'Nama Panggilan atau Alias', kunci: 'alias' },
+  { label: 'Gmail', kunci: 'gmail' },
+  { label: 'Nomor HP', kunci: 'phoneNumber' },
+  { label: 'Kontak Darurat', kunci: 'emergencyContactName' },
+  { label: 'Nomor HP Kontak Darurat', kunci: 'emergencyContactPhoneNumber' },
+  { label: 'Hubungan dengan Owner', kunci: 'emergencyContactRelationship' },
+  { label: 'Nama Bank', kunci: 'bankName' },
+  { label: 'Pemilik Rekening', kunci: 'accountHolderName' },
+  { label: 'Nomor Rekening', kunci: 'accountNumber' },
+]
+
+const dataProfil = hasilProfil === null
+  ? []
+  : BARIS_DATA_PROFIL.map(baris => ({
+      label: baris.label,
+      nilai: String(hasilProfil[baris.kunci] ?? ''),
+    }))
 
 /** Alert konfirmasi pasca-daftar (permintaan owner 2026-09-18, direvisi:
  *  alert di ATAS halaman menggantikan toast bawah — auto-hilang 3 detik):
@@ -84,12 +127,42 @@ useHead({ title: 'Status Pendaftaran — Sip & Dip' })
         </Badge>
       </div>
 
+      <!-- Data Profile read-only (keputusan owner 2026-09-21): calon diajukan
+           tetap dapat melihat isian Lampiran A-nya selama menunggu verifikasi. -->
+      <section
+        v-if="dataProfil.length > 0"
+        data-testid="status-data-profil"
+        class="flex flex-col gap-2 rounded-lg border p-4"
+      >
+        <h2 class="text-lg font-semibold">Data Profile</h2>
+        <dl class="flex flex-col divide-y">
+          <div
+            v-for="baris in dataProfil"
+            :key="baris.label"
+            class="flex items-baseline justify-between gap-4 py-2"
+          >
+            <dt class="text-sm text-muted-foreground">{{ baris.label }}</dt>
+            <dd class="text-sm font-medium">{{ baris.nilai.length > 0 ? baris.nilai : '—' }}</dd>
+          </div>
+        </dl>
+      </section>
+
       <NuxtLink
         v-if="perluLengkapiProfil"
         to="/profile-completeness"
         class="flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
       >
         Lengkapi Profile
+      </NuxtLink>
+
+      <!-- Calon lengkap: pintu yang sama, label perbarui — form tetap bisa
+           dibuka (lihat/memperbaiki isian pra-verifikasi). -->
+      <NuxtLink
+        v-else-if="profilLengkapDiajukan"
+        to="/profile-completeness"
+        class="flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+      >
+        Perbarui Profile
       </NuxtLink>
 
       <div v-if="alasanPenolakan" class="flex flex-col gap-1">

@@ -850,3 +850,65 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     },
   )
 })
+
+test.describe('[P1] calon diajukan LENGKAP melihat & memperbarui profilnya (keputusan owner 2026-09-21)', () => {
+  test('[P1] halaman status menampilkan Data Profile read-only + tautan "Perbarui Profile"', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN calon owner 'diajukan' dengan profil LENGKAP tersimpan (mint + PUT endpoint langsung)")
+    const emailUji = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailUji,
+    })
+    await context.addCookies(cookies)
+    const profil = profilLengkapUji()
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: profil,
+      headers: { Cookie: cookies.map(c => `${c.name}=${c.value}`).join('; ') },
+    })
+    expect(simpan.status).toBe(200)
+
+    await log.step('WHEN membuka /registration-status')
+    await page.goto('/registration-status')
+
+    await log.step('THEN badge Diajukan + section Data Profile read-only tampil dengan nilai isian')
+    await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
+    const dataProfil = page.getByTestId(TEST_IDS.statusPendaftaran.dataProfil)
+    await expect(dataProfil).toBeVisible()
+    await expect(dataProfil).toContainText(profil.fullName)
+    await expect(dataProfil).toContainText(profil.accountNumber)
+
+    await log.step('AND tautan "Perbarui Profile" tersedia (tidak lagi tersembunyi bagi calon lengkap)')
+    await expect(page.getByRole('link', { name: 'Perbarui Profile' })).toBeVisible()
+  })
+
+  test('[P1] tautan "Perbarui Profile" membuka form /profile-completeness dengan nilai terisi', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN calon owner 'diajukan' dengan profil LENGKAP tersimpan")
+    const emailUji = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailUji,
+    })
+    await context.addCookies(cookies)
+    const profil = profilLengkapUji()
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: profil,
+      headers: { Cookie: cookies.map(c => `${c.name}=${c.value}`).join('; ') },
+    })
+    expect(simpan.status).toBe(200)
+
+    await log.step('WHEN membuka /registration-status lalu mengeklik "Perbarui Profile"')
+    await page.goto('/registration-status')
+    await page.getByRole('link', { name: 'Perbarui Profile' }).click()
+
+    await log.step('THEN form Kelengkapan Profil terbuka (TIDAK di-redirect) dengan isian terisi')
+    await expect(page).toHaveURL(/\/profile-completeness$/)
+    await expect(page.getByLabel('Nama Lengkap')).toHaveValue(profil.fullName)
+    await expect(page.getByLabel('No. Rekening')).toHaveValue(profil.accountNumber)
+  })
+})
