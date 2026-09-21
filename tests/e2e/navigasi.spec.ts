@@ -265,7 +265,7 @@ test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14
     const tombolKeluar = sidebar.getByTestId(TEST_IDS.navigasi.tombolKeluar)
     await expect(tombolKeluar).toBeVisible()
 
-    await log.step('WHEN menunggu hidrasi Vue selesai lalu menekan tombol Keluar')
+    await log.step('WHEN menunggu hidrasi Vue selesai lalu menekan tombol Keluar di footer sidebar')
     await page.waitForFunction(() => {
       try {
         const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
@@ -275,6 +275,17 @@ test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14
       }
     }, { timeout: BATAS_RECURSE_KELUAR_MS })
     await tombolKeluar.click()
+
+    await log.step('THEN Dialog konfirmasi tampil dengan pilihan Batal (konsisten mobile — keputusan owner 2026-09-22)')
+    const dialog = page.getByTestId(TEST_IDS.navigasi.dialogKeluar)
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Batal' })).toBeVisible()
+
+    await log.step('AND masih di /dashboard — logout TIDAK terjadi sebelum konfirmasi')
+    await expect(page).toHaveURL(/\/dashboard$/)
+
+    await log.step('WHEN konfirmasi Keluar')
+    await dialog.getByRole('button', { name: 'Keluar' }).click()
 
     await log.step('THEN kembali ke /login — sesi berakhir')
     await expect(page).toHaveURL(/\/login/)
