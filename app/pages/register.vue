@@ -9,13 +9,13 @@ import type { LandingRespons } from '~/lib/landing'
  * 80px + tagline + sub-copy + SATU CTA "Daftar"; footer copy disembunyikan.
  * Tanpa input referral (referral hanya di Pembelian Pertama, Epic 3).
  *
- * Mesin status halaman (SSR, seperti status-pendaftaran.vue): resolver
+ * Mesin status halaman (SSR, seperti registration-status.vue): resolver
  * /api/landing menentukan mode — anonim ATAU kedatangan `?src=fresh`
  * (sesi sisa login gagal dianggap fresh, keputusan owner 2026-09-18) =
  * CTA "Daftar" → modal T&C → OAuth Google; setelah OAuth (mode terhubung)
  * = CTA "Selesaikan Pendaftaran" + status "Akun Google terhubung" → modal
  * T&C dilewati (persetujuan tersimpan sessionStorage) → POST
- * /api/register lalu hard-redirect /status-pendaftaran; calon/
+ * /api/register lalu hard-redirect /registration-status; calon/
  * non-calon = redirect landing role-nya. KLIK CTA + KONFIRMASI MODAL
  * adalah SATU-SATUNYA pemicu tulis data (keputusan owner 2026-09-18: data
  * masuk DB dari aksi pendaftaran eksplisit, bukan sekadar kunjungan);
@@ -151,10 +151,12 @@ async function daftarGoogle() {
   if (sukses) {
     // HARD navigation (bukan navigateTo SPA): penuh page-load — kebal race
     // hidrasi/router klien yang pernah membuat pengguna tertinggal di
-    // halaman ini pasca-POST sukses (laporan owner 2026-09-18). Flag query
-    // memicu toast konfirmasi di halaman status lalu dibersihkan.
+    // halaman ini pasca-POST sukses (laporan owner 2026-09-18). Flag
+    // sessionStorage (bukan query param — keputusan owner 2026-09-21,
+    // URL tetap polos) memicu alert konfirmasi SEKALI di halaman status.
+    tandaiPendaftaranBerhasil()
     terdaftar.value = true
-    window.location.assign('/status-pendaftaran?daftar=berhasil')
+    window.location.assign('/registration-status')
   }
 }
 

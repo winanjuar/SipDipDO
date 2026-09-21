@@ -1,14 +1,14 @@
 <script setup lang="ts">
 /**
- * Antrian Beli — landing COO (UX-DR14). KERANGKA state kosong (UX-DR19):
+ * Order (Antrian Beli — label nav keputusan owner 2026-09-21) — landing COO (UX-DR14). KERANGKA state kosong (UX-DR19):
  * antrian pesanan, konfirmasi COO, dan input langsung adalah scope nyata
  * Story 1.7 (navigasi) dan Epic 3 — jangan diimplementasi di story ini.
  */
-definePageMeta({ auth: true })
+definePageMeta({ layout: 'app', auth: true })
 
 const pesanMasuk = useSekaliAlertMasuk()
 
-useHead({ title: 'Antrian Beli — Sip & Dip' })
+useHead({ title: 'Order — Sip & Dip' })
 </script>
 
 <template>
@@ -18,7 +18,7 @@ useHead({ title: 'Antrian Beli — Sip & Dip' })
   </Alert>
   <main class="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-4 py-8">
     <header>
-      <h1 class="text-2xl font-semibold">Antrian Beli</h1>
+      <h1 class="text-2xl font-semibold">Order</h1>
       <p class="text-sm text-muted-foreground">Pesanan pembelian menunggu konfirmasi.</p>
     </header>
 

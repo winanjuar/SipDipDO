@@ -4,7 +4,7 @@
  * kosong (UX-DR19): tabel/chart kepemilikan adalah scope nyata Story 1.7
  * (navigasi) dan Epic 2 (dashboard) — jangan diimplementasi di story ini.
  */
-definePageMeta({ auth: true })
+definePageMeta({ layout: 'app', auth: true })
 
 const pesanMasuk = useSekaliAlertMasuk()
 
