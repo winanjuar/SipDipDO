@@ -25,6 +25,11 @@ export const AUDIT_ACTIONS = [
   'kelola-owner-perubahan',
   // Pergantian mandat COO (FR-17).
   'pergantian-coo',
+  // MoM MRO/RUPS (FR-7, Story 2.1) — buat, ubah, finalkan, hapus.
+  'mom-dibuat',
+  'mom-diubah',
+  'mom-difinalkan',
+  'mom-dihapus',
 ] as const
 
 /** Nama aksi audit yang sah, diturunkan dari registry. */

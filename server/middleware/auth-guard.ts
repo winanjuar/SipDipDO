@@ -13,7 +13,7 @@ import { useDb } from '../utils/db'
  * Proteksi sesi SSR (AD-8): permintaan dokumen/payload ke halaman terproteksi
  * tanpa sesi sah dialihkan ke `/login` sebelum render. Himpunan halaman
  * terproteksi = nilai `LANDING_PATH` + halaman Kelengkapan Profile (Story
- * 1.5) + Audit Trail (permukaan COO di luar `LANDING_PATH`).
+ * 1.5) + halaman MoM (Story 2.1) + Audit Trail (permukaan COO di luar `LANDING_PATH`).
  *
  * Gerbang calon belum lengkap (Story 1.5, UX-DR14/AD-8): calon `diajukan`
  * dengan Profil belum lengkap yang membuka permukaan lain di luar
@@ -48,6 +48,8 @@ const HALAMAN_TERPROTEKSI: ReadonlySet<string> = new Set([
   ...Object.values(LANDING_PATH),
   PATH_KELENGKAPAN_PROFIL,
   PATH_AUDIT_TRAIL,
+  '/mom',
+  '/mom/baru',
 ])
 
 /** Permukaan yang tetap terjangkau calon `diajukan` belum lengkap (UX-DR14). */
