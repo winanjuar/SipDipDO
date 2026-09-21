@@ -47,8 +47,8 @@ development_status:
   1-9-pergantian-coo: backlog
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-mom-mro-rups-tulis-langsung: backlog
+  epic-2: in-progress
+  2-1-mom-mro-rups-tulis-langsung: review
   2-2-upload-pdf-mom-preview-web: backlog
   2-3-cms-harga-saham-berjalan-riwayat: backlog
   2-4-struktur-rkap-fase-capital-item: backlog

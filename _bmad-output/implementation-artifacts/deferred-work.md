@@ -47,3 +47,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-pendaftaran-owner-mandiri-status.md`
   summary: Penyesuaian lanjutan alert sukses (masuk/daftar) — tampilan/posisi/durasi masih perlu dipoles oleh owner.
   evidence: Owner 2026-09-18 — "secara fungsi sudah jalan, untuk alert masih harus disesuaikan lagi nanti" (pola saat ini: Alert shadcn varian success di atas halaman, auto-hide 3 detik).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-mom-mro-rups-tulis-langsung.md`
+  summary: API-level authorization tests untuk MoM routes (401/403 scenarios)
+  evidence: Project-wide pattern — tidak ada API auth tests untuk fitur lain juga; perlu konsistensi approach sebelum menambah
