@@ -61,6 +61,9 @@ const LABEL_PERSONAL = 'Personal'
 /** Pemicu Sheet "Lainnya" — hanya bila item > MAKS_ITEM_NAV_MOBILE (4). */
 const LABEL_PEMICU_LAINNYA = 'Lainnya'
 
+/** Batas tunggu sinyal hidrasi & interaksi logout (ms). */
+const BATAS_RECURSE_KELUAR_MS = 15_000
+
 /** Registry navigasi coo (satu-satunya role Epic 1 dengan 3 item). */
 const ITEM_NAV_COO = [LABEL_ANTRIAN, LABEL_DASHBOARD, LABEL_AUDIT] as const
 
@@ -147,10 +150,83 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await expect(batangBawah.getByRole('link', { name: LABEL_PERSONAL })).toHaveAttribute('aria-current', 'page')
     await expect(batangBawah.getByRole('link', { name: LABEL_DASHBOARD })).not.toHaveAttribute('aria-current')
   })
+
+  test('[P1] icon Keluar di header mobile → Dialog konfirmasi → sesi berakhir kembali ke /login', async ({ page, context, apiRequest }) => {
+    // Dialog reka-ui headless: aktivasi keyboard lebih andal daripada klik
+    // pointer (tests/README Troubleshooting). Klik/Enter dini bisa kalah race
+    // hidrasi Vue → recurse sampai kondisi tercapai (pola auth-landing).
+    await log.step("GIVEN sesi 'coo' terinjeksikan membuka permukaan ber-nav /dashboard")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+    await page.goto('/dashboard')
+    await expect(page).toHaveURL(/\/dashboard$/)
+
+    await log.step('WHEN menunggu hidrasi Vue selesai (klik pada DOM pra-hidrasi tidak pernah membawa handler — dialog tak terbuka)')
+    await page.waitForFunction(() => {
+      try {
+        const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
+        return typeof app === 'function' && app().isHydrating === false
+      } catch {
+        return false
+      }
+    }, { timeout: BATAS_RECURSE_KELUAR_MS })
+
+    await log.step('WHEN menekan icon Keluar di header ringkas')
+    await page.getByTestId(TEST_IDS.navigasi.tombolKeluarMobile).click()
+
+    await log.step('THEN Dialog konfirmasi tampil dengan pilihan Batal')
+    const dialog = page.getByTestId(TEST_IDS.navigasi.dialogKeluar)
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Batal' })).toBeVisible()
+
+    await log.step('WHEN konfirmasi Keluar')
+    await dialog.getByRole('button', { name: 'Keluar' }).click()
+
+    await log.step('THEN kembali ke /login — sesi berakhir')
+    await expect(page).toHaveURL(/\/login/)
+
+    await log.step('AND permukaan terproteksi tak lagi terjangkau (sesi benar-benar mati)')
+    await page.goto('/dashboard')
+    await expect(page).toHaveURL(/\/login/)
+  })
 })
 
 test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14)', () => {
   test.use({ viewport: VIEWPORT_DESKTOP })
+
+  test('[P1] coo desktop: footer sidebar memuat chip email + Keluar → sesi berakhir kembali ke /login', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi 'coo' (email sintetis unik) terinjeksikan membuka permukaan ber-nav /dashboard")
+    const emailUji = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailUji })
+    await context.addCookies(cookies)
+    await page.goto('/dashboard')
+    await expect(page).toHaveURL(/\/dashboard$/)
+
+    await log.step('AND footer sidebar memuat chip email sesi + tombol Keluar (keputusan owner 2026-09-21)')
+    const sidebar = page.getByTestId(TEST_IDS.navigasi.sidebar)
+    await expect(sidebar).toBeVisible()
+    await expect(sidebar.getByText(emailUji)).toBeVisible()
+    const tombolKeluar = sidebar.getByTestId(TEST_IDS.navigasi.tombolKeluar)
+    await expect(tombolKeluar).toBeVisible()
+
+    await log.step('WHEN menunggu hidrasi Vue selesai lalu menekan tombol Keluar')
+    await page.waitForFunction(() => {
+      try {
+        const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
+        return typeof app === 'function' && app().isHydrating === false
+      } catch {
+        return false
+      }
+    }, { timeout: BATAS_RECURSE_KELUAR_MS })
+    await tombolKeluar.click()
+
+    await log.step('THEN kembali ke /login — sesi berakhir')
+    await expect(page).toHaveURL(/\/login/)
+
+    await log.step('AND permukaan terproteksi tak lagi terjangkau (sesi benar-benar mati)')
+    await page.goto('/dashboard')
+    await expect(page).toHaveURL(/\/login/)
+  })
 
   test('[P1] coo desktop: sidebar 3 item + ketuk logo → landing role /order-queue', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan membuka permukaan ber-nav /dashboard")

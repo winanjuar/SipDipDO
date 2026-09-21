@@ -70,6 +70,9 @@ export const TEST_IDS = {
   navigasi: {
     batangBawah: 'nav-batang-bawah',
     sidebar: 'nav-sidebar',
+    tombolKeluar: 'nav-tombol-keluar',
+    tombolKeluarMobile: 'nav-tombol-keluar-mobile',
+    dialogKeluar: 'nav-dialog-keluar',
   },
   // Story 1.7 — Halaman Personal (kontrak ATDD red-phase; 4 section matriks
   // §4.8 diimplementasikan dengan data-testid ini; Alert transparansi
