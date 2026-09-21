@@ -63,4 +63,16 @@ export const TEST_IDS = {
     catatanForm: 'kelengkapan-catatan-form',
     saklarPemilik: 'kelengkapan-saklar-pemilik',
   },
+  // Story 1.8 — manajemen owner oleh COO (kontrak ATDD red-phase; elemen
+  // halaman /admin/owners diimplementasikan dengan data-testid ini).
+  adminOwners: {
+    halaman: 'admin-owners-halaman',
+    tabel: 'admin-owners-tabel',
+    tambah: 'admin-owners-tambah',
+    edit: 'admin-owners-edit',
+  },
+  // Story 1.8 — komponen reusable (kontrak ATDD red-phase; picker dan dialog).
+  ownerPicker: 'owner-picker',
+  ownerEditDialog: 'owner-edit-dialog',
+  ownerAddDialog: 'owner-add-dialog',
 } as const
