@@ -27,6 +27,7 @@ export {
   permukaanDibolehkan,
   PESAN_TRANSPARANSI,
   perluReferral,
+  prasyaratPermukaan,
   PRASYARAT_AKSES_PENUH,
   PRASYARAT_COO,
   PRASYARAT_TANPA_SAHAM,

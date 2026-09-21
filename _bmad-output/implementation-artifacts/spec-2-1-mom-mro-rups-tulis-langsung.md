@@ -110,6 +110,8 @@ context:
 
 <!-- Populated by step-04 during review loops -->
 
+- **2026-09-22 — Keterbukaan baca MoM diperluas ke keluar-PERNAH-beli (Story 2.1b).** Baris I/O beku "List/Baca detail → 403 owner tanpa saham" DISEMPURNAKAN: 403 hanya untuk tanpa_saham BELUM-pernah-beli; `tanpa_saham` dengan `aksesPenuh` (keluar yang pernah membeli — matriks §4.8 "terbuka otomatis pasca Pembelian Pertama") BOLEH membaca daftar & detail MoM via `GET /api/mom` dan `GET /api/mom/:id`. Alasan: integrasi navigasi registry Story 1.7 (spec 2.1b) membolehkan permukaan `/mom` bagi aksesPenuh — API harus koheren dengan gerbang middleware (AD-8: keputusan atas snapshot, bukan role saja). Keputusan owner 2026-09-22 (sesi plan Story 2.1b). Mutasi (create/edit/finalize/delete) TETAP COO-only — tidak berubah.
+
 ## Review Triage Log
 
 <!-- Populated by step-04 on every review pass -->

@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import type { MomWire } from '#shared/domain/mom'
+import { LANDING_PATH } from '#shared/domain/identity'
 import type { LandingRespons } from '~/lib/landing'
-import { formatTanggalMom, formatWaktuLengkap, PETA_BADGE_MOM } from '~/lib/mom'
+import { formatTanggalMom, formatWaktuLengkap, HTTP_FORBIDDEN, PETA_BADGE_MOM } from '~/lib/mom'
 
 /**
  * Detail/Edit MoM — COO dapat edit (bila draft) dan finalkan; pemegang saham
- * hanya bisa membaca. Owner tanpa saham dialihkan ke Halaman Personal (spec AC).
+ * & keluar-PERNAH-beli hanya bisa membaca (matriks §4.8 — keputusan owner
+ * 2026-09-22). Owner tanpa saham belum-pernah-beli dialihkan middleware ke
+ * Halaman Personal dengan pesan transparensi (flash-cookie — Story 2.1b).
+ * Layout `app` (Story 2.1b — nav registry).
  */
-definePageMeta({ auth: true })
+definePageMeta({ layout: 'app', auth: true })
 
 const api = useRequestFetch()
 const route = useRoute()
@@ -24,8 +28,11 @@ if (!landing) {
   await navigateTo('/login')
 } else if ('unlinked' in landing) {
   await navigateTo('/login?res=unlinked')
-} else if (landing.role === 'tanpa_saham' || landing.role === 'calon_owner') {
-  await navigateTo('/personal?akses=mom')
+} else if (landing.role === 'calon_owner') {
+  // Resolver defensif (pola 1.7 — middleware yang otoritatif): calon →
+  // landing calon. Tanpa_saham DIBIARKAN — aksesPenuh berhak baca;
+  // !aksesPenuh sudah ditolak middleware sebelum render.
+  await navigateTo(LANDING_PATH.calon_owner)
 }
 
 const isCoo = landing && !('unlinked' in landing) && landing.role === 'coo'
@@ -53,7 +60,12 @@ async function muatMom() {
     const datePart = data.heldAt.split('T')[0]
     formHeldAt.value = datePart ?? ''
     formContentText.value = data.contentText ?? ''
-  } catch {
+  } catch (error: unknown) {
+    // 403 defensif → /personal polos (pola 1.7; pesan via flash-cookie
+    // middleware, bukan query param — Story 2.1b).
+    if ((error as { statusCode?: number }).statusCode === HTTP_FORBIDDEN) {
+      await navigateTo('/personal')
+    }
     gagalMuat.value = true
   } finally {
     memuat.value = false

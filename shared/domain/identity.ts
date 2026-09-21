@@ -176,16 +176,44 @@ export type PrasyaratPermukaan
     | typeof PRASYARAT_OWNER
 
 /**
- * Registry permukaan terkunci Epic 1 — kunci path PERSIS rute halaman.
+ * Registry permukaan terkunci — kunci path PERSIS rute halaman, plus ATURAN
+ * PREFIX: kunci berakhiran `/` mencakup SELURUH path berawalan tersebut
+ * (Story 2.1b: `/mom/` menangkap `/mom/<uuid>` — permukaan dinamis tanpa
+ * mendaftar tiap id). Lookup via `prasyaratPermukaan()`: exact-match SELALU
+ * didahulukan prefix sehingga `/mom/baru` (COO saja, lebih ketat) menang
+ * atas `/mom/` (akses penuh).
  * `/dashboard` = `akses-penuh-atau-lebih`: tanpa_saham belum-pernah-beli
  * dikunci, keluar-pernah-beli (`aksesPenuh`) lolos; COO/pemegang saham
- * selalu lolos (role lebih tinggi).
+ * selalu lolos (role lebih tinggi). `/mom` mengikuti matriks §4.8 — MoM
+ * terkunci bagi tanpa_saham belum-pernah-beli, terbuka otomatis pasca
+ * Pembelian Pertama (keputusan owner 2026-09-22, Story 2.1b).
  */
 export const PERMUKAAN_PERAN: Readonly<Record<string, PrasyaratPermukaan>> = {
   '/dashboard': PRASYARAT_AKSES_PENUH,
   '/order-queue': PRASYARAT_COO,
   '/audit-trail': PRASYARAT_COO,
   '/personal': PRASYARAT_OWNER,
+  '/mom': PRASYARAT_AKSES_PENUH,
+  '/mom/baru': PRASYARAT_COO,
+  '/mom/': PRASYARAT_AKSES_PENUH,
+}
+
+/**
+ * Prasyarat SATU permukaan — exact-match didahulukan aturan prefix (lihat
+ * `PERMUKAAN_PERAN`); undefined bila path di luar registry. MURNI — dipakai
+ * `permukaanDibolehkan` dan middleware (keanggotaan halaman terproteksi).
+ * ASUMSI: kunci prefix HANYA SATU per awalan — loop mengembalikan kecocokan
+ * PERTAMA, bukan prefix terpanjang; bila kelak ada prefix bersarang (mis.
+ * `/mom/arsip/` di bawah `/mom/`), urutan iterasi harus diganti
+ * longest-prefix sebelum menambah kunci kedua.
+ */
+export function prasyaratPermukaan(path: string): PrasyaratPermukaan | undefined {
+  const persis = PERMUKAAN_PERAN[path]
+  if (persis !== undefined) return persis
+  for (const [kunci, prasyarat] of Object.entries(PERMUKAAN_PERAN)) {
+    if (kunci.endsWith('/') && path.startsWith(kunci)) return prasyarat
+  }
+  return undefined
 }
 
 /**
@@ -196,7 +224,7 @@ export const PERMUKAAN_PERAN: Readonly<Record<string, PrasyaratPermukaan>> = {
  * gerbang role (precedence).
  */
 export function permukaanDibolehkan(principal: Principal, path: string): boolean {
-  const prasyarat = PERMUKAAN_PERAN[path]
+  const prasyarat = prasyaratPermukaan(path)
   if (prasyarat === undefined) return true
   if (principal.unlinked) return false
   if (principal.role === 'calon_owner') return false
@@ -225,23 +253,28 @@ export interface ItemNavigasi {
   path: string
 }
 
-/** Katalog item navigasi Epic 1 — label dipin kontrak ATDD (by-role name). */
+/** Katalog item navigasi — label dipin kontrak ATDD (by-role name). */
 export const KATALOG_ITEM_NAVIGASI = {
   orderQueue: { label: 'Order', path: '/order-queue' },
   dashboard: { label: 'Dashboard', path: '/dashboard' },
   auditTrail: { label: 'Audit', path: '/audit-trail' },
   personal: { label: 'Personal', path: '/personal' },
+  mom: { label: 'MoM', path: '/mom' },
 } as const satisfies Readonly<Record<string, ItemNavigasi>>
 
 /**
  * Item navigasi untuk role — MURNI, registry-driven (UX-DR14):
- * - `coo` = Dashboard, Personal, Order, Audit (urutan keputusan owner 2026-09-21).
- * - `pemegang_saham` = Dashboard, Personal.
- * - `tanpa_saham` = Halaman Personal (+ Dashboard bila `sudahAksesPenuh`).
+ * - `coo` = Dashboard, Personal, MoM, Order, Audit (urutan keputusan owner
+ *   2026-09-21; MoM disisip setelah Personal sebelum Order — keputusan owner
+ *   2026-09-22, Story 2.1b; 5 item → Sheet "Lainnya" mobile berisi Audit).
+ * - `pemegang_saham` = Dashboard, Personal, MoM (IA #14 — nav pemegang saham).
+ * - `tanpa_saham` = Halaman Personal (+ Dashboard + MoM bila `sudahAksesPenuh`
+ *   — matriks §4.8 terbuka otomatis pasca Pembelian Pertama, keputusan owner
+ *   2026-09-22).
  * - `calon_owner` = TANPA nav (perilaku 1.5 tetap).
  * Personal dibuka untuk SEMUA owner (keputusan owner 2026-09-21 — halaman
- * read-only profil diri; urutan nav keputusan owner 2026-09-21 menyusul).
- * Item "Pesanan Saya" dst. ditambahkan story pemilik permukaannya (Epic 3).
+ * read-only profil diri). Item "Pesanan Saya" dst. ditambahkan story pemilik
+ * permukaannya (Epic 3).
  */
 export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly ItemNavigasi[] {
   switch (role) {
@@ -249,14 +282,15 @@ export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly Ite
       return [
         KATALOG_ITEM_NAVIGASI.dashboard,
         KATALOG_ITEM_NAVIGASI.personal,
+        KATALOG_ITEM_NAVIGASI.mom,
         KATALOG_ITEM_NAVIGASI.orderQueue,
         KATALOG_ITEM_NAVIGASI.auditTrail,
       ]
     case 'pemegang_saham':
-      return [KATALOG_ITEM_NAVIGASI.dashboard, KATALOG_ITEM_NAVIGASI.personal]
+      return [KATALOG_ITEM_NAVIGASI.dashboard, KATALOG_ITEM_NAVIGASI.personal, KATALOG_ITEM_NAVIGASI.mom]
     case 'tanpa_saham':
       return sudahAksesPenuh
-        ? [KATALOG_ITEM_NAVIGASI.personal, KATALOG_ITEM_NAVIGASI.dashboard]
+        ? [KATALOG_ITEM_NAVIGASI.personal, KATALOG_ITEM_NAVIGASI.dashboard, KATALOG_ITEM_NAVIGASI.mom]
         : [KATALOG_ITEM_NAVIGASI.personal]
     case 'calon_owner':
       return []

@@ -5,15 +5,18 @@ import {
   KUNCI_COOKIE_INFO_TRANSPARANSI,
   LANDING_PATH,
   permukaanDibolehkan,
+  prasyaratPermukaan,
 } from '../domain/identity'
 import { getSessionEmail } from '../utils/session'
 import { useDb } from '../utils/db'
 
 /**
  * Proteksi sesi SSR (AD-8): permintaan dokumen/payload ke halaman terproteksi
- * tanpa sesi sah dialihkan ke `/login` sebelum render. Himpunan halaman
- * terproteksi = nilai `LANDING_PATH` + halaman Kelengkapan Profile (Story
- * 1.5) + halaman MoM (Story 2.1) + Audit Trail (permukaan COO di luar `LANDING_PATH`).
+ * tanpa sesi sah dialihkan ke `/login` sebelum render. Keanggotaan halaman
+ * terproteksi DERIVED dari registry (`prasyaratPermukaan` — Story 2.1b,
+ * anti-drift: permukaan baru otomatis tergerbangi begitu terdaftar di
+ * `shared/domain`) + gerbang sesi `LANDING_PATH` + halaman Kelengkapan
+ * Profile (Story 1.5).
  *
  * Gerbang calon belum lengkap (Story 1.5, UX-DR14/AD-8): calon `diajukan`
  * dengan Profil belum lengkap yang membuka permukaan lain di luar
@@ -37,19 +40,14 @@ import { useDb } from '../utils/db'
  */
 const PATH_KELENGKAPAN_PROFIL = '/profile-completeness'
 
-/** Permukaan COO di luar nilai `LANDING_PATH` (Story 1.3/1.7). */
-const PATH_AUDIT_TRAIL = '/audit-trail'
-
 /** Umur flash-cookie pesan transparensi (detik) — dihapus halaman saat
  *  mount; batas umur hanya jaga-jaga bila halaman tak pernah dibuka. */
 const UMUR_COOKIE_TRANSPARANSI_DETIK = 600
 
-const HALAMAN_TERPROTEKSI: ReadonlySet<string> = new Set([
+/** Gerbang sesi di luar registry — landing role + Kelengkapan Profile. */
+const HALAMAN_GERBANG_SESI: ReadonlySet<string> = new Set([
   ...Object.values(LANDING_PATH),
   PATH_KELENGKAPAN_PROFIL,
-  PATH_AUDIT_TRAIL,
-  '/mom',
-  '/mom/baru',
 ])
 
 /** Permukaan yang tetap terjangkau calon `diajukan` belum lengkap (UX-DR14). */
@@ -67,7 +65,7 @@ export default defineEventHandler(async (event) => {
   const path = pathMentah.length > 1 && pathMentah.endsWith('/')
     ? pathMentah.replace(/\/+$/, '')
     : pathMentah
-  if (!HALAMAN_TERPROTEKSI.has(path)) return
+  if (!HALAMAN_GERBANG_SESI.has(path) && prasyaratPermukaan(path) === undefined) return
 
   const email = await getSessionEmail(event)
   if (!email) return sendRedirect(event, '/login')
