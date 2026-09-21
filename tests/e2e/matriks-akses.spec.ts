@@ -61,6 +61,9 @@ const PESAN_TRANSPARANSI = 'Transparansi penuh terbuka setelah Pembelian Pertama
  *  bukan `?info=transparansi`). */
 const URL_PERSONAL = /\/personal$/
 
+/** UUID sintetis permukaan dinamis MoM (fixture — prefix /mom/, Story 2.1b). */
+const MOM_ID_UJI = '3f2504e0-4f89-11d3-9a0c-0305e82c3301'
+
 test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-15 §4.8)', () => {
   test('[P0] tanpa saham belum-beli membuka /dashboard → redirect /personal polos, alert verbatim (flash-cookie) tampil SEKALI', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
@@ -221,5 +224,86 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
 
     await log.step('THEN tetap dialihkan ke /personal polos + alert VERBATIM — lookup gerbang tidak meleset')
     await expect(page).toHaveURL(URL_PERSONAL)
+  })
+
+  test('[P0] tanpa saham belum-beli membuka /mom → redirect /personal polos + alert VERBATIM (Story 2.1b — MoM terkunci matriks)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /mom secara langsung')
+    await page.goto('/mom')
+
+    await log.step('THEN dialihkan di batas server ke /personal polos dengan alert transparansi VERBATIM (AD-8)')
+    await expect(page).toHaveURL(URL_PERSONAL)
+    await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
+  })
+
+  test('[P1] tanpa saham belum-beli membuka /mom/<uuid> → redirect sama (Story 2.1b — aturan prefix /mom/ di middleware)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'tanpa-saham' (belum pernah beli) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka permukaan dinamis /mom/<uuid> secara langsung')
+    await page.goto(`/mom/${MOM_ID_UJI}`)
+
+    await log.step('THEN tetap dialihkan ke /personal polos + alert VERBATIM — prefix registry tergerbangi middleware')
+    await expect(page).toHaveURL(URL_PERSONAL)
+    await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
+  })
+
+  test('[P1] pemegang saham membuka /mom/baru → redirect landing-nya /dashboard (Story 2.1b — COO saja)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi 'pemegang-saham' terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /mom/baru (permukaan CMS COO) secara langsung')
+    await page.goto('/mom/baru')
+
+    await log.step('THEN dialihkan ke landing role-nya /dashboard')
+    await expect(page).toHaveURL(/\/dashboard$/)
+  })
+
+  test('[P1] coo membuka /mom → 200 halaman tampil (Story 2.1b — CMS COO)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi 'coo' terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /mom secara langsung')
+    await page.goto('/mom')
+
+    await log.step('THEN halaman daftar MoM tampil 200 — heading terlihat, TANPA redirect')
+    await expect(page).toHaveURL(/\/mom$/)
+    await expect(page.getByRole('heading', { name: 'MoM MRO/RUPS' })).toBeVisible()
+  })
+
+  test('[P1] keluar PERNAH-beli membuka /mom → 200 aksesPenuh (Story 2.1b — matriks terbuka, API ikut dibuka)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'keluar' yang PERNAH membeli (preset 'keluar' = punyaSaham:true) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'keluar', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /mom secara langsung')
+    await page.goto('/mom')
+
+    await log.step('THEN halaman tampil 200 tanpa redirect — aksesPenuh membuka MoM (snapshot, bukan role saja)')
+    await expect(page).toHaveURL(/\/mom$/)
+    await expect(page.getByRole('heading', { name: 'MoM MRO/RUPS' })).toBeVisible()
+    await log.step('AND daftar MoM termuat dari API (bukan state gagal — API mengizinkan aksesPenuh)')
+    await expect(page.getByTestId('mom-halaman')).toBeVisible()
+  })
+
+  test('[P1] calon ditolak dan kedaluwarsa membuka /mom → landing calon /registration-status (Story 2.1b — jatuh ke gerbang role)', async ({ page, context, apiRequest }) => {
+    for (const userIdentifier of ['calon-ditolak', 'calon-kedaluwarsa'] as const) {
+      await log.step(`GIVEN sesi calon owner '${userIdentifier}' terinjeksikan`)
+      const cookies = await mintSesiPemilik(apiRequest, { userIdentifier, email: emailSintetisUji() })
+      await context.clearCookies()
+      await context.addCookies(cookies)
+
+      await log.step('WHEN membuka /mom secara langsung')
+      await page.goto('/mom')
+
+      await log.step('THEN dialihkan ke landing calon /registration-status — registry menolak calon_owner')
+      await expect(page).toHaveURL(/\/registration-status$/)
+    }
   })
 })

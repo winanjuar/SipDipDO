@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { MOM_LIMIT_DEFAULT, MOM_LIMIT_OPSI, type MomLimit } from '#shared/domain/mom'
+import { LANDING_PATH } from '#shared/domain/identity'
 import type { LandingRespons } from '~/lib/landing'
-import { formatTanggalMom, PETA_BADGE_MOM, ringkasKonten, type MomRespons } from '~/lib/mom'
+import { formatTanggalMom, HTTP_FORBIDDEN, PETA_BADGE_MOM, ringkasKonten, type MomRespons } from '~/lib/mom'
 
 /**
- * Daftar MoM — untuk pemegang saham dan COO (FR-7, AD-8). COO dapat membuat
- * MoM baru; pemegang saham hanya bisa membaca. Owner tanpa saham dialihkan
- * ke Halaman Personal dengan pesan pembuka akses (spec AC).
+ * Daftar MoM — untuk pemegang saham, COO, dan keluar-PERNAH-beli (FR-7,
+ * AD-8, matriks §4.8 — keputusan owner 2026-09-22). COO dapat membuat MoM
+ * baru; lainnya hanya bisa membaca. Owner tanpa saham belum-pernah-beli
+ * dialihkan middleware ke Halaman Personal dengan pesan transparensi
+ * (flash-cookie — Story 2.1b). Layout `app` (Story 2.1b — nav registry).
  */
-definePageMeta({ auth: true, key: route => route.fullPath })
+definePageMeta({ layout: 'app', auth: true, key: route => route.fullPath })
 
 const api = useRequestFetch()
 
@@ -17,9 +20,11 @@ if (!landing) {
   await navigateTo('/login')
 } else if ('unlinked' in landing) {
   await navigateTo('/login?res=unlinked')
-} else if (landing.role === 'tanpa_saham' || landing.role === 'calon_owner') {
-  // Owner tanpa saham/calon → redirect ke Halaman Personal dengan pesan
-  await navigateTo('/personal?akses=mom')
+} else if (landing.role === 'calon_owner') {
+  // Resolver defensif (pola 1.7 — middleware yang otoritatif): calon →
+  // landing calon. Tanpa_saham DIBIARKAN — aksesPenuh (keluar-pernah-beli)
+  // berhak baca; !aksesPenuh sudah ditolak middleware sebelum render.
+  await navigateTo(LANDING_PATH.calon_owner)
 }
 
 const POLA_ANGKA = /^\d+$/
@@ -46,8 +51,21 @@ function tautanMom(halaman: number, ukuran: MomLimit): string {
   return params.length === 0 ? '/mom' : `/mom?${params.join('&')}`
 }
 
-const hasilMom = landing && !('unlinked' in landing) && (landing.role === 'coo' || landing.role === 'pemegang_saham')
-  ? await api<MomRespons>(`/api/mom?page=${halamanAktif}&limit=${ukuranAktif}`).catch(() => null)
+/** Muat daftar MoM — 403 defensif → /personal polos (pola 1.7; pesan via
+ *  flash-cookie middleware, bukan query param). */
+async function muatDaftarMom(): Promise<MomRespons | null> {
+  try {
+    return await api<MomRespons>(`/api/mom?page=${halamanAktif}&limit=${ukuranAktif}`)
+  } catch (error: unknown) {
+    if ((error as { statusCode?: number }).statusCode === HTTP_FORBIDDEN) {
+      await navigateTo('/personal')
+    }
+    return null
+  }
+}
+
+const hasilMom = landing && !('unlinked' in landing) && landing.role !== 'calon_owner'
+  ? await muatDaftarMom()
   : null
 
 const gagalMuat = hasilMom === null

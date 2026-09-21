@@ -1,15 +1,16 @@
-import { buildPrincipal, createIdentityRepo } from '../../domain/identity'
+import { aksesPenuh, buildPrincipal, createIdentityRepo } from '../../domain/identity'
 import { listForPemegangSaham, MOM_LIMIT_DEFAULT, isMomLimit, type MomLimit } from '../../domain/pricing'
 import { HTTP_STATUS, sendApiError } from '../../utils/api-error'
 import { useDb } from '../../utils/db'
 import { getSessionEmail } from '../../utils/session'
 
 /**
- * GET /api/mom — daftar MoM untuk pemegang saham (FR-7, AD-8): tanpa sesi →
- * 401; unlinked → redirect; owner tanpa saham → 403 (redirect ke personal
- * di halaman). Query `page` (default 1) dan `limit` (default 10, opsi
- * 10/20/40) — tidak valid → 400 envelope. Respons `{ data, nextPage }` urut
- * held_at desc.
+ * GET /api/mom — daftar MoM untuk pemegang saham, COO, dan keluar-PERNAH-beli
+ * (FR-7, AD-8): tanpa sesi → 401; unlinked → redirect; owner tanpa saham
+ * BELUM-pernah-beli → 403 (redirect ke personal di halaman — keputusan owner
+ * 2026-09-22: aksesPenuh membuka MoM, keputusan atas snapshot bukan role
+ * saja). Query `page` (default 1) dan `limit` (default 10, opsi 10/20/40) —
+ * tidak valid → 400 envelope. Respons `{ data, nextPage }` urut held_at desc.
  */
 
 /** Nomor halaman awal — default query `?page=`. */
@@ -51,8 +52,12 @@ export default defineEventHandler(async (event) => {
   const principal = await buildPrincipal(createIdentityRepo(db), email)
   if (principal.unlinked) return sendRedirect(event, '/login?res=unlinked')
 
-  // Owner tanpa saham dan calon owner tidak boleh akses MoM (AD-8, §4.8)
-  if (principal.role === 'tanpa_saham' || principal.role === 'calon_owner') {
+  // Calon owner dan tanpa_saham BELUM-pernah-beli tidak boleh akses MoM
+  // (AD-8, §4.8); keluar-PERNAH-beli (aksesPenuh) BOLEH — keputusan owner
+  // 2026-09-22 (Story 2.1b: matriks terbuka otomatis pasca Pembelian
+  // Pertama — atas snapshot, bukan role saja).
+  if (principal.role === 'calon_owner'
+    || (principal.role === 'tanpa_saham' && !aksesPenuh(principal.owner))) {
     return sendApiError(event, HTTP_STATUS.forbidden, {
       code: 'FORBIDDEN',
       message: 'Akses MoM hanya untuk pemegang saham.',

@@ -7,18 +7,21 @@
  * + blok TEST_IDS.navigasi; kegagalan merah diverifikasi sebelum
  * implementasi (asersi ter-pin dari red-phase tidak berubah).
  *
- * ASUMSI KONTRAK (red-phase, dipin — UX-DR14):
+ * ASUMSI KONTRAK (red-phase, dipin — UX-DR14; diperbarui Story 2.1b):
  * - Mobile (<lg): bottom nav data-testid="nav-batang-bawah"; Desktop (≥lg):
  *   sidebar kiri data-testid="nav-sidebar".
- * - Item = link by-role name, label terpin: 'Antrian Beli'→/order-queue,
- *   'Dashboard'→/dashboard, 'Audit Trail'→/audit-trail, 'Personal'→/personal.
- * - Registry item per role (Epic 1): coo=[Antrian Beli, Dashboard, Audit
- *   Trail]; pemegang_saham=[Dashboard]; tanpa_saham belum-beli=[Personal];
- *   tanpa_saham aksesPenuh=[Personal, Dashboard]; calon_owner=TANPA nav.
+ * - Item = link by-role name, label terpin: 'Order'→/order-queue,
+ *   'Dashboard'→/dashboard, 'Audit'→/audit-trail, 'Personal'→/personal,
+ *   'MoM'→/mom (Story 2.1b).
+ * - Registry item per role (Story 2.1b — urutan keputusan owner 2026-09-21/22):
+ *   coo=[Dashboard, Personal, MoM, Order, Audit]; pemegang_saham=[Dashboard,
+ *   Personal, MoM]; tanpa_saham belum-beli=[Personal]; tanpa_saham
+ *   aksesPenuh=[Personal, Dashboard, MoM]; calon_owner=TANPA nav.
  * - Item terkunci TIDAK TAMPIL sama sekali (toHaveCount(0) — bukan
  *   disembunyikan); item aktif aria-current="page".
  * - "Lainnya" (Sheet shadcn) hanya bila item > MAKS_ITEM_NAV_MOBILE (4) —
- *   registry Epic 1 maks 3 item per role → pemicu "Lainnya" TIDAK tampil.
+ *   sejak Story 2.1b registry coo = 5 item → pemicu "Lainnya" TAMPIL dan
+ *   Sheet berisi overflow (Audit); role lain ≤ 3 item → tidak tampil.
  * - Logo sidebar: diasumsikan BrandLogo dengan testid yang sama dengan
  *   halaman login (TEST_IDS.login.brandLogo — sumber auth-landing.spec.ts)
  *   dirender ulang di sidebar; ketuk logo → landing role (coo →
@@ -57,6 +60,7 @@ const LABEL_ORDER = 'Order'
 const LABEL_DASHBOARD = 'Dashboard'
 const LABEL_AUDIT = 'Audit'
 const LABEL_PERSONAL = 'Personal'
+const LABEL_MOM = 'MoM'
 
 /** Pemicu Sheet "Lainnya" — hanya bila item > MAKS_ITEM_NAV_MOBILE (4). */
 const LABEL_PEMICU_LAINNYA = 'Lainnya'
@@ -64,32 +68,79 @@ const LABEL_PEMICU_LAINNYA = 'Lainnya'
 /** Batas tunggu sinyal hidrasi & interaksi logout (ms). */
 const BATAS_RECURSE_KELUAR_MS = 15_000
 
-/** Registry navigasi coo (satu-satunya role Epic 1 dengan 3 item). */
-const ITEM_NAV_COO = [LABEL_DASHBOARD, LABEL_ORDER, LABEL_AUDIT, LABEL_PERSONAL] as const
+/** Registry navigasi coo lengkap (Story 2.1b — 5 item, urutan keputusan owner). */
+const ITEM_NAV_COO = [LABEL_DASHBOARD, LABEL_PERSONAL, LABEL_MOM, LABEL_ORDER, LABEL_AUDIT] as const
+
+/** Item coo yang TETAP di bottom nav mobile — 4 pertama registry. */
+const ITEM_NAV_COO_TETAP = ITEM_NAV_COO.slice(0, 4)
 
 test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)', () => {
   test.use({ viewport: VIEWPORT_MOBILE })
 
-  test('[P1] coo mobile: bottom nav 4 item tanpa pemicu "Lainnya", item aktif aria-current="page"', async ({ page, context, apiRequest }) => {
+  test('[P1] coo mobile: bottom nav 4 item tetap + pemicu "Lainnya" TAMPIL (5 item registry — Story 2.1b), Sheet berisi Audit', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan di landing role-nya")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
     await page.goto('/')
     await expect(page).toHaveURL(/\/order-queue$/)
 
-    await log.step('THEN bottom nav tampil berisi TEPAT 4 link registry coo (Personal masuk — keputusan owner 2026-09-21)')
+    await log.step('THEN bottom nav tampil berisi TEPAT 4 link tetap registry coo (item ke-5 masuk Sheet — Story 2.1b)')
     const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
     await expect(batangBawah).toBeVisible()
-    await expect(batangBawah.getByRole('link')).toHaveCount(ITEM_NAV_COO.length)
-    for (const label of ITEM_NAV_COO) {
+    await expect(batangBawah.getByRole('link')).toHaveCount(ITEM_NAV_COO_TETAP.length)
+    for (const label of ITEM_NAV_COO_TETAP) {
       await expect(batangBawah.getByRole('link', { name: label })).toBeVisible()
     }
 
-    await log.step('AND TANPA pemicu "Lainnya" (registry ≤ MAKS_ITEM_NAV_MOBILE — Sheet tidak perlu)')
-    await expect(batangBawah.getByRole('button', { name: LABEL_PEMICU_LAINNYA })).toHaveCount(0)
+    await log.step('AND pemicu "Lainnya" TAMPIL (registry 5 > MAKS_ITEM_NAV_MOBILE — Sheet aktif pertama kali)')
+    const pemicuLainnya = batangBawah.getByRole('button', { name: LABEL_PEMICU_LAINNYA })
+    await expect(pemicuLainnya).toBeVisible()
 
     await log.step('AND item halaman aktif ditandai aria-current="page"')
     await expect(batangBawah.getByRole('link', { name: LABEL_ORDER })).toHaveAttribute('aria-current', 'page')
+
+    await log.step('WHEN menunggu hidrasi Vue selesai (klik pra-hidrasi tidak pernah membuka Sheet — pola test Keluar)')
+    await page.waitForFunction(() => {
+      try {
+        const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
+        return typeof app === 'function' && app().isHydrating === false
+      } catch {
+        return false
+      }
+    }, { timeout: BATAS_RECURSE_KELUAR_MS })
+
+    await log.step('WHEN membuka Sheet "Lainnya"')
+    await pemicuLainnya.click()
+
+    await log.step('THEN Sheet berisi item overflow registry — Audit (link di luar batang bawah)')
+    const sheet = page.getByRole('dialog', { name: LABEL_PEMICU_LAINNYA })
+    await expect(sheet).toBeVisible()
+    await expect(sheet.getByRole('link', { name: LABEL_AUDIT })).toBeVisible()
+    await expect(sheet.getByRole('link')).toHaveCount(ITEM_NAV_COO.length - ITEM_NAV_COO_TETAP.length)
+  })
+
+  test('[P1] coo mobile di /audit-trail: item aktif Audit berada di dalam Sheet "Lainnya" (aria-current — Story 2.1b)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi 'coo' terinjeksikan membuka permukaan overflow /audit-trail")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+    await page.goto('/audit-trail')
+    await expect(page).toHaveURL(/\/audit-trail$/)
+
+    await log.step('WHEN menunggu hidrasi Vue selesai lalu membuka Sheet "Lainnya" (klik pra-hidrasi kalah race — pola test Keluar)')
+    await page.waitForFunction(() => {
+      try {
+        const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
+        return typeof app === 'function' && app().isHydrating === false
+      } catch {
+        return false
+      }
+    }, { timeout: BATAS_RECURSE_KELUAR_MS })
+    const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
+    await batangBawah.getByRole('button', { name: LABEL_PEMICU_LAINNYA }).click()
+
+    await log.step('THEN item aktif Audit di dalam Sheet bertanda aria-current="page"')
+    const sheet = page.getByRole('dialog', { name: LABEL_PEMICU_LAINNYA })
+    await expect(sheet.getByRole('link', { name: LABEL_AUDIT })).toHaveAttribute('aria-current', 'page')
   })
 
   test('[P0] pemegang saham mobile: hanya Dashboard — Audit Trail & Antrian Beli absen sama sekali (item terkunci TIDAK TAMPIL)', async ({ page, context, apiRequest }) => {
@@ -99,17 +150,19 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await page.goto('/')
     await expect(page).toHaveURL(/\/dashboard$/)
 
-    await log.step('THEN bottom nav tampil berisi TEPAT 2 link: Dashboard + Personal (registry pemegang_saham — keputusan owner 2026-09-21)')
+    await log.step('THEN bottom nav tampil berisi TEPAT 3 link: Dashboard + Personal + MoM (registry pemegang_saham — IA #14, Story 2.1b)')
     const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
     await expect(batangBawah).toBeVisible()
-    await expect(batangBawah.getByRole('link')).toHaveCount(2)
+    await expect(batangBawah.getByRole('link')).toHaveCount(3)
     await expect(batangBawah.getByRole('link', { name: LABEL_DASHBOARD })).toBeVisible()
     await expect(batangBawah.getByRole('link', { name: LABEL_PERSONAL })).toBeVisible()
+    await expect(batangBawah.getByRole('link', { name: LABEL_MOM })).toBeVisible()
     await expect(batangBawah.getByRole('link', { name: LABEL_DASHBOARD })).toHaveAttribute('aria-current', 'page')
 
     await log.step('AND item terkunci TIDAK TAMPIL sama sekali — bukan disembunyikan (UX-DR14)')
     await expect(batangBawah.getByRole('link', { name: LABEL_AUDIT })).toHaveCount(0)
     await expect(batangBawah.getByRole('link', { name: LABEL_ORDER })).toHaveCount(0)
+    await expect(batangBawah.getByRole('button', { name: LABEL_PEMICU_LAINNYA })).toHaveCount(0)
   })
 
   test('[P1] tanpa saham belum-beli mobile: hanya Personal — Dashboard absen sama sekali', async ({ page, context, apiRequest }) => {
@@ -126,8 +179,9 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await expect(batangBawah.getByRole('link', { name: LABEL_PERSONAL })).toBeVisible()
     await expect(batangBawah.getByRole('link', { name: LABEL_PERSONAL })).toHaveAttribute('aria-current', 'page')
 
-    await log.step('AND Dashboard TIDAK TAMPIL sama sekali (aksesPenuh false — AD-8)')
+    await log.step('AND Dashboard dan MoM TIDAK TAMPIL sama sekali (aksesPenuh false — AD-8, Story 2.1b)')
     await expect(batangBawah.getByRole('link', { name: LABEL_DASHBOARD })).toHaveCount(0)
+    await expect(batangBawah.getByRole('link', { name: LABEL_MOM })).toHaveCount(0)
   })
 
   test('[P1] keluar PERNAH-beli mobile: nav Personal + Dashboard (aksesPenuh lewat wiring layout)', async ({ page, context, apiRequest }) => {
@@ -140,12 +194,13 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await page.goto('/')
     await expect(page).toHaveURL(/\/personal$/)
 
-    await log.step('THEN bottom nav berisi TEPAT 2 link registry: Personal + Dashboard')
+    await log.step('THEN bottom nav berisi TEPAT 3 link registry: Personal + Dashboard + MoM (Story 2.1b — matriks terbuka)')
     const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
     await expect(batangBawah).toBeVisible()
-    await expect(batangBawah.getByRole('link')).toHaveCount(2)
+    await expect(batangBawah.getByRole('link')).toHaveCount(3)
     await expect(batangBawah.getByRole('link', { name: LABEL_PERSONAL })).toBeVisible()
     await expect(batangBawah.getByRole('link', { name: LABEL_DASHBOARD })).toBeVisible()
+    await expect(batangBawah.getByRole('link', { name: LABEL_MOM })).toBeVisible()
 
     await log.step('AND item aktif = Personal (landing), Dashboard TANPA aria-current')
     await expect(batangBawah.getByRole('link', { name: LABEL_PERSONAL })).toHaveAttribute('aria-current', 'page')

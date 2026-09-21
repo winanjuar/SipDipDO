@@ -1,12 +1,13 @@
-import { buildPrincipal, createIdentityRepo } from '../../domain/identity'
+import { aksesPenuh, buildPrincipal, createIdentityRepo } from '../../domain/identity'
 import { getMomById } from '../../domain/pricing'
 import { HTTP_STATUS, sendApiError } from '../../utils/api-error'
 import { useDb } from '../../utils/db'
 import { getSessionEmail } from '../../utils/session'
 
 /**
- * GET /api/mom/:id — detail MoM (FR-7, AD-8): enforce pemegang saham;
- * owner tanpa saham → 403. 404 bila tidak ditemukan.
+ * GET /api/mom/:id — detail MoM (FR-7, AD-8): enforce pemegang saham, COO,
+ * dan keluar-PERNAH-beli (keputusan owner 2026-09-22 — aksesPenuh membuka
+ * MoM); owner tanpa saham BELUM-pernah-beli → 403. 404 bila tidak ditemukan.
  */
 export default defineEventHandler(async (event) => {
   const email = await getSessionEmail(event)
@@ -22,8 +23,11 @@ export default defineEventHandler(async (event) => {
   const principal = await buildPrincipal(createIdentityRepo(db), email)
   if (principal.unlinked) return sendRedirect(event, '/login?res=unlinked')
 
-  // Owner tanpa saham dan calon owner tidak boleh akses MoM (AD-8, §4.8)
-  if (principal.role === 'tanpa_saham' || principal.role === 'calon_owner') {
+  // Calon owner dan tanpa_saham BELUM-pernah-beli tidak boleh akses MoM
+  // (AD-8, §4.8); keluar-PERNAH-beli (aksesPenuh) BOLEH — keputusan owner
+  // 2026-09-22 (Story 2.1b).
+  if (principal.role === 'calon_owner'
+    || (principal.role === 'tanpa_saham' && !aksesPenuh(principal.owner))) {
     return sendApiError(event, HTTP_STATUS.forbidden, {
       code: 'FORBIDDEN',
       message: 'Akses MoM hanya untuk pemegang saham.',

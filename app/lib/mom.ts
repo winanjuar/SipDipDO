@@ -12,6 +12,9 @@ export interface MomRespons {
   nextPage: number | null
 }
 
+/** Kode HTTP 403 — tangkapan defensif halaman MoM (pola `HTTP_*` landing.ts). */
+export const HTTP_FORBIDDEN = 403
+
 /** Zona tampilan waktu MoM — konvensi spine (Asia/Jakarta, AD-9). */
 const ZONA_WAKTU = 'Asia/Jakarta'
 /** Lokal format waktu — UI Bahasa Indonesia (konvensi spine). */

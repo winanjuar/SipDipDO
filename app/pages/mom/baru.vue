@@ -5,9 +5,10 @@ import type { LandingRespons } from '~/lib/landing'
 
 /**
  * Buat MoM Baru — khusus COO (FR-7, AD-8). Non-COO dialihkan ke landing
- * role-nya.
+ * role-nya (middleware registry Story 2.1b yang otoritatif; resolver di
+ * sini defensif — pola 1.7). Layout `app` (Story 2.1b — nav registry).
  */
-definePageMeta({ auth: true })
+definePageMeta({ layout: 'app', auth: true })
 
 const api = useRequestFetch()
 const router = useRouter()
