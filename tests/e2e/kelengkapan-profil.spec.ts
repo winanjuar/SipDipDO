@@ -308,7 +308,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         } catch {
           // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
         }
-        return page.getByText(/profil lengkap/i).first().isVisible()
+        return page.getByText(/profile lengkap/i).first().isVisible()
       },
       lengkap => lengkap === true,
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu simpan profil + indikator lengkap' },
@@ -322,7 +322,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.alertSukses)).toContainText('Profil tersimpan.')
 
     await log.step('AND indikator menyatakan Profil lengkap (prasyarat verifikasi COO terpenuhi)')
-    await expect(page.getByText(/profil lengkap/i).first()).toBeVisible()
+    await expect(page.getByText(/profile lengkap/i).first()).toBeVisible()
 
     await log.step('WHEN halaman dimuat ulang')
     await page.reload()
@@ -665,7 +665,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         } catch {
           // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
         }
-        return page.getByText(/profil lengkap/i).first().isVisible()
+        return page.getByText(/profile lengkap/i).first().isVisible()
       },
       lengkap => lengkap === true,
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu profil lengkap' },
@@ -700,7 +700,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
       await log.step('THEN indikator TIDAK mengklaim profil lengkap (belum tersimpan di DB) + zona Isian TERSEMBUNYI (form tak ada field kosong)')
       const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
-      await expect(indikator).not.toContainText(/profil lengkap/i)
+      await expect(indikator).not.toContainText(/profile lengkap/i)
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
     },
   )
@@ -729,7 +729,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
       await log.step('THEN indikator menyatakan lengkap + menunggu verifikasi, TANPA zona Isian')
       const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
-      await expect(indikator).toContainText('Menunggu verifikasi')
+      await expect(indikator).toContainText('Profile lengkap. Tunggu verifikasi COO')
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
 
       await log.step('WHEN field Nama dikosongkan (perubahan belum disimpan)')
@@ -737,8 +737,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').fill('')
 
       await log.step('THEN indikator TETAP menyatakan lengkap — TIDAK membalik ke "belum lengkap" (data DB utuh)')
-      await expect(indikator).toContainText('Menunggu verifikasi')
-      await expect(indikator).not.toContainText('Profil belum lengkap')
+      await expect(indikator).toContainText('Profile lengkap. Tunggu verifikasi COO')
+      await expect(indikator).not.toContainText('Profile belum lengkap')
       // Zona Isian (owner 2026-09-19): muncul hanya saat sudah edit DAN form
       // masih ada field kosong — box sendiri bertinta warn token semantik.
       const catatanForm = page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)
@@ -910,5 +910,66 @@ test.describe('[P1] calon diajukan LENGKAP melihat & memperbarui profilnya (kepu
     await expect(page).toHaveURL(/\/profile-completeness$/)
     await expect(page.getByLabel('Nama Lengkap')).toHaveValue(profil.fullName)
     await expect(page.getByLabel('No. Rekening')).toHaveValue(profil.accountNumber)
+  })
+})
+
+test.describe('[P2] polish form profile (keputusan owner 2026-09-21)', () => {
+  test('[P2] input nomor dibatasi maxlength: HP 15 digit, rekening 20 karakter (paritas konstanta shared)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan membuka /profile-completeness")
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await tungguHidrasi(page)
+
+    await log.step('THEN atribut maxlength terpasang: No HP & No HP kontak darurat = 15, No. Rekening = 20')
+    await expect(locatorField(page, LEGEND_PRIBADI, 'No HP')).toHaveAttribute('maxlength', '15')
+    await expect(locatorField(page, LEGEND_KONTAK_DARURAT, 'No HP')).toHaveAttribute('maxlength', '15')
+    await expect(locatorField(page, LEGEND_REKENING, 'No. Rekening')).toHaveAttribute('maxlength', '20')
+  })
+
+  test('[P1] zona "Kelengkapan Data di Sistem": copy verbatim + daftar field yang masih kosong', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan dengan profil BELUM lengkap (baru nama lengkap tersimpan)")
+    const emailUji = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailUji,
+    })
+    await context.addCookies(cookies)
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: { ...profilLengkapUji(), alias: '', emergencyContactName: '', emergencyContactPhoneNumber: '', emergencyContactRelationship: '', bankName: '', otherBankName: '', accountHolderName: '', accountNumber: '' },
+      headers: headerCookieDariMint(cookies),
+    })
+    expect(simpan.status).toBe(200)
+
+    await log.step('WHEN membuka /profile-completeness')
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await tungguHidrasi(page)
+
+    await log.step('THEN indikator ber-copy verbatim "Profile belum lengkap. Silahkan isi:" + label field kosong')
+    const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
+    await expect(indikator).toContainText('Profile belum lengkap. Silahkan isi:')
+    await expect(indikator).toContainText('Alias')
+    await expect(indikator).toContainText('Nama Bank')
+    await expect(indikator).toContainText('Nomor Rekening')
+
+    await log.step('AND setelah profil LENGKAP tersimpan → copy berubah verbatim "Profile lengkap. Tunggu verifikasi COO"')
+    await context.addCookies(cookies)
+    const lengkapi = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: profilLengkapUji(),
+      headers: headerCookieDariMint(cookies),
+    })
+    expect(lengkapi.status).toBe(200)
+    await page.reload()
+    await tungguHidrasi(page)
+    await expect(indikator).toContainText('Profile lengkap. Tunggu verifikasi COO')
   })
 })

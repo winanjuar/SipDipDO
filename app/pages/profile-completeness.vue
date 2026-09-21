@@ -6,6 +6,7 @@ import {
   DAFTAR_HUBUNGAN,
   FIELD_PROFIL_SIMPAN,
   LABEL_FIELD_PROFIL,
+  DIGIT_MAKS_HP,
   PANJANG_MAKS_ALIAS,
   PANJANG_MAKS_NAMA,
   PANJANG_MAKS_REKENING,
@@ -304,10 +305,10 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
           <legend class="px-1 text-sm font-semibold text-primary">Kelengkapan Data di Sistem</legend>
           <p class="mt-1">
             <template v-if="!statusServer.profileComplete">
-              Profil belum lengkap — field belum diisi: {{ statusServer.remainingFields.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
+              Profile belum lengkap. Silahkan isi: {{ statusServer.remainingFields.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
             </template>
             <template v-else>
-              Profil lengkap — seluruh field terisi. Menunggu verifikasi.
+              Profile lengkap. Tunggu verifikasi COO
             </template>
           </p>
         </fieldset>
@@ -397,6 +398,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             type="text"
             inputmode="tel"
             autocomplete="off"
+            :maxlength="DIGIT_MAKS_HP"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
             @input="tapiskanNomor($event, 'phoneNumber')"
           >
@@ -441,6 +443,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             inputmode="tel"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
+            :maxlength="DIGIT_MAKS_HP"
             @input="tapiskanNomor($event, 'emergencyContactPhoneNumber')"
           >
           <p v-if="salah.emergencyContactPhoneNumber" class="text-xs text-destructive">{{ salah.emergencyContactPhoneNumber }}</p>
