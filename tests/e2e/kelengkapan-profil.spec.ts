@@ -20,7 +20,7 @@
  * "persis"; satu sumber shared/domain/profil) — asersi indikator tak berubah.
  *
  * Penambahan PASCA-REVIEW sebelumnya: tautan "Lengkapi Profile" di
- * /status-pendaftaran (pintu nav tunggal), gerbang calon diajukan LENGKAP,
+ * /registration-status (pintu nav tunggal), gerbang calon diajukan LENGKAP,
  * dan submit PARTIAL sukses 200 (re-negotiasi owner 2026-09-19 — field
  * kosong tidak lagi menolak simpan; zona Sistem tetap menyebut sisa,
  * isian dipertahankan).
@@ -198,6 +198,9 @@ const profilLengkapUji = (): Record<string, string> => ({
 })
 
 /** Email sintetis unik pola mint dev-only (prefix terkunci — pola register.spec.ts). */
+/** Batas recurse logout (ms) — interval memakai INTERVAL_RECURSE_MS eksisting. */
+const BATAS_RECURSE_KELUAR_MS = 15_000
+
 const emailSintetisUji = (): string => {
   const lokalUji = faker.internet.username().toLowerCase().replace(/[^a-z0-9]+/g, '.')
   return `uji.snddash.e2e.${lokalUji}@gmail.com`
@@ -308,7 +311,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         } catch {
           // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
         }
-        return page.getByText(/profil lengkap/i).first().isVisible()
+        return page.getByText(/profile lengkap/i).first().isVisible()
       },
       lengkap => lengkap === true,
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu simpan profil + indikator lengkap' },
@@ -322,7 +325,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.alertSukses)).toContainText('Profil tersimpan.')
 
     await log.step('AND indikator menyatakan Profil lengkap (prasyarat verifikasi COO terpenuhi)')
-    await expect(page.getByText(/profil lengkap/i).first()).toBeVisible()
+    await expect(page.getByText(/profile lengkap/i).first()).toBeVisible()
 
     await log.step('WHEN halaman dimuat ulang')
     await page.reload()
@@ -405,10 +408,10 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page).toHaveURL(/\/profile-completeness$/)
   })
 
-  test('[P1] non-calon membuka /profile-completeness → dialihkan ke landing role-nya (pola status-pendaftaran)', async ({ page, context, apiRequest }) => {
+  test('[P1] non-calon membuka /profile-completeness → dialihkan ke landing role-nya (pola registration-status)', async ({ page, context, apiRequest }) => {
     // Penutup baris matriks I/O "Halaman kelengkapan non-calon": resolver
     // halaman mengarahkan non-calon ke LANDING_PATH role-nya (pola
-    // status-pendaftaran.vue); middleware TIDAK menghalangi non-calon.
+    // registration-status.vue); middleware TIDAK menghalangi non-calon.
     await log.step('GIVEN sesi pemegang saham (bukan calon) terinjeksikan')
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
     await context.addCookies(cookies)
@@ -420,7 +423,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 
-  test('[P1] tautan "Lengkapi Profile" di /status-pendaftaran → menuju /profile-completeness (pasca-review)', async ({ page, context, apiRequest }) => {
+  test('[P1] tautan "Lengkapi Profile" di /registration-status → menuju /profile-completeness (pasca-review)', async ({ page, context, apiRequest }) => {
     // Satu-satunya pintu nav fitur (UX-DR14): calon diajukan belum lengkap
     // melihat tautan di halaman status; klik mengantar ke halaman kelengkapan.
     await log.step('GIVEN sesi calon owner diajukan dengan Profil belum lengkap')
@@ -431,8 +434,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     })
     await context.addCookies(cookies)
 
-    await log.step('WHEN membuka /status-pendaftaran lalu mengeklik "Lengkapi Profile"')
-    await page.goto('/status-pendaftaran')
+    await log.step('WHEN membuka /registration-status lalu mengeklik "Lengkapi Profile"')
+    await page.goto('/registration-status')
     const tautan = page.getByRole('link', { name: 'Lengkapi Profile' })
     await expect(tautan).toBeVisible()
     await tautan.click()
@@ -441,7 +444,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await expect(page).toHaveURL(/\/profile-completeness$/)
   })
 
-  test('[P1] calon diajukan dengan Profil LENGKAP lolos gerbang → kembali ke landing calon /status-pendaftaran (pasca-review)', async ({ page, context, apiRequest }) => {
+  test('[P1] calon diajukan dengan Profil LENGKAP lolos gerbang → kembali ke landing calon /registration-status (pasca-review)', async ({ page, context, apiRequest }) => {
     // Gerbang kelengkapan HANYA untuk belum lengkap: calon lengkap dialihkan
     // ke landing calonnya (UX-DR14), BUKAN ke /profile-completeness.
     await log.step('GIVEN sesi calon owner diajukan yang menyimpan profil lengkap via endpoint langsung')
@@ -469,8 +472,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
     await log.step('WHEN membuka /dashboard secara langsung')
     await page.goto('/dashboard')
 
-    await log.step('THEN dialihkan ke /status-pendaftaran (landing calon), BUKAN /profile-completeness')
-    await expect(page).toHaveURL(/\/status-pendaftaran$/)
+    await log.step('THEN dialihkan ke /registration-status (landing calon), BUKAN /profile-completeness')
+    await expect(page).toHaveURL(/\/registration-status$/)
     await expect(page).not.toHaveURL(/profile-completeness/)
   })
 
@@ -665,7 +668,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
         } catch {
           // Klik pra-hidrasi tanpa handler — dievaluasi ulang iterasi berikutnya.
         }
-        return page.getByText(/profil lengkap/i).first().isVisible()
+        return page.getByText(/profile lengkap/i).first().isVisible()
       },
       lengkap => lengkap === true,
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu profil lengkap' },
@@ -700,7 +703,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
       await log.step('THEN indikator TIDAK mengklaim profil lengkap (belum tersimpan di DB) + zona Isian TERSEMBUNYI (form tak ada field kosong)')
       const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
-      await expect(indikator).not.toContainText(/profil lengkap/i)
+      await expect(indikator).not.toContainText(/profile lengkap/i)
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
     },
   )
@@ -729,7 +732,7 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
 
       await log.step('THEN indikator menyatakan lengkap + menunggu verifikasi, TANPA zona Isian')
       const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
-      await expect(indikator).toContainText('Menunggu verifikasi')
+      await expect(indikator).toContainText('Profile lengkap. Tunggu verifikasi COO')
       await expect(page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)).toHaveCount(0)
 
       await log.step('WHEN field Nama dikosongkan (perubahan belum disimpan)')
@@ -737,8 +740,8 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await locatorField(page, LEGEND_PRIBADI, 'Nama Lengkap').fill('')
 
       await log.step('THEN indikator TETAP menyatakan lengkap — TIDAK membalik ke "belum lengkap" (data DB utuh)')
-      await expect(indikator).toContainText('Menunggu verifikasi')
-      await expect(indikator).not.toContainText('Profil belum lengkap')
+      await expect(indikator).toContainText('Profile lengkap. Tunggu verifikasi COO')
+      await expect(indikator).not.toContainText('Profile belum lengkap')
       // Zona Isian (owner 2026-09-19): muncul hanya saat sudah edit DAN form
       // masih ada field kosong — box sendiri bertinta warn token semantik.
       const catatanForm = page.getByTestId(TEST_IDS.kelengkapanProfil.catatanForm)
@@ -849,4 +852,213 @@ test.describe('E2E Story 1.5 — Kelengkapan Profile (ATDD GREEN PHASE)', () => 
       await expect(pemilik).toHaveValue(pemilikManual)
     },
   )
+})
+
+test.describe('[P1] calon diajukan LENGKAP melihat & memperbarui profilnya (keputusan owner 2026-09-21)', () => {
+  test('[P1] halaman status menampilkan Data Profile read-only + tautan "Perbarui Profile"', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN calon owner 'diajukan' dengan profil LENGKAP tersimpan (mint + PUT endpoint langsung)")
+    const emailUji = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailUji,
+    })
+    await context.addCookies(cookies)
+    const profil = profilLengkapUji()
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: profil,
+      headers: { Cookie: cookies.map(c => `${c.name}=${c.value}`).join('; ') },
+    })
+    expect(simpan.status).toBe(200)
+
+    await log.step('WHEN membuka /registration-status')
+    await page.goto('/registration-status')
+
+    await log.step('THEN badge Diajukan + section Data Profile read-only tampil dengan nilai isian')
+    await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
+    const dataProfil = page.getByTestId(TEST_IDS.statusPendaftaran.dataProfil)
+    await expect(dataProfil).toBeVisible()
+    await expect(dataProfil).toContainText(profil.fullName)
+    await expect(dataProfil).toContainText(profil.accountNumber)
+
+    await log.step('AND tautan "Perbarui Profile" tersedia (tidak lagi tersembunyi bagi calon lengkap)')
+    await expect(page.getByRole('link', { name: 'Perbarui Profile' })).toBeVisible()
+  })
+
+  test('[P1] tautan "Perbarui Profile" membuka form /profile-completeness dengan nilai terisi', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN calon owner 'diajukan' dengan profil LENGKAP tersimpan")
+    const emailUji = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailUji,
+    })
+    await context.addCookies(cookies)
+    const profil = profilLengkapUji()
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: profil,
+      headers: { Cookie: cookies.map(c => `${c.name}=${c.value}`).join('; ') },
+    })
+    expect(simpan.status).toBe(200)
+
+    await log.step('WHEN membuka /registration-status lalu mengeklik "Perbarui Profile"')
+    await page.goto('/registration-status')
+    await page.getByRole('link', { name: 'Perbarui Profile' }).click()
+
+    await log.step('THEN form Kelengkapan Profil terbuka (TIDAK di-redirect) dengan isian terisi')
+    await expect(page).toHaveURL(/\/profile-completeness$/)
+    await expect(page.getByLabel('Nama Lengkap')).toHaveValue(profil.fullName)
+    await expect(page.getByLabel('No. Rekening')).toHaveValue(profil.accountNumber)
+  })
+})
+
+test.describe('[P2] polish form profile (keputusan owner 2026-09-21)', () => {
+  test('[P2] input nomor dibatasi maxlength: HP 15 digit, rekening 20 karakter (paritas konstanta shared)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan membuka /profile-completeness")
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await tungguHidrasi(page)
+
+    await log.step('THEN atribut maxlength terpasang: No HP & No HP kontak darurat = 15, No. Rekening = 20')
+    await expect(locatorField(page, LEGEND_PRIBADI, 'No HP')).toHaveAttribute('maxlength', '15')
+    await expect(locatorField(page, LEGEND_KONTAK_DARURAT, 'No HP')).toHaveAttribute('maxlength', '15')
+    await expect(locatorField(page, LEGEND_REKENING, 'No. Rekening')).toHaveAttribute('maxlength', '20')
+  })
+
+  test('[P1] zona "Kelengkapan Data di Sistem": copy verbatim + daftar field yang masih kosong', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan dengan profil BELUM lengkap (baru nama lengkap tersimpan)")
+    const emailUji = emailSintetisUji()
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailUji,
+    })
+    await context.addCookies(cookies)
+    const simpan = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: { ...profilLengkapUji(), alias: '', emergencyContactName: '', emergencyContactPhoneNumber: '', emergencyContactRelationship: '', bankName: '', otherBankName: '', accountHolderName: '', accountNumber: '' },
+      headers: headerCookieDariMint(cookies),
+    })
+    expect(simpan.status).toBe(200)
+
+    await log.step('WHEN membuka /profile-completeness')
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await tungguHidrasi(page)
+
+    await log.step('THEN indikator ber-copy verbatim "Profile belum lengkap. Silahkan isi:" + label field kosong')
+    const indikator = page.getByTestId(TEST_IDS.kelengkapanProfil.indikator)
+    await expect(indikator).toContainText('Profile belum lengkap. Silahkan isi:')
+    await expect(indikator).toContainText('Alias')
+    await expect(indikator).toContainText('Nama Bank')
+    await expect(indikator).toContainText('Nomor Rekening')
+
+    await log.step('AND setelah profil LENGKAP tersimpan → copy berubah verbatim "Profile lengkap. Tunggu verifikasi COO"')
+    await context.addCookies(cookies)
+    const lengkapi = await apiRequest<{ profileComplete: boolean }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: profilLengkapUji(),
+      headers: headerCookieDariMint(cookies),
+    })
+    expect(lengkapi.status).toBe(200)
+    await page.reload()
+    await tungguHidrasi(page)
+    await expect(indikator).toContainText('Profile lengkap. Tunggu verifikasi COO')
+  })
+})
+
+test('[P1] wayfinding calon: logo & "Kembali ke Status Pendaftaran" di form mengantar kembali ke halaman status', async ({ page, context, apiRequest }) => {
+  await log.step("GIVEN sesi calon owner diajukan membuka /profile-completeness")
+  const cookies = await mintSesiPemilik(apiRequest, {
+    userIdentifier: 'tanpa-saham',
+    status: 'diajukan',
+    email: emailSintetisUji(),
+  })
+  await context.addCookies(cookies)
+  await page.goto(HALAMAN_KELENGKAPAN)
+  await tungguHidrasi(page)
+
+    await log.step('THEN baris wayfinding tampil: logo + link "Kembali ke Status Pendaftaran"')
+    const kembali = page.getByRole('link', { name: 'Kembali ke Status Pendaftaran' })
+    await expect(kembali).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ke halaman utama' }).locator('img')).toBeVisible()
+
+  await log.step('WHEN mengeklik link kembali')
+  await kembali.click()
+
+  await log.step('THEN kembali ke /registration-status')
+  await expect(page).toHaveURL(/\/registration-status$/)
+})
+
+test.describe('[P1] logout dari halaman calon (keputusan owner 2026-09-21 — AppTombolKeluar)', () => {
+  // Klon pola teruji: tunggu hidrasi (isHydrating===false) -> klik langsung.
+  // Pintu keluar icon+dialog tersedia di kedua halaman calon.
+  test('[P1] logout dari /profile-completeness → Dialog konfirmasi → sesi berakhir ke /login', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan membuka /profile-completeness")
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await page.waitForFunction(() => {
+      try {
+        const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
+        return typeof app === 'function' && app().isHydrating === false
+      } catch {
+        return false
+      }
+    }, { timeout: BATAS_RECURSE_KELUAR_MS })
+
+    await log.step('WHEN menekan icon Keluar lalu mengonfirmasi (klik-daur ulang: binding trigger reka-ui selesai sesaat pasca-hidrasi)')
+    await expect(async () => {
+      if (!(await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).isVisible().catch(() => false))) {
+        await page.getByTestId(TEST_IDS.navigasi.tombolKeluarMobile).click()
+      }
+      await expect(page.getByTestId(TEST_IDS.navigasi.dialogKeluar)).toBeVisible()
+      await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).getByRole('button', { name: 'Keluar' }).click()
+    }).toPass({ timeout: 15_000 })
+
+    await log.step('THEN kembali ke /login — sesi berakhir')
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 })
+
+    await log.step('AND form calon tak lagi terjangkau tanpa sesi')
+    await page.goto(HALAMAN_KELENGKAPAN)
+    await expect(page).toHaveURL(/\/login/)
+  })
+
+  test('[P1] logout dari /registration-status → Dialog konfirmasi → sesi berakhir ke /login', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi calon owner diajukan membuka /registration-status")
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'tanpa-saham',
+      status: 'diajukan',
+      email: emailSintetisUji(),
+    })
+    await context.addCookies(cookies)
+    await page.goto('/registration-status')
+    await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toBeVisible()
+
+    await log.step('WHEN menekan icon Keluar lalu mengonfirmasi (klik-daur ulang: binding trigger reka-ui selesai sesaat pasca-hidrasi)')
+    await expect(async () => {
+      if (!(await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).isVisible().catch(() => false))) {
+        await page.getByTestId(TEST_IDS.navigasi.tombolKeluarMobile).click()
+      }
+      await expect(page.getByTestId(TEST_IDS.navigasi.dialogKeluar)).toBeVisible()
+      await page.getByTestId(TEST_IDS.navigasi.dialogKeluar).getByRole('button', { name: 'Keluar' }).click()
+    }).toPass({ timeout: 15_000 })
+
+    await log.step('THEN kembali ke /login — sesi berakhir')
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 })
+  })
 })

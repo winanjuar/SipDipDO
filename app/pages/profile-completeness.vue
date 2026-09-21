@@ -6,6 +6,7 @@ import {
   DAFTAR_HUBUNGAN,
   FIELD_PROFIL_SIMPAN,
   LABEL_FIELD_PROFIL,
+  DIGIT_MAKS_HP,
   PANJANG_MAKS_ALIAS,
   PANJANG_MAKS_NAMA,
   PANJANG_MAKS_REKENING,
@@ -34,7 +35,7 @@ import type { LandingRespons } from '~/lib/landing'
  *
  * Feedback aksi simpan (permintaan owner 2026-09-18): setiap Simpan selalu
  * menjawab — tombol "Menyimpan…" saat in-flight; sukses → alert "Profil
- * tersimpan." DI ATAS halaman auto-hilang 3 detik (pola status-pendaftaran —
+ * tersimpan." DI ATAS halaman auto-hilang 3 detik (pola registration-status —
  * toast bawah tak terlihat). SIMPAN PARSIAL (owner 2026-09-19): field kosong
  * tidak lagi menolak simpan — form = state penuh, field terisi wajib lolos
  * validasi format (kode `digit-hp` = pesan digit/prefix HP relevan).
@@ -96,7 +97,7 @@ const { data: profilTersimpan } = await useAsyncData('profil-kelengkapan', () =>
 if (!profilTersimpan.value) {
   // Sesi berubah status di antara dua panggilan (mis. kedaluwarsa cron) →
   // kembali ke pintu sah calon.
-  await navigateTo('/status-pendaftaran')
+  await navigateTo('/registration-status')
 }
 
 const gmail = computed(() => profilTersimpan.value?.gmail ?? '')
@@ -194,7 +195,7 @@ const gagalSimpan = ref(false)
 const sedangSimpan = ref(false)
 
 /** Alert sukses simpan — DI ATAS halaman, auto-hilang 3 detik (pola
- *  status-pendaftaran; toast bawah tak terlihat — keputusan owner 2026-09-18). */
+ *  registration-status; toast bawah tak terlihat — keputusan owner 2026-09-18). */
 const PESAN_TERSIMPAN = 'Profil tersimpan.'
 const pesanTersimpan = ref('')
 let timerPesanTersimpan: ReturnType<typeof setTimeout> | undefined
@@ -264,7 +265,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
 <template>
   <div>
     <!-- Feedback sukses simpan — alert atas halaman auto-hilang 3 detik
-         (pola status-pendaftaran; toast bawah tak terlihat). -->
+         (pola registration-status; toast bawah tak terlihat). -->
     <Alert
       v-if="pesanTersimpan"
       data-testid="kelengkapan-alert-tersimpan"
@@ -276,6 +277,28 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
     </Alert>
 
     <main class="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-10 lg:max-w-5xl">
+    <!-- Wayfinding calon (keputusan owner 2026-09-21): logo & link kembali —
+         dua halaman inilah "dunia" calon owner (UX-DR14: tanpa nav lain) —
+         plus pintu logout (komponen bersama dengan header owner). -->
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <NuxtLink
+          to="/registration-status"
+          class="flex items-center rounded-md"
+          aria-label="Ke halaman utama"
+        >
+          <BrandLogo size="header" />
+        </NuxtLink>
+        <NuxtLink
+          to="/registration-status"
+          class="text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          ← Kembali ke Status Pendaftaran
+        </NuxtLink>
+      </div>
+      <AppTombolKeluar />
+    </div>
+
     <header>
       <h1 class="text-2xl font-semibold">Kelengkapan Profil</h1>
       <p class="text-sm text-muted-foreground">
@@ -304,10 +327,10 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
           <legend class="px-1 text-sm font-semibold text-primary">Kelengkapan Data di Sistem</legend>
           <p class="mt-1">
             <template v-if="!statusServer.profileComplete">
-              Profil belum lengkap — field belum diisi: {{ statusServer.remainingFields.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
+              Profile belum lengkap. Silahkan isi: {{ statusServer.remainingFields.map(kunci => LABEL_FIELD_PROFIL[kunci]).join(', ') }}
             </template>
             <template v-else>
-              Profil lengkap — seluruh field terisi. Menunggu verifikasi.
+              Profile lengkap. Tunggu verifikasi COO
             </template>
           </p>
         </fieldset>
@@ -397,6 +420,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             type="text"
             inputmode="tel"
             autocomplete="off"
+            :maxlength="DIGIT_MAKS_HP"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
             @input="tapiskanNomor($event, 'phoneNumber')"
           >
@@ -441,6 +465,7 @@ useHead({ title: 'Kelengkapan Profil — Sip & Dip' })
             inputmode="tel"
             autocomplete="off"
             class="flex h-11 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
+            :maxlength="DIGIT_MAKS_HP"
             @input="tapiskanNomor($event, 'emergencyContactPhoneNumber')"
           >
           <p v-if="salah.emergencyContactPhoneNumber" class="text-xs text-destructive">{{ salah.emergencyContactPhoneNumber }}</p>
