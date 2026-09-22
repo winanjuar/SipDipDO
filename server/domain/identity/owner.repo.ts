@@ -318,7 +318,10 @@ export async function listCalonVerifikasi(db: DbClient): Promise<BarisCalonJob[]
     .leftJoin(ownerEmergencyContacts, eq(ownerEmergencyContacts.ownerId, owners.id))
     .leftJoin(ownerBankAccounts, eq(ownerBankAccounts.ownerId, owners.id))
     .where(eq(owners.status, 'diajukan'))
-    .orderBy(asc(owners.createdAt))
+    // Tie-breaker FIFO (hardening 2026-09-22): created_at bisa identik
+    // (re-daftar/seed dalam milidetik sama) — id menstabilkan urutan
+    // antrian antar-halaman dan antar-request (adv#12).
+    .orderBy(asc(owners.createdAt), asc(owners.id))
   return rows.map((r) => ({ ...barisKeOwnerRecord(r), createdAt: r.createdAt }))
 }
 
