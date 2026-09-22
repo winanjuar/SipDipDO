@@ -25,6 +25,14 @@ export type Role = (typeof ROLES)[number]
 /** Status calon owner — dialandingkan ke halaman status pendaftaran. */
 export const CALON_OWNER_STATUSES: readonly OwnerStatus[] = ['diajukan', 'ditolak', 'kedaluwarsa']
 
+/**
+ * Batas panjang alasan penolakan COO (Story 1.6, hardening 2026-09-22) —
+ * SATU sumber untuk zod `.max` handler keputusan dan `:maxlength` textarea
+ * UI penolakan; kolom text + audit details jsonb tidak dimaksudkan menelan
+ * payload tanpa batas.
+ */
+export const PANJANG_MAKS_ALASAN_PENOLAKAN = 500
+
 /** Panjang kode referral owner — alfanumerik (keputusan owner 2026-09-18). */
 export const PANJANG_KODE_REFERRAL = 8
 

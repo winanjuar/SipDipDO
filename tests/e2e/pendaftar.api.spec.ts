@@ -8,12 +8,18 @@
  *   verifikasi belum lengkap → 400 PROFILE_INCOMPLETE tanpa mutasi; tolak
  *   tanpa alasan → 400 ALASAN_WAJIB; tolak dengan alasan → 200 + alasan
  *   tersimpan apa adanya + audit `pendaftaran-penolakan` (details.alasan +
- *   details.hitunganPenolakan); id tak dikenal → 404 TIDAK_DITEMUKAN;
- *   keputusan ganda (status sudah bukan `diajukan`) → 409 STATUS_BERUBAH
- *   tanpa audit baru (kontrak CAS AD-11).
+ *   details.hitunganPenolakan); tolak calon BELUM lengkap → 200 + audit
+ *   (asimetri gerbang ter-pin, hardening 2026-09-22); id tak dikenal → 404
+ *   TIDAK_DITEMUKAN; keputusan ganda (status sudah bukan `diajukan`) → 409
+ *   STATUS_BERUBAH tanpa audit baru (kontrak CAS AD-11); superRefine
+ *   `{terverifikasi, alasan}` → 400 BAD_REQUEST (hardening 2026-09-22);
+ *   TOCTOU: profil dikosongkan pasca-seed via PUT parsial → 400
+ *   PROFILE_INCOMPLETE + baris tetap `diajukan` TANPA audit (pin integrasi
+ *   rollback total pasca-CAS — fake tx unit tidak mengamati rollback DB).
  * - CHECK constraint `owners_ditolak_wajib_rejection_reason` (jalur DB yang
  *   tidak pernah tersentuh handler/service) diuji langsung ke DB lokal via
- *   `cobaTulisDitolakTanpaAlasan` (pola admin-client pendaftar-reset.ts).
+ *   `cobaTulisDitolakTanpaAlasan` (pola admin-client pendaftar-reset.ts) —
+ *   host non-lokal = honest-skip dengan alasan (bukan throw).
  *
  * Persona via `mintSesiPemilik` (coo / calon-*); profil lengkap calon diisi
  * via PUT /api/profile (pola kelengkapan-profil.spec.ts). Cleanup otomatis:
@@ -32,7 +38,7 @@ import {
   seedCalonLengkap,
 } from '../support/helpers/pendaftar-uji'
 import { cobaTulisDitolakTanpaAlasan } from '../support/helpers/pendaftar-reset'
-import { PANJANG_MAKS_ALASAN_PENOLAKAN } from '../../server/domain/identity'
+import { PANJANG_MAKS_ALASAN_PENOLAKAN } from '#shared/domain/identity'
 
 /** Status HTTP kontrak matriks I/O. */
 const STATUS_OK = 200
@@ -44,6 +50,9 @@ const STATUS_CONFLICT = 409
 
 const PATH_PENDAFTAR = '/api/pendaftar'
 const PATH_KEPUTUSAN = '/api/pendaftar/keputusan'
+
+/** Hari backdate IDENTIK untuk pasangan pin tie-breaker FIFO (asc owners.id). */
+const DIAJUKAN_PADA_IDENTIK = '2026-09-15'
 
 /** Envelope error seragam — kontrak server/utils/api-error.ts. */
 const SkemaEnvelopeError = z.object({
@@ -175,9 +184,29 @@ test.describe('[P0] GET /api/pendaftar — daftar calon untuk COO', () => {
       diajukanPada: '2026-09-20',
     })
 
-    await log.step('WHEN COO membuka GET /api/pendaftar')
+    await log.step('AND dua calon lain dengan diajukanPada IDENTIK — pin tie-breaker FIFO (asc owners.id)')
+    const emailTiePertama = emailSintetisUji()
+    const emailTieKedua = emailSintetisUji()
+    await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'calon-diajukan',
+      email: emailTiePertama,
+      diajukanPada: DIAJUKAN_PADA_IDENTIK,
+    })
+    await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'calon-diajukan',
+      email: emailTieKedua,
+      diajukanPada: DIAJUKAN_PADA_IDENTIK,
+    })
+
+    await log.step('WHEN COO membuka GET /api/pendaftar, lalu mengulang GET kedua')
     const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
     const { status, body } = await apiRequest<DaftarPendaftar>({
+      method: 'GET',
+      path: PATH_PENDAFTAR,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaDaftarPendaftar,
+    })
+    const daftarKedua = await apiRequest<DaftarPendaftar>({
       method: 'GET',
       path: PATH_PENDAFTAR,
       headers: headerCookieDariMint(cookieCoo),
@@ -197,6 +226,27 @@ test.describe('[P0] GET /api/pendaftar — daftar calon untuk COO', () => {
       expect(typeof baris.profilLengkap).toBe('boolean')
       expect(Array.isArray(baris.sisaField)).toBe(true)
     }
+
+    await log.step('AND tie-breaker: pasangan created_at identik terurut sesuai id ASCENDING dan urutan relatifnya STABIL antar-GET')
+    const indeksEmail = (data: DaftarPendaftar['data'], email: string) => {
+      const indeks = data.findIndex(baris => baris.email === email)
+      expect(indeks).toBeGreaterThanOrEqual(0)
+      return indeks
+    }
+    const idTiePertama = body.data.find(baris => baris.email === emailTiePertama)?.id ?? ''
+    const idTieKedua = body.data.find(baris => baris.email === emailTieKedua)?.id ?? ''
+    expect(idTiePertama).not.toBe('')
+    expect(idTieKedua).not.toBe('')
+
+    const indeksTiePertama = indeksEmail(body.data, emailTiePertama)
+    const indeksTieKedua = indeksEmail(body.data, emailTieKedua)
+    // id lebih kecil wajib lebih dulu — asersi ini GAGAL bila tie-breaker
+    // `asc(owners.id)` dihapus (urutan created_at identik jadi arbitrer).
+    expect(indeksTiePertama < indeksTieKedua).toBe(idTiePertama < idTieKedua)
+
+    const indeksTiePertamaKedua = indeksEmail(daftarKedua.body.data, emailTiePertama)
+    const indeksTieKeduaKedua = indeksEmail(daftarKedua.body.data, emailTieKedua)
+    expect(indeksTiePertamaKedua < indeksTieKeduaKedua).toBe(idTiePertama < idTieKedua)
   })
 })
 
@@ -293,6 +343,92 @@ test.describe('[P0] POST /api/pendaftar/keputusan — verifikasi', () => {
     )
     expect(adaAuditVerifikasi).toBe(false)
   })
+
+  test('[P0] TOCTOU: profil dikosongkan pasca-seed → verifikasi 400 PROFILE_INCOMPLETE + baris tetap diajukan (rollback total)', async ({ apiRequest }) => {
+    // Matriks I/O #1 hardening: PUT /api/profile kini mengizinkan simpan
+    // parsial, sehingga calon lengkap bisa mengosongkan field di antara
+    // baca dan CAS COO. Gerbang kelengkapan dievaluasi atas baris PASCA-CAS
+    // dalam tx — gagal = throw sentinel → ROLLBACK total: status tetap
+    // `diajukan`, TANPA audit (fake tx unit tidak mengamati rollback DB
+    // nyata — pin integrasi ini di sini).
+    await log.step('GIVEN calon diajukan berprofil LENGKAP (seed) + sesi COO')
+    const { email: emailCalon, cookies: cookieCalonAsli } = await seedCalonLengkap(apiRequest)
+    // COO dengan EMAIL UNIK (preset 'coo' tetap: terverifikasi + tenure
+    // aktif): baris COO tetap bersama (`uji.snddash.e2e.coo@…`) dapat
+    // dihapus cleanup worker browser-project lain di tengah test (flake
+    // DB-dev bersama — kewenangan 403 / redirect-login 200 sesaat); email
+    // unik hanya terdaftar di Set worker ini sehingga tidak mungkin
+    // di-yank selama test berjalan.
+    const cookieCoo = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'coo',
+      email: emailSintetisUji(),
+    })
+    const daftar = await apiRequest<DaftarPendaftar>({
+      method: 'GET',
+      path: PATH_PENDAFTAR,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaDaftarPendaftar,
+    })
+    const target = daftar.body.data.find(baris => baris.email === emailCalon)
+    expect(target).toBeDefined()
+    expect(target?.profilLengkap).toBe(true)
+
+    await log.step('WHEN calon mengosongkan profilnya sendiri via PUT /api/profile (simpan parsial — body minimal; field tak dikirim ikut dikosongkan) — SESI ASLI calon, bukan re-mint')
+    const kosongkan = await apiRequest<{ profileComplete: boolean, remainingFields: string[] }>({
+      method: 'PUT',
+      path: '/api/profile',
+      body: { fullName: '', accountNumber: '' },
+      headers: headerCookieDariMint(cookieCalonAsli),
+    })
+    expect(kosongkan.status).toBe(200)
+    expect(kosongkan.body.profileComplete).toBe(false)
+    expect(kosongkan.body.remainingFields).toContain('fullName')
+    expect(kosongkan.body.remainingFields).toContain('accountNumber')
+
+    await log.step('WHEN COO memverifikasi calon yang kini KOSONG (CAS menang atas status, gerbang kelengkapan pasca-CAS yang menolak)')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'POST',
+      path: PATH_KEPUTUSAN,
+      body: { id: target?.id, keputusan: 'terverifikasi' },
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaEnvelopeError,
+    })
+
+    await log.step('THEN 400 PROFILE_INCOMPLETE — details.sisaField memuat field yang dikosongkan')
+    expect(status).toBe(STATUS_BAD_REQUEST)
+    expect(body.code).toBe('PROFILE_INCOMPLETE')
+    const sisaField = (body.details as { sisaField?: unknown }).sisaField
+    expect(Array.isArray(sisaField)).toBe(true)
+    expect(sisaField as string[]).toContain('fullName')
+    expect(sisaField as string[]).toContain('accountNumber')
+
+    await log.step('AND INTI PIN ROLLBACK: calon MASIH terdaftar `diajukan` dengan profilLengkap=false — bukti rollback total pasca-CAS (tidak ada partial-commit)')
+    const daftarPasca = await apiRequest<DaftarPendaftar>({
+      method: 'GET',
+      path: PATH_PENDAFTAR,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaDaftarPendaftar,
+    })
+    const barisPasca = daftarPasca.body.data.find(baris => baris.email === emailCalon)
+    expect(barisPasca).toBeDefined()
+    expect(barisPasca?.profilLengkap).toBe(false)
+
+    await log.step('AND TANPA entry audit pendaftaran-verifikasi untuk owners:<id> (baca lintas-halaman — audit tidak ikut commit)')
+    // Satu retry saat helper lempar: bacaan audit self-mint baris COO tetap
+    // yang bisa di-yank worker lain di tengah baca (302 → login) — mint
+    // ulang internal percobaan kedua memperbaiki barisnya (flake dikenal,
+    // bukan sinyal produk).
+    let auditPasca: Awaited<ReturnType<typeof bacaAuditSemuaHalaman>>
+    try {
+      auditPasca = await bacaAuditSemuaHalaman(apiRequest)
+    } catch {
+      auditPasca = await bacaAuditSemuaHalaman(apiRequest)
+    }
+    const adaAuditVerifikasi = auditPasca.some(
+      e => e.action === 'pendaftaran-verifikasi' && e.target === `owners:${target?.id}`,
+    )
+    expect(adaAuditVerifikasi).toBe(false)
+  })
 })
 
 test.describe('[P0] POST /api/pendaftar/keputusan — penolakan', () => {
@@ -344,6 +480,45 @@ test.describe('[P0] POST /api/pendaftar/keputusan — penolakan', () => {
       e => e.action === 'pendaftaran-penolakan' && e.target === `owners:${target?.id}`,
     )
     expect(adaAuditPenolakan).toBe(false)
+  })
+
+  test('[P0] tolak calon BELUM lengkap (profil kosong) → 200 ditolak + audit pendaftaran-penolakan (asimetri gerbang — hanya verifikasi digerbangi)', async ({ apiRequest }) => {
+    await log.step('GIVEN calon diajukan TANPA mengisi Profil (mint saja — tanpa PUT /api/profile)')
+    const emailCalon = emailSintetisUji()
+    await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'calon-diajukan',
+      email: emailCalon,
+    })
+    const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    const daftar = await apiRequest<DaftarPendaftar>({
+      method: 'GET',
+      path: PATH_PENDAFTAR,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaDaftarPendaftar,
+    })
+    const target = daftar.body.data.find(baris => baris.email === emailCalon)
+    expect(target).toBeDefined()
+    expect(target?.profilLengkap).toBe(false)
+
+    await log.step('WHEN COO menolak calon belum lengkap dengan alasan')
+    const alasanCoo = `Profil tidak pernah dilengkapi (${faker.string.alphanumeric(4)}).`
+    const { status, body } = await apiRequest<KeputusanSukses>({
+      method: 'POST',
+      path: PATH_KEPUTUSAN,
+      body: { id: target?.id, keputusan: 'ditolak', alasan: alasanCoo },
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaKeputusanSukses,
+    })
+
+    await log.step('THEN 200 ditolak — penolakan TIDAK digerbangi kelengkapan (asimetri ter-pin)')
+    expect(status).toBe(STATUS_OK)
+    expect(body.status).toBe('ditolak')
+
+    await log.step('AND entry audit pendaftaran-penolakan tercatat dengan details.alasan')
+    const audit = await bacaAuditSemuaHalaman(apiRequest)
+    const entry = audit.find(e => e.action === 'pendaftaran-penolakan' && e.target === `owners:${target?.id}`)
+    expect(entry).toBeDefined()
+    expect(entry?.details.alasan).toBe(alasanCoo)
   })
 
   test('[P0] tolak dengan alasan → 200 ditolak + alasan tersimpan apa adanya + audit pendaftaran-penolakan (alasan + hitunganPenolakan)', async ({ apiRequest }) => {
@@ -453,6 +628,27 @@ test.describe('[P0] POST /api/pendaftar/keputusan — id tak dikenal & race CAS 
     expect(entries).toHaveLength(1)
   })
 
+  test('[P1] superRefine: alasan pada keputusan terverifikasi → 400 BAD_REQUEST dengan issue pada alasan (tidak sampai service)', async ({ apiRequest }) => {
+    await log.step('GIVEN sesi COO dan id uuid valid')
+    const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+
+    await log.step('WHEN POST { keputusan: "terverifikasi", alasan: "..." } — alasan diposkan bersama verifikasi')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'POST',
+      path: PATH_KEPUTUSAN,
+      body: { id: faker.string.uuid(), keputusan: 'terverifikasi', alasan: 'alasan tidak relevan' },
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaEnvelopeError,
+    })
+
+    await log.step('THEN 400 BAD_REQUEST — superRefine menolak (issue path alasan), service tidak pernah dijalankan')
+    expect(status).toBe(STATUS_BAD_REQUEST)
+    expect(body.code).toBe('BAD_REQUEST')
+    const masalah = (body.details as { masalah?: unknown }).masalah
+    expect(Array.isArray(masalah)).toBe(true)
+    expect((masalah as string[]).some(teks => teks.toLowerCase().includes('alasan'))).toBe(true)
+  })
+
   test('[P1] body tidak valid (id bukan uuid / keputusan asing / alasan terlalu panjang) → 400 BAD_REQUEST envelope', async ({ apiRequest }) => {
     await log.step('GIVEN sesi COO')
     const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -497,11 +693,19 @@ test.describe('[P1] CHECK constraint DB — penolakan wajib beralasan (jalur DB 
   // sudah di-migrate (pola admin-client pendaftar-reset.ts). Tulisan invalid
   // tidak pernah commit — tidak perlu cleanup.
   test('[P1] INSERT `ditolak` tanpa alasan (NULL) dan alasan blank → keduanya gagal 23514', async () => {
+    const hasil = await cobaTulisDitolakTanpaAlasan()
+
+    // Honest-skip (hardening adv#10+edge#4): host DB uji non-lokal TIDAK
+    // me-throw — helper mengembalikan alasan, test dilewati secara jujur.
+    if (!hasil.ok) {
+      test.skip(true, hasil.alasan)
+      return
+    }
+
     await log.step('GIVEN DB lokal dengan migrasi CHECK constraint ter-apply')
-    const { kodeAlasanNull, kodeAlasanBlank } = await cobaTulisDitolakTanpaAlasan()
 
     await log.step('THEN INSERT ditolak dengan rejection_reason NULL maupun blank sama-sama ditolak constraint (23514)')
-    expect(kodeAlasanNull).toBe('23514')
-    expect(kodeAlasanBlank).toBe('23514')
+    expect(hasil.kodeAlasanNull).toBe('23514')
+    expect(hasil.kodeAlasanBlank).toBe('23514')
   })
 })

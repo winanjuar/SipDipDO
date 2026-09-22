@@ -23,6 +23,7 @@ export {
   KUNCI_COOKIE_INFO_TRANSPARANSI,
   layakPilihanReferral,
   MAKS_ITEM_NAV_MOBILE,
+  PANJANG_MAKS_ALASAN_PENOLAKAN,
   PERMUKAAN_PERAN,
   permukaanDibolehkan,
   PESAN_TRANSPARANSI,
@@ -53,7 +54,6 @@ export {
 export type { BarisCalonJob, HasilDaftarOwner, OwnerRecord, ReferralOwner } from './owner.repo'
 export {
   KEPUTUSAN_COO,
-  PANJANG_MAKS_ALASAN_PENOLAKAN,
   REGISTRATION_EXPIRY_DAYS,
   REGISTRATION_REMINDER_DAYS_BEFORE,
   ajukanPendaftaran,
