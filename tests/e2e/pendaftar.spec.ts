@@ -200,11 +200,14 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
   })
 
   test('[P0] non-COO membuka /pendaftar URL langsung → dialihkan ke landing role-nya', async ({ page, context, apiRequest }) => {
-    await log.step('GIVEN sesi calon owner (non-COO) terinjeksikan')
-    await context.addCookies(await mintSesiPemilik(apiRequest, {
-      userIdentifier: 'calon-diajukan',
-      email: emailSintetisUji(),
-    }))
+    // Calon DI-SEED berprofil LENGKAP: sejak /pendaftar terdaftar di registry
+    // (keputusan owner 2026-09-22), middleware gerbang calon 1.5 dievaluasi
+    // dulu — calon diajukan BELUM lengkap akan dialihkan ke
+    // /profile-completeness, sedangkan calon lengkap diteruskan ke landing
+    // calonnya /registration-status (pin perilaku redirect di sini).
+    await log.step('GIVEN sesi calon owner (non-COO, profil lengkap) terinjeksikan')
+    const { cookies } = await seedCalonLengkap(apiRequest)
+    await context.addCookies(cookies)
 
     await log.step('WHEN membuka /pendaftar secara langsung')
     await page.goto('/pendaftar')

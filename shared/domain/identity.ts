@@ -157,7 +157,7 @@ export function layakPilihanReferral(snapshot: OwnerAccessSnapshot): boolean {
  * middleware (data-driven; satu sumber kebenaran keterbukaan).
  * ------------------------------------------------------------------ */
 
-/** Prasyarat permukaan khusus COO (Antrian Beli, Audit Trail). */
+/** Prasyarat permukaan khusus COO (Antrian Beli, Audit Trail, Pendaftar). */
 export const PRASYARAT_COO = 'coo' as const
 /** Prasyarat permukaan yang terbuka bila `aksesPenuh` — atau role di atasnya. */
 export const PRASYARAT_AKSES_PENUH = 'akses-penuh-atau-lebih' as const
@@ -187,11 +187,15 @@ export type PrasyaratPermukaan
  * selalu lolos (role lebih tinggi). `/mom` mengikuti matriks §4.8 — MoM
  * terkunci bagi tanpa_saham belum-pernah-beli, terbuka otomatis pasca
  * Pembelian Pertama (keputusan owner 2026-09-22, Story 2.1b).
+ * `/pendaftar` = COO saja — permukaan verifikasi Story 1.6 terdaftar di
+ * registry agar digerbangi di batas server (keputusan owner 2026-09-22;
+ * review adv#2/adv#3).
  */
 export const PERMUKAAN_PERAN: Readonly<Record<string, PrasyaratPermukaan>> = {
   '/dashboard': PRASYARAT_AKSES_PENUH,
   '/order-queue': PRASYARAT_COO,
   '/audit-trail': PRASYARAT_COO,
+  '/pendaftar': PRASYARAT_COO,
   '/personal': PRASYARAT_OWNER,
   '/mom': PRASYARAT_AKSES_PENUH,
   '/mom/baru': PRASYARAT_COO,
@@ -260,13 +264,16 @@ export const KATALOG_ITEM_NAVIGASI = {
   auditTrail: { label: 'Audit', path: '/audit-trail' },
   personal: { label: 'Personal', path: '/personal' },
   mom: { label: 'MoM', path: '/mom' },
+  pendaftar: { label: 'Pendaftar', path: '/pendaftar' },
 } as const satisfies Readonly<Record<string, ItemNavigasi>>
 
 /**
  * Item navigasi untuk role — MURNI, registry-driven (UX-DR14):
- * - `coo` = Dashboard, Personal, MoM, Order, Audit (urutan keputusan owner
+ * - `coo` = Dashboard, Personal, MoM, Order, Pendaftar, Audit (urutan keputusan owner
  *   2026-09-21; MoM disisip setelah Personal sebelum Order — keputusan owner
- *   2026-09-22, Story 2.1b; 5 item → Sheet "Lainnya" mobile berisi Audit).
+ *   2026-09-22, Story 2.1b; Pendaftar disisip setelah Order, Audit tetap
+ *   terakhir — keputusan owner 2026-09-22; 6 item → Sheet "Lainnya" mobile
+ *   berisi Pendaftar, Audit).
  * - `pemegang_saham` = Dashboard, Personal, MoM (IA #14 — nav pemegang saham).
  * - `tanpa_saham` = Halaman Personal (+ Dashboard + MoM bila `sudahAksesPenuh`
  *   — matriks §4.8 terbuka otomatis pasca Pembelian Pertama, keputusan owner
@@ -284,6 +291,7 @@ export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly Ite
         KATALOG_ITEM_NAVIGASI.personal,
         KATALOG_ITEM_NAVIGASI.mom,
         KATALOG_ITEM_NAVIGASI.orderQueue,
+        KATALOG_ITEM_NAVIGASI.pendaftar,
         KATALOG_ITEM_NAVIGASI.auditTrail,
       ]
     case 'pemegang_saham':

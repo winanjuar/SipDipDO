@@ -7,17 +7,22 @@ import { formatWaktuAudit } from '~/lib/audit'
 
 /**
  * Pendaftar — khusus COO (Story 1.6, AD-8): daftar calon `diajukan` (urut
- * `created_at` terlama dulu) + aksi verifikasi/tolak per baris. TANPA
- * navigasi/menu baru (Story 1.7) — halaman dijangkau URL langsung. Non-COO
- * membuka URL langsung → kembali ke landing role-nya (pola audit-trail.vue);
- * penegakan kewenangan di server (/api/pendaftar*) — UI hanya lapisan
- * pertama (AD-8): tombol Verifikasi aktif hanya untuk baris `profilLengkap`
- * (UJ-6) dan server menegakkan gerbang yang sama (400 PROFILE_INCOMPLETE).
+ * `created_at` terlama dulu) + aksi verifikasi/tolak per baris. Permukaan
+ * ber-nav (layout `app`) — item Pendaftar tampil via registry nav COO
+ * (keputusan owner 2026-09-22; review adv#2/adv#3). Non-COO membuka URL
+ * langsung digerbangi middleware (registry PRASYARAT_COO) — calon lewat
+ * gerbang calon 1.5 dulu (diajukan belum-lengkap → /profile-completeness;
+ * lengkap → /registration-status), non-calon non-COO → landing role-nya
+ * (pemegang_saham → /dashboard; tanpa_saham belum-beli → jalur transparansi
+ * /personal); penegakan kewenangan di server (/api/pendaftar*) — UI hanya
+ * lapisan pertama (AD-8): tombol Verifikasi aktif hanya untuk baris
+ * `profilLengkap` (UJ-6) dan server menegakkan gerbang yang sama (400
+ * PROFILE_INCOMPLETE).
  * Penolakan wajib alasan via Dialog + textarea (UX-DR20); 409
  * STATUS_BERUBAH → pesan + muat ulang daftar (angka basi tidak pernah tampil
  * diam-diam).
  */
-definePageMeta({ auth: true })
+definePageMeta({ auth: true, layout: 'app' })
 
 /** Baris wire GET /api/pendaftar (kontrak server/domain/identity). */
 interface CalonPendaftar {
