@@ -24,20 +24,34 @@
  * Simpan Profil (Story 1.5, CAP-1): `simpanProfil` membuka SATU transaksi —
  * UPDATE kolom profil + audit `profil-kelengkapan` (bila ada nilai berubah).
  * Email pendaftar ditentukan pemanggil dari sesi Google.
+ *
+ * Keputusan COO (Story 1.6): `keputusanCalon` menjalankan SATU transaksi —
+ * otoritas COO (`findActiveCooTenure` in-tx) → baca calon + gerbang
+ * kelengkapan (`profilLengkap`) → CAS `UPDATE ... WHERE status='diajukan'
+ * RETURNING` → hitung penolakan (bila menolak, via API publik modul audit)
+ * → `writeAuditEntry` in-tx (AD-3). CAS nol baris = kalah race → 409 di
+ * lapis handler, BUKAN error — kontrak "hanya satu penulis yang berhasil"
+ * (AD-11). `daftarCalonVerifikasi` menyusun wire daftar kandidat COO.
  */
 import { addCalendarDays, isDayOnOrBefore, jakartaDayKey, type DayKey } from '#shared/domain/calendar'
-import { profilLengkap, type ProfilValues } from '#shared/domain/profil'
-import { writeAuditEntry } from '../audit/index'
+import { profilLengkap, sisaFieldKosong, type KunciFieldProfil, type ProfilValues } from '#shared/domain/profil'
+import type { OwnerStatus } from '#shared/domain/identity'
+import { hitungEntryAksi, writeAuditEntry } from '../audit/index'
 import { adaOutboxEmail, enqueueEmail, OUTBOX_KIND_NOTIFIKASI } from '../proofs/index'
 import type { Db } from '../../utils/db'
 import type { HasilDaftarOwner, OwnerRecord } from './owner.repo'
 import {
   aktifkanKembaliCalon,
   daftarOwnerByEmail,
+  findActiveCooTenure,
   findOwnerByEmail,
+  findOwnerById,
   kedaluwarsakanCalon,
   listCalonDiajukan,
+  listCalonVerifikasi,
   simpanProfilCalon,
+  tolakCalon,
+  verifikasiCalon,
 } from './owner.repo'
 
 /** Batas kalender pendaftaran (FR-22): hari ke-7 sejak submit, zona Asia/Jakarta. */
@@ -208,5 +222,147 @@ export async function simpanProfil(input: { email: string, nilai: ProfilValues }
       })
     }
     return sesudah
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * Keputusan COO (Story 1.6) — verifikasi & penolakan pendaftar.
+ * ------------------------------------------------------------------ */
+
+/** Keputusan yang dapat diambil COO atas calon `diajukan`. */
+export const KEPUTUSAN_COO = ['terverifikasi', 'ditolak'] as const
+export type KeputusanCoo = (typeof KEPUTUSAN_COO)[number]
+
+/**
+ * Batas panjang alasan penolakan COO (Story 1.6) — satu sumber validasi
+ * handler (zod `.max`); kolom text + audit details jsonb tidak dimaksudkan
+ * menelan payload tanpa batas.
+ */
+export const PANJANG_MAKS_ALASAN_PENOLAKAN = 500
+
+/** Satu baris kandidat verifikasi untuk COO (wire GET /api/pendaftar). */
+export interface BarisCalonVerifikasi {
+  id: string
+  email: string
+  /** Nama Lengkap (field #1); '' bila belum diisi. */
+  nama: string
+  createdAt: string
+  /** Kelengkapan Profile 10 field (prasyarat verifikasi) — `profilLengkap()`. */
+  profilLengkap: boolean
+  /** Field wajib yang masih kosong (kunci kontrak wire English). */
+  sisaField: KunciFieldProfil[]
+}
+
+/**
+ * Daftar kandidat `diajukan` untuk COO (Story 1.6): urut `created_at`
+ * terlama dulu; kelengkapan dievaluasi `profilLengkap()` dari baris yang
+ * sama (bukan kolom DB — kelengkapan bukan kolom, AD-8).
+ */
+export async function daftarCalonVerifikasi(db: Db): Promise<BarisCalonVerifikasi[]> {
+  const calon = await listCalonVerifikasi(db)
+  return calon.map((baris) => ({
+    id: baris.id,
+    email: baris.email,
+    nama: baris.fullName ?? '',
+    createdAt: baris.createdAt,
+    profilLengkap: profilLengkap(baris),
+    sisaField: sisaFieldKosong(baris),
+  }))
+}
+
+/**
+ * Kode akhir keputusan — peta 1:1 ke status HTTP di lapis handler:
+ * `sukses` 200; `tidak-ditemukan` 404; `kewenangan-berakhir` 403;
+ * `profil-belum-lengkap` / `alasan-wajib` 400; `status-berubah` 409
+ * (kalah race CAS — kontrak "hanya satu penulis berhasil", BUKAN error).
+ */
+export type AkhirKeputusanCalon =
+  | { akhir: 'sukses', id: string, email: string, status: OwnerStatus }
+  | { akhir: 'tidak-ditemukan' }
+  | { akhir: 'kewenangan-berakhir' }
+  | { akhir: 'profil-belum-lengkap', sisaField: KunciFieldProfil[] }
+  | { akhir: 'alasan-wajib' }
+  | { akhir: 'status-berubah' }
+
+/** Aksi audit penolakan — registry `shared/domain/audit.ts`. */
+const AKSI_AUDIT_PENOLAKAN = 'pendaftaran-penolakan' as const
+
+/** Aksi audit verifikasi — registry `shared/domain/audit.ts`. */
+const AKSI_AUDIT_VERIFIKASI = 'pendaftaran-verifikasi' as const
+
+/**
+ * Terima keputusan COO atas calon `diajukan` (Story 1.6) — SATU transaksi
+ * (pola `runRegistrationDailyJob`): otoritas COO dievaluasi in-tx
+ * (`findActiveCooTenure` — kewenangan pada saat commit, AD-8) → calon dibaca
+ * + gerbang kelengkapan (`profilLengkap=false` menolak verifikasi tanpa
+ * mutasi apa pun — AD-8: UI hanya lapisan pertama) → CAS
+ * `UPDATE ... WHERE status='diajukan' RETURNING` → hitung penolakan (bila
+ * menolak) → audit in-tx (AD-3), aktor user = COO, target `owners:<id>`.
+ *
+ * Penolakan: alasan wajib non-kosong setelah trim (divalidasi handler DAN
+ * di sini); `rejectionReason` tersimpan apa adanya;
+ * `details.hitunganPenolakan` = jumlah entry `pendaftaran-penolakan` untuk
+ * owner saat kejadian TERMASUK entry yang sedang ditulis (keputusan owner
+ * 2026-09-21 — audit saja, tanpa kolom tambahan).
+ */
+export async function keputusanCalon(
+  input: { emailCoo: string, id: string, keputusan: KeputusanCoo, alasan?: string },
+  db: Db,
+): Promise<AkhirKeputusanCalon> {
+  return db.transaction(async (tx) => {
+    // Alasan penolakan wajib (gate kedua setelah handler) — tanpa mutasi.
+    if (input.keputusan === 'ditolak' && (input.alasan ?? '').trim().length === 0) {
+      return { akhir: 'alasan-wajib' }
+    }
+
+    const now = new Date()
+    const coo = await findOwnerByEmail(tx, input.emailCoo)
+    if (!coo || !(await findActiveCooTenure(tx, coo.id, now))) {
+      return { akhir: 'kewenangan-berakhir' }
+    }
+
+    const calon = await findOwnerById(tx, input.id)
+    if (!calon) return { akhir: 'tidak-ditemukan' }
+
+    // Gerbang kelengkapan di server (AD-8): verifikasi hanya untuk Profil
+    // lengkap — TANPA mutasi status/audit.
+    if (input.keputusan === 'terverifikasi' && !profilLengkap(calon)) {
+      return { akhir: 'profil-belum-lengkap', sisaField: sisaFieldKosong(calon) }
+    }
+
+    // CAS — nol baris = kalah race (cron kedaluwarsa / keputusan COO lain
+    // lebih dulu) → `status-berubah` (409), tanpa audit baru (AD-11).
+    const cas = input.keputusan === 'terverifikasi'
+      ? await verifikasiCalon(tx, input.id)
+      : await tolakCalon(tx, input.id, input.alasan ?? '')
+    if (!cas) return { akhir: 'status-berubah' }
+
+    if (input.keputusan === 'ditolak') {
+      // Hitungan penolakan saat kejadian — termasuk entry yang sedang
+      // ditulis (masih belum ter-insert pada saat hitung): +1.
+      const hitunganSebelumnya = await hitungEntryAksi(tx, {
+        action: AKSI_AUDIT_PENOLAKAN,
+        target: `owners:${input.id}`,
+      })
+      await writeAuditEntry(tx, {
+        actor: { kind: 'user', ownerId: coo.id },
+        action: AKSI_AUDIT_PENOLAKAN,
+        target: `owners:${input.id}`,
+        details: {
+          email: calon.email,
+          alasan: input.alasan ?? '',
+          hitunganPenolakan: hitunganSebelumnya + 1,
+        },
+      })
+    } else {
+      await writeAuditEntry(tx, {
+        actor: { kind: 'user', ownerId: coo.id },
+        action: AKSI_AUDIT_VERIFIKASI,
+        target: `owners:${input.id}`,
+        details: { email: calon.email },
+      })
+    }
+
+    return { akhir: 'sukses', id: cas.id, email: cas.email, status: input.keputusan }
   })
 }

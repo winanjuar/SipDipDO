@@ -11,7 +11,7 @@
  * WIRE (kunci English `shared/domain/profil`): nilai bank tunggal
  * `bank_name` dipetakan dua arah via `namaBankKeTersimpan`/`namaBankKeWire`.
  */
-import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 import {
   cooTenures,
   ownerBankAccounts,
@@ -125,7 +125,7 @@ export async function findOwnerByEmail(db: DbClient, email: string): Promise<Own
 }
 
 /** Baca ulang owner berdasar id — jalur pasca-insert/update (bentuk wire). */
-async function findOwnerById(db: DbClient, id: string): Promise<OwnerRecord | null> {
+export async function findOwnerById(db: DbClient, id: string): Promise<OwnerRecord | null> {
   const rows = await queryOwner(db).where(eq(owners.id, id)).limit(1)
   return rows[0] ? barisKeOwnerRecord(rows[0]) : null
 }
@@ -305,6 +305,24 @@ export async function listCalonDiajukan(db: DbClient): Promise<BarisCalonJob[]> 
 }
 
 /**
+ * Kandidat verifikasi COO (Story 1.6): seluruh baris `diajukan` + kolom
+ * profil — urut `created_at` TERLAMA dulu (antrian verifikasi). Fungsi
+ * TERPISAH dari `listCalonDiajukan` milik cron (jendela waktu H-3/hari-7
+ * dievaluasi cron; daftar COO menyentuh semuanya). Gerbang kelengkapan
+ * (`profilLengkap`/`sisaField`) dievaluasi service dari baris yang sama.
+ */
+export async function listCalonVerifikasi(db: DbClient): Promise<BarisCalonJob[]> {
+  const rows = await db
+    .select({ ...PILIHAN_JOIN_OWNER, createdAt: owners.createdAt })
+    .from(owners)
+    .leftJoin(ownerEmergencyContacts, eq(ownerEmergencyContacts.ownerId, owners.id))
+    .leftJoin(ownerBankAccounts, eq(ownerBankAccounts.ownerId, owners.id))
+    .where(eq(owners.status, 'diajukan'))
+    .orderBy(asc(owners.createdAt))
+  return rows.map((r) => ({ ...barisKeOwnerRecord(r), createdAt: r.createdAt }))
+}
+
+/**
  * Simpan nilai Profil calon (Story 1.5, CAP-1; normalisasi owner
  * 2026-09-18) — SATU tx pemanggil berisi: UPDATE kolom profil owner sendiri
  * (guard CAS `status = 'diajukan'`, RETURNING id — kalah race = throw) +
@@ -387,6 +405,39 @@ export async function kedaluwarsakanCalon(db: DbClient, id: string): Promise<{ i
   const rows = await db
     .update(owners)
     .set({ status: 'kedaluwarsa', updatedAt: new Date().toISOString() })
+    .where(and(eq(owners.id, id), eq(owners.status, 'diajukan')))
+    .returning({ id: owners.id, email: owners.email })
+  return rows[0] ?? null
+}
+
+/**
+ * CAS verifikasi COO (Story 1.6, AD-11): `diajukan → terverifikasi` HANYA
+ * bila status masih `diajukan` — satu penulis menang atas cron kedaluwarsa /
+ * keputusan COO lain (race dijaga guard yang sama, pola
+ * `kedaluwarsakanCalon`). Null = kalah race (409 di lapis handler).
+ * `firstEffectiveAt` TIDAK disentuh (milik efektivitas Pembelian Pertama,
+ * Epic 3).
+ */
+export async function verifikasiCalon(db: DbClient, id: string): Promise<{ id: string, email: string } | null> {
+  const rows = await db
+    .update(owners)
+    .set({ status: 'terverifikasi', updatedAt: new Date().toISOString() })
+    .where(and(eq(owners.id, id), eq(owners.status, 'diajukan')))
+    .returning({ id: owners.id, email: owners.email })
+  return rows[0] ?? null
+}
+
+/**
+ * CAS penolakan COO (Story 1.6, AD-11): `diajukan → ditolak` + kolom
+ * `rejection_reason` TERSIMPAN APA ADANYA (tanpa transformasi teks alasan
+ * COO), HANYA bila status masih `diajukan`. CHECK constraint
+ * `owners_ditolak_wajib_rejection_reason` menegakkan alasan non-kosong di
+ * level DB (validasi handler/service lebih dulu). Null = kalah race.
+ */
+export async function tolakCalon(db: DbClient, id: string, alasan: string): Promise<{ id: string, email: string } | null> {
+  const rows = await db
+    .update(owners)
+    .set({ status: 'ditolak', rejectionReason: alasan, updatedAt: new Date().toISOString() })
     .where(and(eq(owners.id, id), eq(owners.status, 'diajukan')))
     .returning({ id: owners.id, email: owners.email })
   return rows[0] ?? null

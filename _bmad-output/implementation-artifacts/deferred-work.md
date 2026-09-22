@@ -48,6 +48,12 @@
   summary: Penyesuaian lanjutan alert sukses (masuk/daftar) — tampilan/posisi/durasi masih perlu dipoles oleh owner.
   evidence: Owner 2026-09-18 — "secara fungsi sudah jalan, untuk alert masih harus disesuaikan lagi nanti" (pola saat ini: Alert shadcn varian success di atas halaman, auto-hide 3 detik).
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-verifikasi-penolakan-pendaftar-oleh-coo.md`
+  summary: Endpoint baru `/api/pendaftar` (GET + POST keputusan) mengikuti konvensi sibling tanpa catch-all — throw infrastruktur menghasilkan 500 mentah, bukan envelope seragam.
+  evidence: Review 1.6 (edge-case-hunter, verdict medium): pola identik audit/register/profile (tanpa catch-all); hardening envelope 500 lintas endpoint sudah entri deferred-work spec-1-4 — entri ini mencakup dua endpoint baru 1.6 ke permukaan yang sama; perbaikannya lintas endpoint, bukan satu story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-verifikasi-penolakan-pendaftar-oleh-coo.md`
+  summary: Dokumen konteks `epic-1-context.md` menulis "Profile: 11 field" tetapi mengenumerasi 10 item (Gmail = email login, tidak masuk form 10 field) — drift label vs enumerasi.
+  evidence: Review 1.6 (blind-hunter, verdict low): jumlah 11 berasal dari Lampiran A PRD (termasuk Gmail), form menyimpan 10 (spec-1-5); perbaikannya mengedit artefak agent-context hasil kompilasi (`epic-1-context.md`, header "Edit freely / Regenerate with compile-epic-context") — bukan kode story.
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-mom-mro-rups-tulis-langsung.md`
   summary: API-level authorization tests untuk MoM routes (401/403 scenarios)
   evidence: Project-wide pattern — tidak ada API auth tests untuk fitur lain juga; perlu konsistensi approach sebelum menambah
