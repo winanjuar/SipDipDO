@@ -28,6 +28,17 @@
 # - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
+# - Story 1.6 DIDELEGASIKAN ke tim lain (keputusan owner 2026-09-21) — dikerjakan
+#   DI LUAR repo/sprint ini; status tetap 'backlog' di sini. Kontrak pembagian
+#   (disepakati 2026-09-21):
+#     * Story 1.7 (repo ini) MEMILIKI: predikat akses kanonik identity
+#       (aksesPenuh/perluReferral/layakPilihanReferral), middleware gating,
+#       navigasi role-based, Halaman Personal.
+#     * Tim 1.6 MEMILIKI: alur verifikasi/penolakan pendaftar oleh COO (UI +
+#       CAS write path `diajukan → terverifikasi`/`ditolak` + audit in-tx) dan
+#       migrasi CHECK constraint `ditolak → rejection_reason` (lihat
+#       deferred-work.md, entri spec-1-2). Race vs cron kedaluwarsa memakai
+#       pola CAS yang sama dengan `kedaluwarsakanCalon` (spec 1.5).
 generated: 09-16-2026 07:26
 last_updated: 2026-09-22
 project: snd-dash
@@ -42,13 +53,13 @@ development_status:
   1-4-pendaftaran-owner-mandiri-status: review
   1-5-kelengkapan-profile-11-field: review
   1-6-verifikasi-penolakan-pendaftar-oleh-coo: review
-  1-7-role-matriks-keterbukaan-navigasi: backlog
+  1-7-role-matriks-keterbukaan-navigasi: review
   1-8-manajemen-owner-oleh-coo: backlog
   1-9-pergantian-coo: backlog
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-mom-mro-rups-tulis-langsung: backlog
+  epic-2: in-progress
+  2-1-mom-mro-rups-tulis-langsung: review
   2-2-upload-pdf-mom-preview-web: backlog
   2-3-cms-harga-saham-berjalan-riwayat: backlog
   2-4-struktur-rkap-fase-capital-item: backlog

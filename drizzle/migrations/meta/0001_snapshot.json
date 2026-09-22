@@ -1,5 +1,5 @@
 {
-  "id": "d5980172-b7c8-49da-ac09-1576a71e22ea",
+  "id": "fdde5720-3399-49d0-8b40-fb1a10b15dc6",
   "prevId": "5edf0e23-2836-4125-8ad9-fa9a4b6ae369",
   "version": "7",
   "dialect": "postgresql",
@@ -155,6 +155,109 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.moms": {
+      "name": "moms",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "held_at": {
+          "name": "held_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "mom_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "content_text": {
+          "name": "content_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pdf_path": {
+          "name": "pdf_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finalized_at": {
+          "name": "finalized_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moms_held_at_idx": {
+          "name": "moms_held_at_idx",
+          "columns": [
+            {
+              "expression": "held_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moms_status_idx": {
+          "name": "moms_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -465,16 +568,19 @@
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "owners_ditolak_wajib_rejection_reason": {
-          "name": "owners_ditolak_wajib_rejection_reason",
-          "value": "(\"owners\".\"status\" <> 'ditolak' OR (\"owners\".\"rejection_reason\" IS NOT NULL AND btrim(\"owners\".\"rejection_reason\") <> ''))"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
   "enums": {
+    "public.mom_status": {
+      "name": "mom_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "final"
+      ]
+    },
     "public.owner_status": {
       "name": "owner_status",
       "schema": "public",

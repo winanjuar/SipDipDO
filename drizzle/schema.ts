@@ -13,6 +13,7 @@
 import { sql } from 'drizzle-orm'
 import { check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { OWNER_STATUSES } from '../shared/domain/identity'
+import { MOM_STATUSES } from '../shared/domain/mom'
 
 /**
  * PROOFS — outbox email (AD-5, AR-6): baris ditulis DI DALAM transaksi aksi
@@ -196,3 +197,46 @@ export const auditLogs = pgTable(
 
 export type AuditLogRow = typeof auditLogs.$inferSelect
 export type NewAuditLogRow = typeof auditLogs.$inferInsert
+
+
+/**
+ * Enum status MoM — dipinkan FR-7/Story 2.1 (himpunan tertutup).
+ * `draft` dapat diedit/dihapus; `final` imutabel.
+ */
+export const momStatus = pgEnum('mom_status', MOM_STATUSES)
+
+/**
+ * PRICING — moms (AD-5/FR-7): notulen MRO/RUPS. Status `draft` dapat
+ * diedit/dihapus; `final` imutabel. Tanggal `held_at` WAJIB (FR-7: "MoM
+ * tersimpan dengan tanggal"). Modus tulis langsung = `content_text` terisi,
+ * `pdf_path` NULL (Story 2.1); upload PDF = `pdf_path` terisi (Story 2.2).
+ *
+ * Hanya modul PRICING yang MENULIS tabel ini (AD-5); modul lain membaca
+ * lewat API publik `server/domain/pricing/index.ts`. Entry audit ditulis
+ * dalam transaksi yang sama dengan aksinya (AD-3).
+ */
+export const moms = pgTable(
+  'moms',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    title: text('title').notNull(),
+    /** Tanggal meeting diadakan — WAJIB; timestamptz UTC, zona Jakarta saat tampil. */
+    heldAt: timestamp('held_at', { withTimezone: true, mode: 'string' }).notNull(),
+    status: momStatus('status').notNull().default('draft'),
+    /** Konten teks modus tulis langsung; NULL bila upload PDF (Story 2.2). */
+    contentText: text('content_text'),
+    /** Path PDF di storage; NULL untuk modus tulis langsung (Story 2.1). */
+    pdfPath: text('pdf_path'),
+    /** Waktu finalisasi; di-set saat status berubah draft → final. */
+    finalizedAt: timestamp('finalized_at', { withTimezone: true, mode: 'string' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('moms_held_at_idx').on(t.heldAt),
+    index('moms_status_idx').on(t.status),
+  ],
+)
+
+export type Mom = typeof moms.$inferSelect
+export type NewMom = typeof moms.$inferInsert

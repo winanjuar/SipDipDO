@@ -151,9 +151,9 @@ test.describe('[P1] API /api/landing dengan sesi COO', () => {
       validateSchema: SkemaLanding,
     })
 
-    await log.step('THEN 200 dengan peta landing coo → /antrian-beli')
+    await log.step('THEN 200 dengan peta landing coo → /order-queue')
     expect(status).toBe(200)
-    expect(body).toEqual({ path: '/antrian-beli', role: 'coo' })
+    expect(body).toEqual({ path: '/order-queue', role: 'coo' })
   })
 })
 

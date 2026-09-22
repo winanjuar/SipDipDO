@@ -110,7 +110,7 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await expect(baris).toHaveCount(0)
     await expect(page.getByRole('alert')).toContainText('Pendaftar diverifikasi.')
 
-    await log.step('AND server-truth: login berikutnya calon → landing /personal (bukan status-pendaftaran)')
+    await log.step('AND server-truth: login berikutnya calon → landing /personal (bukan registration-status)')
     const landing = await apiRequest<{ path: string, role: string }>({
       method: 'GET',
       path: '/api/landing',
@@ -209,8 +209,8 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await log.step('WHEN membuka /pendaftar secara langsung')
     await page.goto('/pendaftar')
 
-    await log.step('THEN dialihkan ke landing role-nya /status-pendaftaran')
-    await expect(page).toHaveURL(/\/status-pendaftaran$/)
+    await log.step('THEN dialihkan ke landing role-nya /registration-status')
+    await expect(page).toHaveURL(/\/registration-status$/)
     await expect(page.getByTestId(TEST_IDS.pendaftar.halaman)).toHaveCount(0)
   })
 

@@ -54,3 +54,26 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-verifikasi-penolakan-pendaftar-oleh-coo.md`
   summary: Dokumen konteks `epic-1-context.md` menulis "Profile: 11 field" tetapi mengenumerasi 10 item (Gmail = email login, tidak masuk form 10 field) — drift label vs enumerasi.
   evidence: Review 1.6 (blind-hunter, verdict low): jumlah 11 berasal dari Lampiran A PRD (termasuk Gmail), form menyimpan 10 (spec-1-5); perbaikannya mengedit artefak agent-context hasil kompilasi (`epic-1-context.md`, header "Edit freely / Regenerate with compile-epic-context") — bukan kode story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-mom-mro-rups-tulis-langsung.md`
+  summary: API-level authorization tests untuk MoM routes (401/403 scenarios)
+  evidence: Project-wide pattern — tidak ada API auth tests untuk fitur lain juga; perlu konsistensi approach sebelum menambah
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-role-matriks-keterbukaan-navigasi.md`
+  summary: Flake full-parallel E2E — writer audit lintas-worker (register/profil/personal seeding) menulis `audit_logs` tanpa `pg_advisory_lock`, mengganggu test stateful audit (audit.api/audit-trail) yang menggenggam lock `denganAuditKosong`.
+  evidence: Direproduksi 2026-09-21 — full-parallel (workers default) = 4–7 gagal acak di audit.api/audit-trail (+1 kelengkapan/register sekali lewat); test yang sama hijau 38/38 saat `--workers=2` dan hijau terisolasi; sudah muncul di run pra-rename (17 gagal) sehingga bukan sebab perubahan Story 1.7. Fix kandidat: semua jalur uji yang menulis audit wajib genggam `KUNCI_ADVISORY_RESET_AUDIT`, atau seed audit per-worker, atau pin workers=2 lokal (CI sudah 2).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-role-matriks-keterbukaan-navigasi.md`
+  summary: Flake test "alur Bank Lainnya" (kelengkapan-profil.spec) — fase simpan ganda (PUT parsial → PUT lengkap) sesekali tidak memicu PUT ke-2 / indikator tidak berubah, 50/50 pada kondisi identik.
+  evidence: Direproduksi 2026-09-21 — 2 run identik: 1 passed lalu 1 failed (RecurseTimeout "Menunggu profil lengkap"); sudah gagal juga di run paralel pra-perubahan (ValidationError era). Race dobel-PUT sudah dikenal (komentar test, race 2026-09-19). Fix kandidat: klik simpan via recurse yang menunggu tombol disabled→enabled per fase, atau count PUT per-fase seperti pattern jumlahPut.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-integrasi-navigasi-mom.md`
+  summary: Penanganan tanggal MoM belum lewat helper kalender `shared/domain` (AD-9) — form concat `+ 'T12:00:00+07:00'` dan ekstraksi `split('T')[0]` di mom pages.
+  evidence: Pola pra-eksisting Story 2.1 (sudah diadjudikasi review 2.1 sebagai patch timezone); blind-hunter 2.1b menandai ulang. Rapikan bersama helper kalender bila kontrak AD-9 diperketat ke UI form.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-integrasi-navigasi-mom.md`
+  summary: Polish UX halaman MoM — alert sukses finalize tidak auto-clear (beda dengan simpan), `confirm()` native untuk aksi destruktif (inkonsisten pola modal app, sulit di-test Playwright), retry link `<a href>` full reload (bukan NuxtLink), dan `?page=` di luar jangkauan menampilkan empty state menyesatkan tanpa jalan kembali.
+  evidence: Semua pra-eksisting Story 2.1, tidak disebabkan perubahan 2.1b; blind-hunter 2.1b menandai. Satu paket polish MoM berikutnya.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-integrasi-navigasi-mom.md`
+  summary: Flash-cookie transparensi di auth-guard diset tanpa `secure: true` (HTTPS-only di Vercel).
+  evidence: Kode pra-eksisting Story 1.7, bukan sebab perubahan 2.1b; flag tanpa biaya — hardening sekali jalan bersama hardening cookie lain.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-integrasi-navigasi-mom.md`
+  summary: `prasyaratPermukaan` baru mendukung SATU kunci prefix per awalan (first-match, bukan longest-prefix) — wajib ganti strategi longest-prefix sebelum menambah kunci prefix kedua (mis. `/mom/arsip/`).
+  evidence: Komentar asumsi sudah ditambah di `shared/domain/identity.ts` + unit test pin perilaku saat ini; revisi strategi baru perlu bila registry menambah prefix bersarang.

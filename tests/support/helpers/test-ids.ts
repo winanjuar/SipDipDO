@@ -33,6 +33,7 @@ export const TEST_IDS = {
   statusPendaftaran: {
     badgeStatus: 'status-badge',
     alasanPenolakan: 'status-alasan-penolakan',
+    dataProfil: 'status-data-profil',
   },
   // Story 1.4 — halaman pendaftaran (kontrak ATDD green-phase + modal
   // konfirmasi T&C wajib sebelum aksi daftar/OAuth).
@@ -77,5 +78,28 @@ export const TEST_IDS = {
     kirimTolak: 'pendaftar-kirim-tolakan',
     batalTolak: 'pendaftar-batal-tolakan',
     pesanStatusBerubah: 'pendaftar-pesan-status-berubah',
+  },
+  // Story 1.7 — navigasi registry-driven (kontrak ATDD red-phase; elemen
+  // layout app.vue diimplementasikan dengan data-testid ini). Item nav
+  // di-assert by-role name (label registry); "Lainnya" = Sheet bila item
+  // > MAKS_ITEM_NAV_MOBILE — Epic 1 maks 3 item, pemicunya tak pernah tampil.
+  navigasi: {
+    batangBawah: 'nav-batang-bawah',
+    sidebar: 'nav-sidebar',
+    tombolKeluar: 'nav-tombol-keluar',
+    tombolKeluarMobile: 'nav-tombol-keluar-mobile',
+    dialogKeluar: 'nav-dialog-keluar',
+  },
+  // Story 1.7 — Halaman Personal (kontrak ATDD red-phase; 4 section matriks
+  // §4.8 diimplementasikan dengan data-testid ini; Alert transparansi
+  // aria-live="polite" tampil sekali lalu URL dibersihkan).
+  personal: {
+    alertTransparansi: 'personal-alert-transparansi',
+    sectionProfil: 'personal-section-profil',
+    sectionPortofolio: 'personal-section-portofolio',
+    statusKosong: 'personal-status-kosong',
+    sectionHargaRkap: 'personal-section-harga-rkap',
+    pintuPesanan: 'personal-pintu-pesanan',
+    pesanGagalProfil: 'personal-pesan-gagal-profil',
   },
 } as const
