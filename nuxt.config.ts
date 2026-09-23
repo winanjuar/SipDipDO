@@ -120,6 +120,8 @@ export default defineNuxtConfig({
     resendApiKey: '', // NUXT_RESEND_API_KEY
     resendFrom: '', // NUXT_RESEND_FROM
     cronSecret: '', // NUXT_CRON_SECRET
+    supabaseUrl: '', // NUXT_SUPABASE_URL
+    supabaseServiceKey: '', // NUXT_SUPABASE_SERVICE_KEY
     public: {
       appName: 'Sip & Dip',
     },

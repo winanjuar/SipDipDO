@@ -22,6 +22,20 @@
       "when": 1790046227553,
       "tag": "0002_new_unicorn",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790092008550,
+      "tag": "0003_fuzzy_ultragirl",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790093797633,
+      "tag": "0004_lyrical_dreaming_celestial",
+      "breakpoints": true
     }
   ]
 }
