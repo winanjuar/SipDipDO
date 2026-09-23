@@ -124,9 +124,9 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toBeEnabled()
     await expect(barisBelum.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toBeEnabled()
 
-    await log.step('AND urutan tombol dipin (owner 2026-09-23): Detail(link, kiri) — Tolak(merah, tengah) — Verifikasi(kanan)')
+    await log.step('AND urutan tombol dipin (owner 2026-09-23): Verifikasi(kiri) — Detail(link, tengah) — Tolak(merah, ujung kanan)')
     await expect(barisLengkap.getByRole('link', { name: 'Detail' })).toBeVisible()
-    await expect(barisLengkap.getByRole('button')).toHaveText(['Tolak', 'Verifikasi'])
+    await expect(barisLengkap.getByRole('button')).toHaveText(['Verifikasi', 'Tolak'])
     await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toHaveClass(/destructive/)
   })
 

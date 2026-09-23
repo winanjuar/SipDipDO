@@ -376,10 +376,19 @@ onMounted(() => {
               </Badge>
             </TableCell>
             <TableCell>
-              <div class="flex flex-wrap items-center gap-2">
-                <!-- Urutan (owner 2026-09-23): Detail (kiri) — Tolak (tengah,
-                     merah) — Verifikasi (paling kanan). Detail = navigasi ke
-                     halaman `/pendaftar/:id` read-only (layout kelengkapan). -->
+              <div class="flex items-center gap-2">
+                <!-- Urutan (owner 2026-09-23): Verifikasi (kiri) — Detail
+                     (tengah, navigasi halaman read-only) — Tolak (ujung
+                     kanan, merah). Satu baris, tanpa wrap. -->
+                <Button
+                  data-testid="pendaftar-aksi-verifikasi"
+                  :disabled="!baris.profilLengkap || sedangKirim"
+                  size="sm"
+                  class="min-h-11"
+                  @click="bukaDialogVerifikasi(baris)"
+                >
+                  Verifikasi
+                </Button>
                 <NuxtLink
                   :to="ARAH_DETAIL(baris.id)"
                   data-testid="pendaftar-aksi-detail"
@@ -396,15 +405,6 @@ onMounted(() => {
                   @click="bukaDialogTolak(baris)"
                 >
                   Tolak
-                </Button>
-                <Button
-                  data-testid="pendaftar-aksi-verifikasi"
-                  :disabled="!baris.profilLengkap || sedangKirim"
-                  size="sm"
-                  class="min-h-11"
-                  @click="bukaDialogVerifikasi(baris)"
-                >
-                  Verifikasi
                 </Button>
               </div>
             </TableCell>
