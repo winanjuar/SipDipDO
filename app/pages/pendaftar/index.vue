@@ -264,6 +264,18 @@ function labelSisaField(sisaField: string[]): string {
   return sisaField.map((kunci) => LABEL_FIELD_PROFIL[kunci as KunciProfil] ?? kunci).join(', ')
 }
 
+/** Hint ringkas baris daftar (UX 2026-09-23): maks 2 label + "+N lainnya"
+ *  — baris tetap sekali-baca; isi penuh ada di halaman Detail. */
+const JUMLAH_LABEL_HINT_MAKS = 2
+
+function hintSisaField(sisaField: string[]): string {
+  const duaPertama = sisaField.slice(0, JUMLAH_LABEL_HINT_MAKS).map((kunci) => LABEL_FIELD_PROFIL[kunci as KunciProfil] ?? kunci)
+  const sisa = sisaField.length - duaPertama.length
+  return sisa > 0
+    ? `Field kurang: ${duaPertama.join(', ')} +${sisa} lainnya`
+    : `Field kurang: ${duaPertama.join(', ')}`
+}
+
 async function kirimPenolakan(): Promise<void> {
   // Satu penulis: keputusan sedang berjalan → klik ganda diabaikan (dialog
   // dibiarkan terbuka sampai POST pertama selesai).
@@ -352,8 +364,10 @@ onMounted(() => {
             data-testid="pendaftar-baris"
           >
             <TableCell class="max-lg:sticky max-lg:left-0 max-lg:z-10 max-lg:bg-background">
-              <p class="text-sm font-medium"> {{ ` ${baris.nama === '' ? '(Nama belum diisi)' : baris.nama} ` }}</p>
-              <p class="text-xs text-muted-foreground">{{ baris.email }}</p>
+              <!-- Truncate satu baris (UX 2026-09-23): baris tetap sekali-
+                   baca; nilai penuh ada di halaman Detail. -->
+              <p class="max-w-[14rem] truncate text-sm font-medium"> {{ ` ${baris.nama === '' ? '(Nama belum diisi)' : baris.nama} ` }}</p>
+              <p class="max-w-[14rem] truncate text-xs text-muted-foreground">{{ baris.email }}</p>
             </TableCell>
             <TableCell class="whitespace-nowrap tabular-nums">
               {{ formatWaktuAudit(baris.createdAt) }}
@@ -363,10 +377,10 @@ onMounted(() => {
                 <Badge :variant="baris.profilLengkap ? 'success' : 'warn'" class="rounded-full">
                   {{ baris.profilLengkap ? 'Lengkap' : 'Belum lengkap' }}
                 </Badge>
-                <!-- Hint TERLIHAT (bukan hover-only): field kurang calon belum
-                     lengkap, berlabel Indonesia (aksesibilitas touch-first). -->
+                <!-- Hint RINGKAS (UX 2026-09-23): maks 2 label + "+N lainnya"
+                     — isi penuh ada di halaman Detail; baris sekali-baca. -->
                 <p v-if="!baris.profilLengkap" class="text-xs text-muted-foreground">
-                  Field belum lengkap: {{ labelSisaField(baris.sisaField) }}
+                  {{ hintSisaField(baris.sisaField) }}
                 </p>
               </div>
             </TableCell>

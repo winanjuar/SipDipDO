@@ -114,9 +114,10 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await expect(barisLengkap.getByText('Lengkap', { exact: true })).toBeVisible()
     await expect(barisBelum.getByText('Belum lengkap', { exact: true })).toBeVisible()
 
-    await log.step('AND teks sisaField TERLIHAT di baris belum-lengkap — berlabel Indonesia, bukan hover-only (hardening 2026-09-22)')
-    await expect(barisBelum.getByText(/Field belum lengkap: .*Nama Lengkap/)).toBeVisible()
-    await expect(barisBelum.getByText(/Nomor Rekening/)).toBeVisible()
+    await log.step('AND hint sisaField RINGKAS di baris belum-lengkap — maks 2 label + "+N lainnya" (UX 2026-09-23; isi penuh di halaman Detail)')
+    await expect(barisBelum.getByText(/Field kurang: .*Nama Lengkap/)).toBeVisible()
+    await expect(barisBelum.getByText(/\+8 lainnya/)).toBeVisible()
+    await expect(barisBelum.getByText(/Nomor Rekening/)).toHaveCount(0)
 
     await log.step('AND tombol Verifikasi AKTIF hanya pada baris lengkap; Tolak aktif di keduanya')
     await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi)).toBeEnabled()
