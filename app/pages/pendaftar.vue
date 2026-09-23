@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OwnerStatus } from '#shared/domain/identity'
 import { LANDING_PATH, PANJANG_MAKS_ALASAN_PENOLAKAN } from '#shared/domain/identity'
-import { LABEL_FIELD_PROFIL, BANK_LAINNYA, type KunciProfil } from '#shared/domain/profil'
+import { LABEL_FIELD_PROFIL, type KunciProfil } from '#shared/domain/profil'
 import type { LandingRespons } from '~/lib/landing'
 import { formatWaktuAudit } from '~/lib/audit'
 
@@ -28,8 +28,10 @@ import { formatWaktuAudit } from '~/lib/audit'
  * alasan via Dialog + textarea (UX-DR20), alasan dibatasi konstanta
  * bersama. Verifikasi dua-langkah (renegotiasi 2026-09-23): klik membuka
  * dialog konfirmasi — COO menyatakan sudah memeriksa data dengan seksama.
- * Tombol Detail membuka dialog read-only seluruh isian calon (on-demand
- * via GET /api/pendaftar/:id).
+ * Tombol Detail = navigasi ke HALAMAN `/pendaftar/:id` read-only yang
+ * meniru layout halaman kelengkapan (bukan pop-up); verifikasi juga
+ * tersedia di sana. Urutan tombol baris: Detail — Tolak (merah) —
+ * Verifikasi (kanan).
  */
 definePageMeta({ auth: true, layout: 'app' })
 
@@ -228,75 +230,11 @@ async function konfirmasiVerifikasi(): Promise<void> {
   }
 }
 
-/**
- * Dialog detail pendaftar (penyempurnaan owner 2026-09-23): seluruh isian
- * Lampiran A dibaca ON-DEMAND via `GET /api/pendaftar/:id` — read-only,
- * tersedia untuk semua baris (lengkap maupun belum). Gagal memuat tampil
- * dalam dialog dengan "Coba lagi" (angka basi tidak pernah tampil).
- */
-const calonDetail = ref<CalonPendaftar | null>(null)
-const detailMemuat = ref(false)
-const detailPendaftar = ref<DetailPendaftar | null>(null)
-
-interface DetailPendaftar {
-  id: string
-  email: string
-  status: OwnerStatus
-  fullName: string
-  alias: string
-  phoneNumber: string
-  emergencyContactName: string
-  emergencyContactPhoneNumber: string
-  emergencyContactRelationship: string
-  bankName: string
-  otherBankName: string
-  accountHolderName: string
-  accountNumber: string
-  profilLengkap: boolean
-  sisaField: string[]
-}
-
-async function bukaDialogDetail(baris: CalonPendaftar): Promise<void> {
-  calonDetail.value = baris
-  detailMemuat.value = true
-  detailPendaftar.value = null
-  const hasil = await api<DetailPendaftar>(`/api/pendaftar/${baris.id}`).catch(() => null)
-  // Dialog ditutup sebelum fetch selesai → buang hasil tua (anti-race).
-  if (calonDetail.value?.id !== baris.id) return
-  detailPendaftar.value = hasil
-  detailMemuat.value = false
-}
-
-function tutupDialogDetail(): void {
-  calonDetail.value = null
-  detailPendaftar.value = null
-}
-
-/** Baris read-only dialog detail — label dari LABEL_FIELD_PROFIL (satu
- *  sumber); Bank "Lainnya" menampilkan teks bebasnya; kosong → "—". */
-const BARIS_DETAIL = [
-  'fullName',
-  'alias',
-  'phoneNumber',
-  'emergencyContactName',
-  'emergencyContactPhoneNumber',
-  'emergencyContactRelationship',
-  'bankName',
-  'accountHolderName',
-  'accountNumber',
-] as const
-
-const barisDetail = computed(() => {
-  if (!detailPendaftar.value) return []
-  const d = detailPendaftar.value
-  return BARIS_DETAIL.map((kunci) => {
-    let nilai: string = d[kunci] ?? ''
-    if (kunci === 'bankName' && nilai === BANK_LAINNYA && d.otherBankName !== '') {
-      nilai = `${d.otherBankName} (Lainnya)`
-    }
-    return { kunci, label: LABEL_FIELD_PROFIL[kunci as KunciProfil] ?? kunci, nilai: nilai === '' ? '—' : nilai }
-  })
-})
+/** Detail pendaftar (penyempurnaan owner 2026-09-23): HALAMAN penuh
+ *  `/pendaftar/:id` yang meniru layout halaman kelengkapan — bukan pop-up —
+ *  supaya COO memeriksa isian persis seperti diisi calon; aksi Verifikasi
+ *  juga tersedia di sana (konfirmasi dua-langkah yang sama). */
+const ARAH_DETAIL = (id: string): string => `/pendaftar/${id}`
 
 /**
  * Dialog penolakan (UX-DR20): alasan wajib — tombol kirim tidak aktif selama
@@ -439,6 +377,26 @@ onMounted(() => {
             </TableCell>
             <TableCell>
               <div class="flex flex-wrap items-center gap-2">
+                <!-- Urutan (owner 2026-09-23): Detail (kiri) — Tolak (tengah,
+                     merah) — Verifikasi (paling kanan). Detail = navigasi ke
+                     halaman `/pendaftar/:id` read-only (layout kelengkapan). -->
+                <NuxtLink
+                  :to="ARAH_DETAIL(baris.id)"
+                  data-testid="pendaftar-aksi-detail"
+                  class="inline-flex h-9 min-h-11 items-center justify-center whitespace-nowrap rounded-md border bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent"
+                >
+                  Detail
+                </NuxtLink>
+                <Button
+                  data-testid="pendaftar-aksi-tolak"
+                  variant="destructive"
+                  :disabled="sedangKirim"
+                  size="sm"
+                  class="min-h-11"
+                  @click="bukaDialogTolak(baris)"
+                >
+                  Tolak
+                </Button>
                 <Button
                   data-testid="pendaftar-aksi-verifikasi"
                   :disabled="!baris.profilLengkap || sedangKirim"
@@ -447,26 +405,6 @@ onMounted(() => {
                   @click="bukaDialogVerifikasi(baris)"
                 >
                   Verifikasi
-                </Button>
-                <Button
-                  data-testid="pendaftar-aksi-detail"
-                  variant="outline"
-                  :disabled="sedangMuatUlang"
-                  size="sm"
-                  class="min-h-11"
-                  @click="bukaDialogDetail(baris)"
-                >
-                  Detail
-                </Button>
-                <Button
-                  data-testid="pendaftar-aksi-tolak"
-                  variant="outline"
-                  :disabled="sedangKirim"
-                  size="sm"
-                  class="min-h-11"
-                  @click="bukaDialogTolak(baris)"
-                >
-                  Tolak
                 </Button>
               </div>
             </TableCell>
@@ -536,49 +474,6 @@ onMounted(() => {
               @click="konfirmasiVerifikasi"
             >
               Ya, Verifikasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <!-- Dialog detail pendaftar (penyempurnaan 2026-09-23): seluruh isian
-           Lampiran A read-only, dimuat on-demand per baris. -->
-      <Dialog :open="calonDetail !== null" @update:open="nilai => nilai || tutupDialogDetail()">
-        <DialogContent class="max-w-md" data-testid="pendaftar-dialog-detail">
-          <DialogHeader>
-            <DialogTitle>Detail Pendaftar</DialogTitle>
-          </DialogHeader>
-          <div v-if="calonDetail" class="text-sm">
-            <p class="font-medium">{{ calonDetail.nama === '' ? '(Nama belum diisi)' : calonDetail.nama }}</p>
-            <p class="text-xs text-muted-foreground">{{ calonDetail.email }}</p>
-          </div>
-          <p v-if="detailMemuat" class="text-sm text-muted-foreground">Memuat data pendaftar…</p>
-          <template v-else-if="detailPendaftar">
-            <dl class="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-              <template v-for="baris in barisDetail" :key="baris.kunci">
-                <dt class="text-muted-foreground">{{ baris.label }}</dt>
-                <dd class="min-h-5 break-words">{{ baris.nilai }}</dd>
-              </template>
-            </dl>
-            <p v-if="!detailPendaftar.profilLengkap" class="text-xs text-muted-foreground">
-              Field belum lengkap: {{ labelSisaField(detailPendaftar.sisaField) }}
-            </p>
-          </template>
-          <div v-else class="flex flex-col items-start gap-2 text-sm">
-            <p class="text-muted-foreground">Tidak dapat memuat data pendaftar.</p>
-            <Button
-              v-if="calonDetail"
-              variant="outline"
-              size="sm"
-              data-testid="pendaftar-coba-lagi-detail"
-              @click="bukaDialogDetail(calonDetail)"
-            >
-              Coba lagi
-            </Button>
-          </div>
-          <DialogFooter class="gap-2 sm:justify-end">
-            <Button variant="outline" data-testid="pendaftar-tutup-detail" @click="tutupDialogDetail">
-              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>

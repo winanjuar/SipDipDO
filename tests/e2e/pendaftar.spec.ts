@@ -123,6 +123,11 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await expect(barisBelum.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi)).toBeDisabled()
     await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toBeEnabled()
     await expect(barisBelum.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toBeEnabled()
+
+    await log.step('AND urutan tombol dipin (owner 2026-09-23): Detail(link, kiri) — Tolak(merah, tengah) — Verifikasi(kanan)')
+    await expect(barisLengkap.getByRole('link', { name: 'Detail' })).toBeVisible()
+    await expect(barisLengkap.getByRole('button')).toHaveText(['Tolak', 'Verifikasi'])
+    await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toHaveClass(/destructive/)
   })
 
   test('[P0] Verifikasi dari UI → baris keluar dari daftar + server berubah (landing /personal)', async ({ page, context, apiRequest }) => {
@@ -576,30 +581,45 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
-  test('[P0] tombol Detail → dialog read-only seluruh isian calon (on-demand via endpoint detail)', async ({ page, context, apiRequest }) => {
-    // Penyempurnaan 2026-09-23: COO melihat isi sebelum menyatakan "sudah
-    // memeriksa dengan seksama" — pasangan alur konfirmasi verifikasi.
-    await log.step('GIVEN sesi COO + calon lengkap (profil tersimpan via PUT /api/profile)')
+  test('[P0] tombol Detail → halaman detail read-only (reuse layout kelengkapan) + verifikasi dari detail', async ({ page, context, apiRequest }) => {
+    // Penyempurnaan 2026-09-23 (revisi owner): detail = HALAMAN penuh yang
+    // meniru layout kelengkapan (bukan pop-up) — COO memeriksa + verifikasi
+    // di satu tempat tanpa bolak-balik ke daftar.
+    await log.step('GIVEN sesi COO + calon lengkap tersimpan; id diketahui dari daftar (server-truth)')
     await context.addCookies(await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' }))
     const { email } = await seedCalonLengkap(apiRequest)
+    const cookieCooApi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    const daftar = await apiRequest<{ data: Array<{ id: string, email: string }> }>({
+      method: 'GET',
+      path: '/api/pendaftar',
+      headers: headerCookieDariMint(cookieCooApi),
+    })
+    const target = daftar.body.data.find(baris => baris.email === email)
+    expect(target).toBeDefined()
+
     await page.goto('/pendaftar')
     const baris = barisCalon(page, email)
     await expect(baris).toBeVisible()
     await tungguHidrasi(page)
 
-    await log.step('WHEN tombol Detail pada baris itu diklik')
+    await log.step('WHEN tombol Detail diklik → navigasi ke /pendaftar/:id')
     await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiDetail).click())
 
-    await log.step('THEN dialog detail tampil: email + label berbahasa Indonesia + nilai isian (bank BCA dari seed)')
-    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogDetail)).toBeVisible()
-    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogDetail)).toContainText(email)
-    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogDetail)).toContainText('Nama Lengkap')
-    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogDetail)).toContainText('Nomor Rekening')
-    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogDetail)).toContainText('BCA')
+    await log.step('THEN halaman detail read-only tampil — fieldset kelengkapan + nilai isian + input readonly')
+    await expect(page).toHaveURL(new RegExp(`/pendaftar/${target?.id}$`))
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toBeVisible()
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('Profil Pemilik')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('Info Kontak Darurat')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('Info Rekening')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('BCA')
+    await expect(page.locator('#detail-accountNumber')).toHaveAttribute('readonly', '')
 
-    await log.step('AND Tutup menutup dialog — baris tetap di daftar')
-    await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.tutupDetail).click())
-    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogDetail)).toHaveCount(0)
-    await expect(baris).toBeVisible()
+    await log.step('AND Verifikasi tersedia di halaman detail → dialog konfirmasi → kirim → kembali ke daftar')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.aksiVerifikasiDetail)).toBeEnabled()
+    await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.aksiVerifikasiDetail).click())
+    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogVerifikasi)).toBeVisible()
+    await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.kirimVerifikasi).click())
+    await expect(page).toHaveURL(/\/pendaftar$/)
+    await expect(baris).toHaveCount(0)
   })
 })
