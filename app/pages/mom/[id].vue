@@ -10,6 +10,9 @@ import { formatTanggalMom, formatWaktuLengkap, HTTP_FORBIDDEN, PETA_BADGE_MOM } 
  * 2026-09-22). Owner tanpa saham belum-pernah-beli dialihkan middleware ke
  * Halaman Personal dengan pesan transparensi (flash-cookie — Story 2.1b).
  * Layout `app` (Story 2.1b — nav registry).
+ *
+ * PDF Upload (Story 2.2, Req-1): COO dapat upload PDF pada draft MoM.
+ * PDF Preview (Story 2.2, Req-2): Pemegang saham dan COO dapat preview PDF via iframe.
  */
 definePageMeta({ layout: 'app', auth: true })
 
@@ -37,6 +40,16 @@ if (!landing) {
 
 const isCoo = landing && !('unlinked' in landing) && landing.role === 'coo'
 
+// Computed: apakah user boleh preview PDF (COO atau pemegang saham — AD-8 §4.8)
+// Note: tanpa_saham dengan aksesPenuh (keluar-pernah-beli) juga boleh — dihandle
+// oleh API endpoint signed.get.ts yang akan return 403 bila tidak berwenang.
+// Di sini kita tampilkan komponen, biarkan API memutuskan akses final.
+const canPreviewPdf = computed(() => {
+  if (!landing || 'unlinked' in landing) return false
+  // COO, pemegang_saham, dan tanpa_saham (dengan aksesPenuh di-check API) boleh preview
+  return landing.role === 'coo' || landing.role === 'pemegang_saham' || landing.role === 'tanpa_saham'
+})
+
 const mom = ref<MomWire | null>(null)
 const gagalMuat = ref(false)
 const memuat = ref(false)
@@ -48,6 +61,18 @@ const pesanSukses = ref('')
 const formTitle = ref('')
 const formHeldAt = ref('')
 const formContentText = ref('')
+
+// PDF upload state
+const pdfUploadSuccess = ref(false)
+
+// Durasi tampil pesan sukses PDF upload — konstanta bernama (ms).
+const DURASI_PESAN_PDF_UPLOAD = 3000
+
+// Computed: apakah COO bisa upload PDF (hanya draft)
+const canUploadPdf = computed(() => isCoo && mom.value?.status === 'draft')
+
+// Computed: apakah MoM sudah punya PDF
+const hasPdf = computed(() => !!mom.value?.pdfPath)
 
 // Load MoM data
 async function muatMom() {
@@ -147,6 +172,29 @@ async function hapusMom() {
     pesanError.value = err.data?.message ?? 'Gagal menghapus MoM.'
     menyimpan.value = false
   }
+}
+
+// Handler ketika PDF berhasil diupload (Req-1)
+function handlePdfUploaded(updatedMom: MomWire) {
+  mom.value = updatedMom
+  pdfUploadSuccess.value = true
+  pesanSukses.value = 'PDF berhasil diupload.'
+  setTimeout(() => {
+    pdfUploadSuccess.value = false
+    pesanSukses.value = ''
+  }, DURASI_PESAN_PDF_UPLOAD)
+}
+
+// Handler ketika PDF upload gagal
+function handlePdfUploadError(message: string) {
+  pesanError.value = message
+}
+
+// Handler ketika PDF preview gagal (Req-2 error handling — Task 9.2)
+function handlePdfPreviewError(message: string) {
+  // Don't show error in top-level alert for preview errors
+  // since the component shows its own error state
+  console.error('PDF preview error:', message)
 }
 
 useHead({ title: computed(() => mom.value ? `${mom.value.title} — MoM` : 'MoM — Sip & Dip') })
@@ -262,6 +310,27 @@ useHead({ title: computed(() => mom.value ? `${mom.value.title} — MoM` : 'MoM 
         </div>
       </form>
 
+      <!-- PDF Upload Zone untuk COO pada draft MoM (Req-1, Story 2.2) -->
+      <section v-if="canUploadPdf" class="flex flex-col gap-4 rounded-lg border p-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Upload PDF MoM</h2>
+          <Badge v-if="hasPdf" variant="success" class="shrink-0 rounded-full">
+            PDF Tersedia
+          </Badge>
+        </div>
+
+        <p v-if="hasPdf" class="text-sm text-muted-foreground">
+          PDF sudah diupload. Upload file baru akan menggantikan file sebelumnya.
+        </p>
+
+        <MomPdfUploadZone
+          :mom-id="momId"
+          :disabled="menyimpan"
+          @uploaded="handlePdfUploaded"
+          @error="handlePdfUploadError"
+        />
+      </section>
+
       <!-- Read-only view untuk viewer atau final -->
       <section v-else class="flex flex-col gap-6">
         <article class="rounded-lg border p-6">
@@ -274,6 +343,40 @@ useHead({ title: computed(() => mom.value ? `${mom.value.title} — MoM` : 'MoM 
           <p>Dibuat: {{ formatWaktuLengkap(mom.createdAt) }}</p>
           <p v-if="mom.finalizedAt">Difinalkan: {{ formatWaktuLengkap(mom.finalizedAt) }}</p>
         </div>
+      </section>
+
+      <!-- PDF Preview untuk COO dan pemegang saham (Req-2, Story 2.2, Task 9.2) -->
+      <section v-if="canPreviewPdf && hasPdf" class="rounded-lg border p-6">
+        <MomPdfPreview
+          :mom-id="momId"
+          @error="handlePdfPreviewError"
+        />
+      </section>
+
+      <!-- Info bila MoM tidak punya PDF untuk viewer yang bukan COO -->
+      <section
+        v-else-if="canPreviewPdf && !hasPdf && !canUploadPdf"
+        class="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-8 text-center"
+      >
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <svg
+            class="h-6 w-6 text-muted-foreground"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+        </div>
+        <p class="text-sm text-muted-foreground">
+          MoM ini belum memiliki file PDF.
+        </p>
       </section>
     </template>
   </main>

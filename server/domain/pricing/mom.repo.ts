@@ -127,6 +127,14 @@ export async function findMomById(db: DbClient, momId: string): Promise<MomWire 
   return row ? mapToWire(row) : null
 }
 
+/** Opsi filter untuk listing MoM. */
+export interface MomListOptions {
+  limit: number
+  offset: number
+  /** Filter by status — 'final' untuk dropdown referensi (Req-14). */
+  status?: 'draft' | 'final'
+}
+
 /**
  * List MoM urut held_at desc dengan paging — probe hasNext via satu baris
  * ekstra. `nextPage` null bila habis.
@@ -143,4 +151,41 @@ export async function listMoms(db: DbClient, paging: MomPaging): Promise<MomDaft
 
   const halaman = Math.trunc(paging.offset / paging.limit) + 1
   return { data, nextPage: hasMore ? halaman + 1 : null }
+}
+
+/**
+ * List MoM dengan filter status (Req-14: dropdown hanya MoM final).
+ * Urut held_at desc. Tanpa paging — untuk dropdown yang memuat semua MoM final.
+ */
+export async function listMomsByStatus(
+  db: DbClient,
+  status: 'draft' | 'final',
+): Promise<MomWire[]> {
+  const rows = await db.select()
+    .from(moms)
+    .where(eq(moms.status, status))
+    .orderBy(desc(moms.heldAt), desc(moms.createdAt))
+
+  return rows.map(mapToWire)
+}
+
+/**
+ * Update pdf_path pada MoM — untuk upload PDF (Story 2.2, Req-1 AC2).
+ * Mengembalikan baris yang diubah atau null bila tidak ada.
+ * Wajib dalam transaksi dengan audit entry (AD-3).
+ */
+export async function updateMomPdfPath(
+  tx: DbClient,
+  momId: string,
+  pdfPath: string,
+): Promise<MomWire | null> {
+  const now = new Date().toISOString()
+  const [updated] = await tx.update(moms)
+    .set({
+      pdfPath,
+      updatedAt: now,
+    })
+    .where(eq(moms.id, momId))
+    .returning()
+  return updated ? mapToWire(updated) : null
 }

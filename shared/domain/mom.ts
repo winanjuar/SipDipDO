@@ -7,6 +7,40 @@
  * diedit/dihapus, final imutabel (FR-7, Story 2.1).
  */
 
+// =============================================================================
+// Supabase Storage Configuration (AR-13, Req-1, Req-2)
+// =============================================================================
+
+/**
+ * Nama bucket Supabase Storage untuk PDF MoM — PRIVATE bucket.
+ * Akses hanya melalui server-generated Signed URLs (AR-13).
+ *
+ * Bucket dikonfigurasi via `drizzle/storage-bucket.sql`.
+ */
+export const MOM_PDF_BUCKET = 'mom-pdfs'
+
+/**
+ * Batas ukuran file PDF MoM (10MB dalam bytes — Req-1 AC6).
+ * Divalidasi di sisi server sebelum upload ke Storage.
+ */
+export const MOM_PDF_MAX_SIZE_BYTES = 10_485_760 // 10 * 1024 * 1024
+
+/**
+ * MIME type yang diizinkan untuk upload PDF MoM (Req-1 AC6).
+ * Divalidasi di sisi server sebelum upload ke Storage.
+ */
+export const MOM_PDF_ALLOWED_MIME_TYPES = ['application/pdf'] as const
+
+/**
+ * Durasi Signed URL dalam detik (15 menit — Req-2 AC1).
+ * Signed URL kedaluwarsa setelah durasi ini.
+ */
+export const MOM_PDF_SIGNED_URL_EXPIRY_SECONDS = 900 // 15 * 60
+
+// =============================================================================
+// MoM Status & Wire Types
+// =============================================================================
+
 /** Status MoM — himpunan tertutup; dipakai pgEnum dan validasi lapis atas. */
 export const MOM_STATUSES = ['draft', 'final'] as const
 export type MomStatus = (typeof MOM_STATUSES)[number]

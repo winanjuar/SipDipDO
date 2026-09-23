@@ -137,7 +137,33 @@ useHead({ title: 'MoM MRO/RUPS — Sip & Dip' })
           data-testid="mom-card"
         >
           <div class="flex items-start justify-between gap-2">
-            <h2 class="font-medium line-clamp-2">{{ mom.title }}</h2>
+            <div class="flex min-w-0 flex-1 items-center gap-2">
+              <h2 class="min-w-0 flex-1 font-medium line-clamp-2">{{ mom.title }}</h2>
+              <!-- PDF indicator (Req-1, Req-2 — Task 9.3) -->
+              <span
+                v-if="mom.pdfPath"
+                class="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                title="PDF tersedia"
+                data-testid="mom-pdf-indicator"
+              >
+                <svg
+                  class="h-3 w-3"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                PDF
+              </span>
+            </div>
             <Badge :variant="PETA_BADGE_MOM[mom.status].variant" class="shrink-0 rounded-full">
               {{ PETA_BADGE_MOM[mom.status].label }}
             </Badge>

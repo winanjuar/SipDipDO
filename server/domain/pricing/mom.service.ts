@@ -11,6 +11,7 @@
  *     — set status ke final dengan audit entry `mom-difinalkan`; tolak bila sudah final.
  *   hapusMom(db, momId, actorOwnerId)
  *     — hapus MoM draft dengan audit entry `mom-dihapus`; tolak bila final.
+ *     — hapus file PDF terkait dari storage bila ada (Req-1 AC5).
  *   listForPemegangSaham(db, page, limit?)
  *     — baca daftar MoM urut held_at desc dengan paging.
  *   getMomById(db, momId)
@@ -20,6 +21,7 @@
  * - Entry audit ditulis dalam transaksi DB yang sama dengan aksinya (AD-3).
  * - MoM final imutabel — tidak dapat diedit/dihapus.
  * - Tanggal (held_at) wajib saat membuat MoM.
+ * - PDF terkait dihapus dari storage saat MoM draft dihapus (Req-1 AC5).
  */
 import type { Db, DbClient } from '../../utils/db'
 import { writeAuditEntry } from '../audit'
@@ -29,8 +31,10 @@ import {
   findMomById,
   insertMom,
   listMoms,
+  listMomsByStatus,
   updateMom as repoUpdateMom,
 } from './mom.repo'
+import { deleteMomPdf } from './pdf.service'
 import {
   MOM_LIMIT_DEFAULT,
   type MomCreateInput,
@@ -161,14 +165,23 @@ export async function finalkanMom(
 
 /**
  * Hapus MoM draft dengan audit entry `mom-dihapus` dalam satu transaksi (AD-3).
+ * Hapus juga file PDF terkait dari storage bila ada (Req-1 AC5).
  * Throw MomDomainError bila tidak ditemukan atau sudah final.
+ *
+ * Catatan: Storage deletion dilakukan setelah DB transaction berhasil,
+ * sehingga jika storage gagal, MoM tetap terhapus dari DB. Ini menghindari
+ * orphan MoM record bila storage down, dan orphan PDF di storage lebih
+ * mudah dibersihkan daripada orphan MoM di DB.
  */
 export async function hapusMom(
   db: Db,
   momId: string,
   actorOwnerId: string,
 ): Promise<void> {
-  return db.transaction(async (tx) => {
+  // Capture pdfPath sebelum transaksi untuk cleanup setelah transaksi berhasil
+  let pdfPathToDelete: string | null = null
+
+  await db.transaction(async (tx) => {
     const existing = await findMomById(tx, momId)
     if (!existing) {
       throw new MomDomainError('MoM tidak ditemukan.', 'NOT_FOUND')
@@ -177,15 +190,39 @@ export async function hapusMom(
       throw new MomDomainError('MoM sudah difinalkan — tidak dapat dihapus.', 'ALREADY_FINAL')
     }
 
+    // Simpan pdfPath untuk cleanup setelah transaksi
+    pdfPathToDelete = existing.pdfPath
+
     await repoDeleteMom(tx, momId)
 
     await writeAuditEntry(tx, {
       actor: { kind: 'user', ownerId: actorOwnerId },
       action: 'mom-dihapus',
       target: `moms:${momId}`,
-      details: { title: existing.title, heldAt: existing.heldAt },
+      details: {
+        title: existing.title,
+        heldAt: existing.heldAt,
+        pdfPath: existing.pdfPath ?? undefined,
+      },
     })
   })
+
+  // Hapus PDF dari storage setelah DB transaction berhasil (Req-1 AC5)
+  // Dilakukan di luar transaksi: jika storage gagal, MoM tetap terhapus dari DB.
+  // Ini lebih aman karena orphan PDF lebih mudah dibersihkan daripada orphan MoM.
+  if (pdfPathToDelete) {
+    try {
+      await deleteMomPdf(pdfPathToDelete)
+    }
+    catch (error) {
+      // Log error tapi jangan gagalkan operasi — MoM sudah terhapus dari DB
+      // Storage cleanup bisa dilakukan via job terpisah jika perlu
+      console.error(
+        `[hapusMom] Gagal menghapus PDF dari storage: ${pdfPathToDelete}`,
+        error instanceof Error ? error.message : error,
+      )
+    }
+  }
 }
 
 /**
@@ -208,4 +245,12 @@ export async function listForPemegangSaham(
  */
 export async function getMomById(db: DbClient, momId: string): Promise<MomWire | null> {
   return findMomById(db, momId)
+}
+
+/**
+ * Baca daftar MoM final saja — untuk dropdown referensi keputusan (Req-14).
+ * Penegakan kewenangan ada di route handler (AD-8).
+ */
+export async function listFinalMoms(db: DbClient): Promise<MomWire[]> {
+  return listMomsByStatus(db, 'final')
 }

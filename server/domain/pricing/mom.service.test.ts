@@ -35,6 +35,13 @@ const stubMomFinal = () => ({
   finalizedAt: '2026-09-15T10:00:00.000Z',
 })
 
+/** Stub MoM draft dengan PDF untuk test PDF deletion. */
+const stubMomDraftWithPdf = () => ({
+  ...stubMomDraft(),
+  id: 'mom-003',
+  pdfPath: 'mom-003/1726390800000-notulen.pdf',
+})
+
 /** Perekam panggilan — di-hoist agar factory vi.mock bisa menutupnya. */
 const rekaman = vi.hoisted(() => ({
   insertMasuk: [] as Array<Record<string, unknown>>,
@@ -42,6 +49,7 @@ const rekaman = vi.hoisted(() => ({
   finalizeMasuk: [] as Array<{ id: string, finalizedAt: string }>,
   deleteMasuk: [] as string[],
   auditMasuk: [] as Array<Record<string, unknown>>,
+  deletePdfMasuk: [] as string[], // Track PDF deletion calls
   findMom: null as ReturnType<typeof stubMomDraft> | null,
 }))
 
@@ -51,6 +59,7 @@ beforeEach(() => {
   rekaman.finalizeMasuk.length = 0
   rekaman.deleteMasuk.length = 0
   rekaman.auditMasuk.length = 0
+  rekaman.deletePdfMasuk.length = 0
   rekaman.findMom = null
 })
 
@@ -81,6 +90,12 @@ vi.mock('./mom.repo', () => ({
 vi.mock('../audit', () => ({
   writeAuditEntry: async (_tx: unknown, input: Record<string, unknown>) => {
     rekaman.auditMasuk.push(input)
+  },
+}))
+
+vi.mock('./pdf.service', () => ({
+  deleteMomPdf: async (pdfPath: string) => {
+    rekaman.deletePdfMasuk.push(pdfPath)
   },
 }))
 
@@ -193,6 +208,27 @@ describe('server/domain/pricing/mom.service — hapusMom (2-UNIT-004)', () => {
     expect(rekaman.auditMasuk[0]).toMatchObject({
       action: 'mom-dihapus',
     })
+    // No PDF path, so no PDF deletion call
+    expect(rekaman.deletePdfMasuk).toHaveLength(0)
+  })
+
+  test('hapus MoM draft dengan PDF → delete MoM + delete PDF dari storage (Req-1 AC5)', async () => {
+    rekaman.findMom = stubMomDraftWithPdf()
+
+    await hapusMom(mockDb as never, 'mom-003', 'owner-001')
+
+    expect(rekaman.deleteMasuk).toHaveLength(1)
+    expect(rekaman.deleteMasuk[0]).toBe('mom-003')
+    expect(rekaman.auditMasuk).toHaveLength(1)
+    expect(rekaman.auditMasuk[0]).toMatchObject({
+      action: 'mom-dihapus',
+      details: expect.objectContaining({
+        pdfPath: 'mom-003/1726390800000-notulen.pdf',
+      }),
+    })
+    // PDF path exists, so PDF deletion should be called
+    expect(rekaman.deletePdfMasuk).toHaveLength(1)
+    expect(rekaman.deletePdfMasuk[0]).toBe('mom-003/1726390800000-notulen.pdf')
   })
 
   test('hapus MoM final → tolak ALREADY_FINAL', async () => {

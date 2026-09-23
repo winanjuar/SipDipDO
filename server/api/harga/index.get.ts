@@ -1,19 +1,23 @@
-import { aksesPenuh, buildPrincipal, createIdentityRepo } from '../../domain/identity'
-import { listFinalMoms, listForPemegangSaham, MOM_LIMIT_DEFAULT, isMomLimit, type MomLimit } from '../../domain/pricing'
+import { buildPrincipal, createIdentityRepo } from '../../domain/identity'
+import { listHarga, isPriceLimit, PRICE_LIMIT_DEFAULT, type PriceLimit } from '../../domain/pricing'
 import { HTTP_STATUS, sendApiError } from '../../utils/api-error'
 import { useDb } from '../../utils/db'
 import { getSessionEmail } from '../../utils/session'
 
 /**
- * GET /api/mom — daftar MoM untuk pemegang saham, COO, dan keluar-PERNAH-beli
- * (FR-7, AD-8): tanpa sesi → 401; unlinked → redirect; owner tanpa saham
- * BELUM-pernah-beli → 403 (redirect ke personal di halaman — keputusan owner
- * 2026-09-22: aksesPenuh membuka MoM, keputusan atas snapshot bukan role
- * saja). Query `page` (default 1) dan `limit` (default 10, opsi 10/20/40) —
- * tidak valid → 400 envelope. Respons `{ data, nextPage }` urut held_at desc.
+ * GET /api/harga — daftar harga dengan pagination (Req-4, AD-8).
  *
- * Query `status=final` — mengembalikan semua MoM final tanpa paging (untuk
- * dropdown referensi keputusan, Req-14).
+ * Akses: Semua pengguna terautentikasi (pemegang_saham, tanpa_saham, coo).
+ * Calon owner (diajukan/ditolak/kedaluwarsa) tidak boleh akses harga karena
+ * belum menjadi owner yang terverifikasi.
+ *
+ * Query params:
+ * - `page`: nomor halaman (default 1), bilangan bulat ≥ 1
+ * - `limit`: ukuran halaman (default 10), opsi: 10, 20, atau 40
+ *
+ * Response: `{ data: PriceWire[], nextPage: number | null }`
+ *
+ * **Validates: Requirements 4**
  */
 
 /** Nomor halaman awal — default query `?page=`. */
@@ -35,10 +39,10 @@ function parseHalaman(nilai: unknown): number | null {
 /**
  * Parse `?limit=` → anggota opsi terkontrak (10/20/40); null bila tidak valid.
  */
-function parseLimit(nilai: unknown): MomLimit | null {
+function parseLimit(nilai: unknown): PriceLimit | null {
   if (typeof nilai !== 'string' || !POLA_HALAMAN.test(nilai)) return null
   const hasil = Number.parseInt(nilai, 10)
-  return isMomLimit(hasil) ? hasil : null
+  return isPriceLimit(hasil) ? hasil : null
 }
 
 export default defineEventHandler(async (event) => {
@@ -55,34 +59,17 @@ export default defineEventHandler(async (event) => {
   const principal = await buildPrincipal(createIdentityRepo(db), email)
   if (principal.unlinked) return sendRedirect(event, '/login?res=unlinked')
 
-  // Calon owner dan tanpa_saham BELUM-pernah-beli tidak boleh akses MoM
-  // (AD-8, §4.8); keluar-PERNAH-beli (aksesPenuh) BOLEH — keputusan owner
-  // 2026-09-22 (Story 2.1b: matriks terbuka otomatis pasca Pembelian
-  // Pertama — atas snapshot, bukan role saja).
-  if (principal.role === 'calon_owner'
-    || (principal.role === 'tanpa_saham' && !aksesPenuh(principal.owner))) {
+  // Harga terbuka untuk semua authenticated user KECUALI calon_owner
+  // (AD-8, Req-4): calon owner belum menjadi owner terverifikasi
+  if (principal.role === 'calon_owner') {
     return sendApiError(event, HTTP_STATUS.forbidden, {
       code: 'FORBIDDEN',
-      message: 'Akses MoM hanya untuk pemegang saham.',
+      message: 'Akses harga hanya untuk owner terverifikasi.',
       details: {},
     })
   }
 
   const query = getQuery(event)
-
-  // Handle status=final filter for dropdown referensi keputusan (Req-14)
-  const queryStatus = query.status
-  if (queryStatus === 'final') {
-    const finalMoms = await listFinalMoms(db)
-    return { data: finalMoms }
-  }
-  if (queryStatus !== undefined && queryStatus !== '' && queryStatus !== 'final') {
-    return sendApiError(event, HTTP_STATUS.badRequest, {
-      code: 'BAD_REQUEST',
-      message: 'Query status hanya menerima nilai "final".',
-      details: { status: String(queryStatus) },
-    })
-  }
 
   const queryPage = query.page
   const halamanTerparse = parseHalaman(queryPage)
@@ -104,5 +91,5 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  return listForPemegangSaham(db, halamanTerparse ?? HALAMAN_DEFAULT, limitTerparse ?? MOM_LIMIT_DEFAULT)
+  return listHarga(db, halamanTerparse ?? HALAMAN_DEFAULT, limitTerparse ?? PRICE_LIMIT_DEFAULT)
 })
