@@ -26,7 +26,12 @@ import { formatWaktuAudit } from '~/lib/audit'
  * touch-first). Guard `sedangMuatUlang` menolak POST kedua selama refresh
  * pasca-keputusan berjalan — pesan sukses tidak tertimpa. Penolakan wajib
  * alasan via Dialog + textarea (UX-DR20), alasan dibatasi konstanta
- * bersama.
+ * bersama. Verifikasi dua-langkah (renegotiasi 2026-09-23): klik membuka
+ * dialog konfirmasi — COO menyatakan sudah memeriksa data dengan seksama.
+ * Tombol Detail = navigasi ke HALAMAN `/pendaftar/:id` read-only yang
+ * meniru layout halaman kelengkapan (bukan pop-up); verifikasi juga
+ * tersedia di sana. Urutan tombol baris: Detail — Tolak (merah) —
+ * Verifikasi (kanan).
  */
 definePageMeta({ auth: true, layout: 'app' })
 
@@ -186,18 +191,50 @@ async function kirimKeputusan(id: string, keputusan: 'terverifikasi' | 'ditolak'
   }
 }
 
-/** Verifikasi baris — hanya dipanggil untuk baris `profilLengkap` (UJ-6).
- *  Pesan lama TIDAK dihapus di awal: klik yang ditolak guard (sedangKirim/
- *  sedangMuatUlang) tidak boleh mengosongkan pesan sebelumnya — pesan sukses
- *  tidak tertimpa (matriks #8); jalur sukses/error selalu men-set pesan
- *  baru, sehingga tidak ada pesan basi yang menggantung. */
-async function verifikasi(baris: CalonPendaftar): Promise<void> {
-  const tersimpan = await kirimKeputusan(baris.id, 'terverifikasi')
+/**
+ * Dialog konfirmasi verifikasi (renegotiasi owner 2026-09-23): klik
+ * Verifikasi TIDAK langsung mengeksekusi — COO menyatakan sudah memeriksa
+ * data pendaftar dengan seksama lewat dialog, kirim hanya dari sana.
+ * Guard `sedangKirim` di dalam konfirmasi menolak klik ganda selama POST
+ * berjalan; guard `sedangMuatUlang` di dalam kirimKeputusan menolak
+ * keputusan selama refresh pasca-sukses (matriks #8) — pesan sukses tidak
+ * pernah dikosongkan saat dialog DIBUKA, klik yang ditolak guard tidak
+ * boleh menimpa pesan sebelumnya.
+ */
+const calonDiverifikasi = ref<CalonPendaftar | null>(null)
+
+function bukaDialogVerifikasi(baris: CalonPendaftar): void {
+  calonDiverifikasi.value = baris
+}
+
+function tutupDialogVerifikasi(): void {
+  calonDiverifikasi.value = null
+}
+
+async function konfirmasiVerifikasi(): Promise<void> {
+  // Satu penulis: keputusan sedang berjalan → klik ganda diabaikan (dialog
+  // dibiarkan terbuka sampai POST pertama selesai).
+  if (sedangKirim.value) return
+  const target = calonDiverifikasi.value
+  if (!target) return
+  const tersimpan = await kirimKeputusan(target.id, 'terverifikasi')
   if (tersimpan) {
+    tutupDialogVerifikasi()
     pesan.value = { jenis: 'berhasil', teks: 'Pendaftar diverifikasi.' }
     await muatUlang()
+  } else if (pesan.value?.jenis === 'gagal') {
+    // 403/404/400: dialog tetap terbuka — pesan penjelasan sudah tampil.
+  } else {
+    // 409: status sudah berubah — tutup bersama muat ulang daftar.
+    tutupDialogVerifikasi()
   }
 }
+
+/** Detail pendaftar (penyempurnaan owner 2026-09-23): HALAMAN penuh
+ *  `/pendaftar/:id` yang meniru layout halaman kelengkapan — bukan pop-up —
+ *  supaya COO memeriksa isian persis seperti diisi calon; aksi Verifikasi
+ *  juga tersedia di sana (konfirmasi dua-langkah yang sama). */
+const ARAH_DETAIL = (id: string): string => `/pendaftar/${id}`
 
 /**
  * Dialog penolakan (UX-DR20): alasan wajib — tombol kirim tidak aktif selama
@@ -225,6 +262,18 @@ const alasanSah = computed(() => alasan.value.trim().length > 0)
  *  (bukan hover-only; hardening 2026-09-22, aksesibilitas touch-first). */
 function labelSisaField(sisaField: string[]): string {
   return sisaField.map((kunci) => LABEL_FIELD_PROFIL[kunci as KunciProfil] ?? kunci).join(', ')
+}
+
+/** Hint ringkas baris daftar (UX 2026-09-23): maks 2 label + "+N lainnya"
+ *  — baris tetap sekali-baca; isi penuh ada di halaman Detail. */
+const JUMLAH_LABEL_HINT_MAKS = 2
+
+function hintSisaField(sisaField: string[]): string {
+  const duaPertama = sisaField.slice(0, JUMLAH_LABEL_HINT_MAKS).map((kunci) => LABEL_FIELD_PROFIL[kunci as KunciProfil] ?? kunci)
+  const sisa = sisaField.length - duaPertama.length
+  return sisa > 0
+    ? `Field kurang: ${duaPertama.join(', ')} +${sisa} lainnya`
+    : `Field kurang: ${duaPertama.join(', ')}`
 }
 
 async function kirimPenolakan(): Promise<void> {
@@ -315,8 +364,10 @@ onMounted(() => {
             data-testid="pendaftar-baris"
           >
             <TableCell class="max-lg:sticky max-lg:left-0 max-lg:z-10 max-lg:bg-background">
-              <p class="text-sm font-medium"> {{ ` ${baris.nama === '' ? '(Nama belum diisi)' : baris.nama} ` }}</p>
-              <p class="text-xs text-muted-foreground">{{ baris.email }}</p>
+              <!-- Truncate satu baris (UX 2026-09-23): baris tetap sekali-
+                   baca; nilai penuh ada di halaman Detail. -->
+              <p class="max-w-[14rem] truncate text-sm font-medium"> {{ ` ${baris.nama === '' ? '(Nama belum diisi)' : baris.nama} ` }}</p>
+              <p class="max-w-[14rem] truncate text-xs text-muted-foreground">{{ baris.email }}</p>
             </TableCell>
             <TableCell class="whitespace-nowrap tabular-nums">
               {{ formatWaktuAudit(baris.createdAt) }}
@@ -326,10 +377,10 @@ onMounted(() => {
                 <Badge :variant="baris.profilLengkap ? 'success' : 'warn'" class="rounded-full">
                   {{ baris.profilLengkap ? 'Lengkap' : 'Belum lengkap' }}
                 </Badge>
-                <!-- Hint TERLIHAT (bukan hover-only): field kurang calon belum
-                     lengkap, berlabel Indonesia (aksesibilitas touch-first). -->
+                <!-- Hint RINGKAS (UX 2026-09-23): maks 2 label + "+N lainnya"
+                     — isi penuh ada di halaman Detail; baris sekali-baca. -->
                 <p v-if="!baris.profilLengkap" class="text-xs text-muted-foreground">
-                  Field belum lengkap: {{ labelSisaField(baris.sisaField) }}
+                  {{ hintSisaField(baris.sisaField) }}
                 </p>
               </div>
             </TableCell>
@@ -339,19 +390,29 @@ onMounted(() => {
               </Badge>
             </TableCell>
             <TableCell>
-              <div class="flex flex-wrap items-center gap-2">
+              <div class="flex items-center gap-2">
+                <!-- Urutan (owner 2026-09-23): Verifikasi (kiri) — Detail
+                     (tengah, navigasi halaman read-only) — Tolak (ujung
+                     kanan, merah). Satu baris, tanpa wrap. -->
                 <Button
                   data-testid="pendaftar-aksi-verifikasi"
                   :disabled="!baris.profilLengkap || sedangKirim"
                   size="sm"
                   class="min-h-11"
-                  @click="verifikasi(baris)"
+                  @click="bukaDialogVerifikasi(baris)"
                 >
                   Verifikasi
                 </Button>
+                <NuxtLink
+                  :to="ARAH_DETAIL(baris.id)"
+                  data-testid="pendaftar-aksi-detail"
+                  class="inline-flex h-9 min-h-11 items-center justify-center whitespace-nowrap rounded-md border bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent"
+                >
+                  Detail
+                </NuxtLink>
                 <Button
                   data-testid="pendaftar-aksi-tolak"
-                  variant="outline"
+                  variant="destructive"
                   :disabled="sedangKirim"
                   size="sm"
                   class="min-h-11"
@@ -397,6 +458,36 @@ onMounted(() => {
               @click="kirimPenolakan"
             >
               Tolak Pendaftar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <!-- Dialog konfirmasi verifikasi (renegotiasi 2026-09-23): klik
+           Verifikasi tidak langsung mengeksekusi — COO menyatakan sudah
+           memeriksa data dengan seksama; kirim hanya dari dialog ini. -->
+      <Dialog :open="calonDiverifikasi !== null" @update:open="nilai => nilai || tutupDialogVerifikasi()">
+        <DialogContent class="max-w-md" data-testid="pendaftar-dialog-verifikasi">
+          <DialogHeader>
+            <DialogTitle>Verifikasi Pendaftar</DialogTitle>
+          </DialogHeader>
+          <p class="text-sm text-muted-foreground">
+            Saya sudah memeriksa data pendaftar ini dengan seksama dan ingin melakukan verifikasi.
+            Status pendaftar akan berubah menjadi <span class="font-medium text-foreground">Terverifikasi</span>.
+          </p>
+          <div v-if="calonDiverifikasi" class="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+            <p class="font-medium">{{ calonDiverifikasi.nama === '' ? '(Nama belum diisi)' : calonDiverifikasi.nama }}</p>
+            <p class="text-xs text-muted-foreground">{{ calonDiverifikasi.email }}</p>
+          </div>
+          <DialogFooter class="gap-2 sm:justify-end">
+            <Button variant="outline" data-testid="pendaftar-batal-verifikasi" @click="tutupDialogVerifikasi">
+              Batal
+            </Button>
+            <Button
+              data-testid="pendaftar-kirim-verifikasi"
+              :disabled="sedangKirim"
+              @click="konfirmasiVerifikasi"
+            >
+              Ya, Verifikasi
             </Button>
           </DialogFooter>
         </DialogContent>

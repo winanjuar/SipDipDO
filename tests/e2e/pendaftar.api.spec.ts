@@ -709,3 +709,126 @@ test.describe('[P1] CHECK constraint DB — penolakan wajib beralasan (jalur DB 
     expect(hasil.kodeAlasanBlank).toBe('23514')
   })
 })
+
+test.describe('[P0] GET /api/pendaftar/:id — detail data pendaftar (penyempurnaan 2026-09-23)', () => {
+  test('[P1] tanpa sesi → 401 envelope', async ({ apiRequest }) => {
+    await log.step('GIVEN GET detail dengan id acak tanpa cookie sesi')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'GET',
+      path: `${PATH_PENDAFTAR}/${faker.string.uuid()}`,
+      validateSchema: SkemaEnvelopeError,
+    })
+
+    await log.step('THEN 401 UNAUTHORIZED')
+    expect(status).toBe(STATUS_UNAUTHORIZED)
+    expect(body.code).toBe('UNAUTHORIZED')
+  })
+
+  test('[P1] non-COO (calon) → 403 envelope', async ({ apiRequest }) => {
+    await log.step('GIVEN sesi calon owner')
+    const cookies = await mintSesiPemilik(apiRequest, {
+      userIdentifier: 'calon-diajukan',
+      email: emailSintetisUji(),
+    })
+
+    await log.step('WHEN GET detail dengan sesi calon')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'GET',
+      path: `${PATH_PENDAFTAR}/${faker.string.uuid()}`,
+      headers: headerCookieDariMint(cookies),
+      validateSchema: SkemaEnvelopeError,
+    })
+
+    await log.step('THEN 403 FORBIDDEN — detail khusus COO')
+    expect(status).toBe(STATUS_FORBIDDEN)
+    expect(body.code).toBe('FORBIDDEN')
+  })
+
+  test('[P1] id bukan uuid → 400 BAD_REQUEST envelope', async ({ apiRequest }) => {
+    await log.step('GIVEN sesi COO')
+    const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+
+    await log.step('WHEN GET detail dengan id bukan uuid')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'GET',
+      path: `${PATH_PENDAFTAR}/bukan-uuid`,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaEnvelopeError,
+    })
+
+    await log.step('THEN 400 BAD_REQUEST')
+    expect(status).toBe(STATUS_BAD_REQUEST)
+    expect(body.code).toBe('BAD_REQUEST')
+  })
+
+  test('[P0] id tak dikenal → 404 TIDAK_DITEMUKAN envelope', async ({ apiRequest }) => {
+    await log.step('GIVEN sesi COO dan id acak yang tidak ada di DB')
+    const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+
+    await log.step('WHEN GET detail dengan id tak dikenal')
+    const { status, body } = await apiRequest<EnvelopeError>({
+      method: 'GET',
+      path: `${PATH_PENDAFTAR}/${faker.string.uuid()}`,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaEnvelopeError,
+    })
+
+    await log.step('THEN 404 TIDAK_DITEMUKAN')
+    expect(status).toBe(STATUS_NOT_FOUND)
+    expect(body.code).toBe('TIDAK_DITEMUKAN')
+  })
+
+  test('[P0] detail calon diajukan → 200 seluruh isian (bentuk wire profile); pasca-verifikasi → 404', async ({ apiRequest }) => {
+    await log.step('GIVEN calon diajukan berprofil LENGKAP tersimpan')
+    const { email } = await seedCalonLengkap(apiRequest)
+    const cookieCoo = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    const daftar = await apiRequest<{ data: Array<{ id: string, email: string }> }>({
+      method: 'GET',
+      path: PATH_PENDAFTAR,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaDaftarPendaftar,
+    })
+    const target = daftar.body.data.find(baris => baris.email === email)
+    expect(target).toBeDefined()
+
+    await log.step('WHEN COO membuka GET /api/pendaftar/:id')
+    const { status, body } = await apiRequest<Record<string, unknown>>({
+      method: 'GET',
+      path: `${PATH_PENDAFTAR}/${target?.id}`,
+      headers: headerCookieDariMint(cookieCoo),
+    })
+
+    await log.step('THEN 200 — seluruh isian wire profile terbaca (bentuk PERSIS GET /api/profile)')
+    expect(status).toBe(STATUS_OK)
+    expect(body).toMatchObject({
+      id: target?.id,
+      email,
+      status: 'diajukan',
+      bankName: 'BCA',
+      profilLengkap: true,
+      sisaField: [],
+    })
+    expect(typeof body.accountNumber).toBe('string')
+    expect((body.accountNumber as string).length).toBeGreaterThan(0)
+    expect(typeof body.emergencyContactName).toBe('string')
+
+    await log.step('AND pasca-verifikasi (status bukan diajukan) → 404 TIDAK_DITEMUKAN')
+    const verifikasi = await apiRequest<KeputusanSukses>({
+      method: 'POST',
+      path: PATH_KEPUTUSAN,
+      body: { id: target?.id, keputusan: 'terverifikasi' },
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaKeputusanSukses,
+    })
+    expect(verifikasi.status).toBe(STATUS_OK)
+
+    const pasca = await apiRequest<EnvelopeError>({
+      method: 'GET',
+      path: `${PATH_PENDAFTAR}/${target?.id}`,
+      headers: headerCookieDariMint(cookieCoo),
+      validateSchema: SkemaEnvelopeError,
+    })
+    expect(pasca.status).toBe(STATUS_NOT_FOUND)
+    expect(pasca.body.code).toBe('TIDAK_DITEMUKAN')
+  })
+})

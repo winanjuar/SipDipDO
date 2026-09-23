@@ -32,7 +32,7 @@
  * kelengkapan-profil.spec.ts); `log.step`; tanpa waitForTimeout.
  */
 import { faker } from '@faker-js/faker/locale/id_ID'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { PANJANG_MAKS_ALASAN_PENOLAKAN } from '#shared/domain/identity'
 import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
@@ -72,6 +72,18 @@ async function klikDenganUlang(tindakan: () => Promise<void>): Promise<void> {
 const barisCalon = (page: Page, email: string) =>
   page.getByTestId(TEST_IDS.pendaftar.baris).filter({ hasText: email })
 
+/**
+ * Alur verifikasi dua-langkah (renegotiasi owner 2026-09-23): klik aksi
+ * Verifikasi → dialog konfirmasi terbuka → kirim dari dialog. Semua jalur
+ * verifikasi UI wajib lewat sini — POST tidak pernah terkirim langsung
+ * dari tombol baris.
+ */
+async function jalankanVerifikasi(page: Page, baris: Locator): Promise<void> {
+  await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+  await expect(page.getByTestId(TEST_IDS.pendaftar.dialogVerifikasi)).toBeVisible()
+  await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.kirimVerifikasi).click())
+}
+
 /** Jendela tahan refresh pada stub GET daftar (test guard sedangMuatUlang). */
 const DELAY_MUAT_ULANG_STUB_MS = 500
 
@@ -102,15 +114,21 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await expect(barisLengkap.getByText('Lengkap', { exact: true })).toBeVisible()
     await expect(barisBelum.getByText('Belum lengkap', { exact: true })).toBeVisible()
 
-    await log.step('AND teks sisaField TERLIHAT di baris belum-lengkap — berlabel Indonesia, bukan hover-only (hardening 2026-09-22)')
-    await expect(barisBelum.getByText(/Field belum lengkap: .*Nama Lengkap/)).toBeVisible()
-    await expect(barisBelum.getByText(/Nomor Rekening/)).toBeVisible()
+    await log.step('AND hint sisaField RINGKAS di baris belum-lengkap — maks 2 label + "+N lainnya" (UX 2026-09-23; isi penuh di halaman Detail)')
+    await expect(barisBelum.getByText(/Field kurang: .*Nama Lengkap/)).toBeVisible()
+    await expect(barisBelum.getByText(/\+8 lainnya/)).toBeVisible()
+    await expect(barisBelum.getByText(/Nomor Rekening/)).toHaveCount(0)
 
     await log.step('AND tombol Verifikasi AKTIF hanya pada baris lengkap; Tolak aktif di keduanya')
     await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi)).toBeEnabled()
     await expect(barisBelum.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi)).toBeDisabled()
     await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toBeEnabled()
     await expect(barisBelum.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toBeEnabled()
+
+    await log.step('AND urutan tombol dipin (owner 2026-09-23): Verifikasi(kiri) — Detail(link, tengah) — Tolak(merah, ujung kanan)')
+    await expect(barisLengkap.getByRole('link', { name: 'Detail' })).toBeVisible()
+    await expect(barisLengkap.getByRole('button')).toHaveText(['Verifikasi', 'Tolak'])
+    await expect(barisLengkap.getByTestId(TEST_IDS.pendaftar.aksiTolak)).toHaveClass(/destructive/)
   })
 
   test('[P0] Verifikasi dari UI → baris keluar dari daftar + server berubah (landing /personal)', async ({ page, context, apiRequest }) => {
@@ -122,8 +140,14 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await expect(baris).toBeVisible()
     await tungguHidrasi(page)
 
-    await log.step('WHEN tombol Verifikasi pada baris itu diklik (pasca-hidrasi)')
+    await log.step('WHEN tombol Verifikasi pada baris itu diklik → dialog konfirmasi terbuka (renegotiasi 2026-09-23)')
     await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogVerifikasi)).toBeVisible()
+    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogVerifikasi)).toContainText('dengan seksama')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.kirimVerifikasi)).toBeEnabled()
+
+    await log.step('AND kirim diklik dari dialog konfirmasi')
+    await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.kirimVerifikasi).click())
 
     await log.step('THEN baris hilang dari daftar dan pesan sukses tampil (expect auto-retrying)')
     await expect(baris).toHaveCount(0)
@@ -210,7 +234,7 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await tungguHidrasi(page)
 
     await log.step('WHEN tombol Verifikasi diklik (stub menjawab 409)')
-    await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await jalankanVerifikasi(page, baris)
 
     await log.step('THEN pesan status-berubah tampil (aria-live region) dan daftar dimuat ulang — baris tetap terlihat')
     await expect(page.getByTestId(TEST_IDS.pendaftar.pesanStatusBerubah)).toContainText('Status pendaftar sudah berubah')
@@ -239,7 +263,7 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await tungguHidrasi(page)
 
     await log.step('WHEN tombol Verifikasi diklik (stub menjawab 403)')
-    await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await jalankanVerifikasi(page, baris)
 
     await log.step('THEN pesan kewenangan tampil — PERMANEN, tanpa ajakan "coba lagi" (baris TIDAK dimuat ulang)')
     await expect(page.getByRole('alert')).toContainText('Kewenangan COO tidak berlaku')
@@ -268,7 +292,7 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await tungguHidrasi(page)
 
     await log.step('WHEN tombol Verifikasi diklik (stub menjawab 404)')
-    await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await jalankanVerifikasi(page, baris)
 
     await log.step('THEN pesan tidak-ditemukan tampil dan daftar DIMUAT ULANG — angka basi tidak tampil diam-diam')
     await expect(page.getByRole('alert')).toContainText('tidak ditemukan')
@@ -302,7 +326,7 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await tungguHidrasi(page)
 
     await log.step('WHEN tombol Verifikasi diklik (stub menjawab 400 PROFILE_INCOMPLETE)')
-    await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await jalankanVerifikasi(page, baris)
 
     await log.step('THEN pesan memuat field kurang dalam LABEL Indonesia (via LABEL_FIELD_PROFIL), bukan kunci mentah')
     await expect(page.getByRole('alert')).toContainText('Profil calon belum lengkap')
@@ -467,11 +491,11 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
     await tungguHidrasi(page)
 
     await log.step('WHEN Verifikasi baris A diklik (POST sukses cepat → memicu muatUlang yang DITAHAN stub delay)')
-    await klikDenganUlang(() => lokasiA.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await jalankanVerifikasi(page, lokasiA)
     await muatUlangStub // GET muatUlang tiba — refresh masih tertahan delay.
 
     await log.step('AND Verifikasi baris B diklik SELAMA refresh berjalan — guard wajib menolaknya')
-    await klikDenganUlang(() => lokasiB.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await jalankanVerifikasi(page, lokasiB)
 
     await log.step('THEN TEPAT SATU POST keputusan (milik baris A) — klik B tidak pernah terkirim ke jaringan')
     await expect(lokasiA.getByText('Muat-2 A')).toBeVisible() // refresh selesai + re-render dari response delay.
@@ -534,5 +558,69 @@ test.describe('E2E Story 1.6 — halaman Pendaftar untuk COO', () => {
       await expect(page.getByTestId(TEST_IDS.pendaftar.kosong)).toBeVisible()
       await expect(page.getByTestId(TEST_IDS.pendaftar.baris)).toHaveCount(0)
     })
+  })
+
+  test('[P1] konfirmasi verifikasi — Batal menutup dialog tanpa mengubah apa pun', async ({ page, context, apiRequest }) => {
+    // Renegotiasi 2026-09-23: verifikasi dua-langkah — jalur Batal wajib
+    // meninggalkan daftar dan status apa adanya (tidak ada POST terkirim).
+    await log.step('GIVEN sesi COO + calon lengkap; dialog konfirmasi verifikasi terbuka')
+    await context.addCookies(await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' }))
+    const { email } = await seedCalonLengkap(apiRequest)
+    await page.goto('/pendaftar')
+    const baris = barisCalon(page, email)
+    await expect(baris).toBeVisible()
+    await tungguHidrasi(page)
+    await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiVerifikasi).click())
+    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogVerifikasi)).toBeVisible()
+
+    await log.step('WHEN Batal diklik')
+    await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.batalVerifikasi).click())
+
+    await log.step('THEN dialog tertutup, baris TETAP di daftar, tanpa pesan sukses — tidak ada keputusan terkirim')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogVerifikasi)).toHaveCount(0)
+    await expect(baris).toBeVisible()
+    await expect(page.getByRole('alert')).toHaveCount(0)
+  })
+
+  test('[P0] tombol Detail → halaman detail read-only (reuse layout kelengkapan) + verifikasi dari detail', async ({ page, context, apiRequest }) => {
+    // Penyempurnaan 2026-09-23 (revisi owner): detail = HALAMAN penuh yang
+    // meniru layout kelengkapan (bukan pop-up) — COO memeriksa + verifikasi
+    // di satu tempat tanpa bolak-balik ke daftar.
+    await log.step('GIVEN sesi COO + calon lengkap tersimpan; id diketahui dari daftar (server-truth)')
+    await context.addCookies(await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' }))
+    const { email } = await seedCalonLengkap(apiRequest)
+    const cookieCooApi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    const daftar = await apiRequest<{ data: Array<{ id: string, email: string }> }>({
+      method: 'GET',
+      path: '/api/pendaftar',
+      headers: headerCookieDariMint(cookieCooApi),
+    })
+    const target = daftar.body.data.find(baris => baris.email === email)
+    expect(target).toBeDefined()
+
+    await page.goto('/pendaftar')
+    const baris = barisCalon(page, email)
+    await expect(baris).toBeVisible()
+    await tungguHidrasi(page)
+
+    await log.step('WHEN tombol Detail diklik → navigasi ke /pendaftar/:id')
+    await klikDenganUlang(() => baris.getByTestId(TEST_IDS.pendaftar.aksiDetail).click())
+
+    await log.step('THEN halaman detail read-only tampil — fieldset kelengkapan + nilai isian + input readonly')
+    await expect(page).toHaveURL(new RegExp(`/pendaftar/${target?.id}$`))
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toBeVisible()
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('Profil Pemilik')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('Info Kontak Darurat')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('Info Rekening')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.halamanDetail)).toContainText('BCA')
+    await expect(page.locator('#detail-accountNumber')).toHaveAttribute('readonly', '')
+
+    await log.step('AND Verifikasi tersedia di halaman detail → dialog konfirmasi → kirim → kembali ke daftar')
+    await expect(page.getByTestId(TEST_IDS.pendaftar.aksiVerifikasiDetail)).toBeEnabled()
+    await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.aksiVerifikasiDetail).click())
+    await expect(page.getByTestId(TEST_IDS.pendaftar.dialogVerifikasi)).toBeVisible()
+    await klikDenganUlang(() => page.getByTestId(TEST_IDS.pendaftar.kirimVerifikasi).click())
+    await expect(page).toHaveURL(/\/pendaftar$/)
+    await expect(baris).toHaveCount(0)
   })
 })
