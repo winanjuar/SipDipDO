@@ -119,7 +119,6 @@ onMounted(() => {
 
       <header class="flex flex-col gap-1">
         <h1 class="text-2xl font-semibold">Detail Pendaftar</h1>
-        <p v-if="detail" class="text-sm text-muted-foreground">{{ detail.email }}</p>
       </header>
 
       <template v-if="detail">
