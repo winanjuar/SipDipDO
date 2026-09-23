@@ -78,6 +78,14 @@ export const TEST_IDS = {
     kirimTolak: 'pendaftar-kirim-tolakan',
     batalTolak: 'pendaftar-batal-tolakan',
     pesanStatusBerubah: 'pendaftar-pesan-status-berubah',
+    // Penyempurnaan 2026-09-23 — konfirmasi verifikasi dua-langkah + detail.
+    dialogVerifikasi: 'pendaftar-dialog-verifikasi',
+    kirimVerifikasi: 'pendaftar-kirim-verifikasi',
+    batalVerifikasi: 'pendaftar-batal-verifikasi',
+    aksiDetail: 'pendaftar-aksi-detail',
+    dialogDetail: 'pendaftar-dialog-detail',
+    tutupDetail: 'pendaftar-tutup-detail',
+    cobaLagiDetail: 'pendaftar-coba-lagi-detail',
   },
   // Story 1.7 — navigasi registry-driven (kontrak ATDD red-phase; elemen
   // layout app.vue diimplementasikan dengan data-testid ini). Item nav

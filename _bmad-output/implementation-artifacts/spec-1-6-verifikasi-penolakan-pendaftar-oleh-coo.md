@@ -95,6 +95,9 @@ context:
 
 ## Spec Change Log
 
+- **2026-09-23 (renegotiasi owner pasca-merge #1 — konfirmasi sebelum verifikasi):** aksi Verifikasi di `/pendaftar` kini dua-langkah: klik tombol membuka dialog konfirmasi ("Saya sudah memeriksa data pendaftar ini dengan seksama dan ingin melakukan verifikasi…", nama + email calon tampil), POST keputusan hanya terkirim dari dialog. Alasan: mencegah verifikasi sekali-klik tanpa kesengajaan (konsekuensi status permanen bagi pendaftar). Kontrak API TIDAK berubah (matriks I/O tetap); test UI `pendaftar.spec.ts` diadaptasi (dialog + jalur Batal). Invarian matriks #8 dijaga: membuka dialog tidak pernah mengosongkan pesan sukses.
+- **2026-09-23 (renegotiasi owner pasca-merge #2 — detail data pendaftar):** baris `/pendaftar` menambah tombol **Detail** → dialog read-only seluruh isian Lampiran A calon, dimuat on-demand via endpoint BARU `GET /api/pendaftar/:id` (gate COO; hanya baris `diajukan` → selain itu 404; id tak sah → 400). Bentuk field PERSIS wire `GET /api/profile` (bank enum/Lainnya+otherBankName). Alasan: COO harus bisa MEMERIKSA isi sebelum menyatakan "sudah memeriksa dengan seksama" (pasangan fitur #1).
+
 ## Review Triage Log
 
 | Temuan | Verdict | Bukti |

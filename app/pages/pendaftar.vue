@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OwnerStatus } from '#shared/domain/identity'
 import { LANDING_PATH, PANJANG_MAKS_ALASAN_PENOLAKAN } from '#shared/domain/identity'
-import { LABEL_FIELD_PROFIL, type KunciProfil } from '#shared/domain/profil'
+import { LABEL_FIELD_PROFIL, BANK_LAINNYA, type KunciProfil } from '#shared/domain/profil'
 import type { LandingRespons } from '~/lib/landing'
 import { formatWaktuAudit } from '~/lib/audit'
 
@@ -26,7 +26,10 @@ import { formatWaktuAudit } from '~/lib/audit'
  * touch-first). Guard `sedangMuatUlang` menolak POST kedua selama refresh
  * pasca-keputusan berjalan — pesan sukses tidak tertimpa. Penolakan wajib
  * alasan via Dialog + textarea (UX-DR20), alasan dibatasi konstanta
- * bersama.
+ * bersama. Verifikasi dua-langkah (renegotiasi 2026-09-23): klik membuka
+ * dialog konfirmasi — COO menyatakan sudah memeriksa data dengan seksama.
+ * Tombol Detail membuka dialog read-only seluruh isian calon (on-demand
+ * via GET /api/pendaftar/:id).
  */
 definePageMeta({ auth: true, layout: 'app' })
 
@@ -186,18 +189,114 @@ async function kirimKeputusan(id: string, keputusan: 'terverifikasi' | 'ditolak'
   }
 }
 
-/** Verifikasi baris — hanya dipanggil untuk baris `profilLengkap` (UJ-6).
- *  Pesan lama TIDAK dihapus di awal: klik yang ditolak guard (sedangKirim/
- *  sedangMuatUlang) tidak boleh mengosongkan pesan sebelumnya — pesan sukses
- *  tidak tertimpa (matriks #8); jalur sukses/error selalu men-set pesan
- *  baru, sehingga tidak ada pesan basi yang menggantung. */
-async function verifikasi(baris: CalonPendaftar): Promise<void> {
-  const tersimpan = await kirimKeputusan(baris.id, 'terverifikasi')
+/**
+ * Dialog konfirmasi verifikasi (renegotiasi owner 2026-09-23): klik
+ * Verifikasi TIDAK langsung mengeksekusi — COO menyatakan sudah memeriksa
+ * data pendaftar dengan seksama lewat dialog, kirim hanya dari sana.
+ * Guard `sedangKirim` di dalam konfirmasi menolak klik ganda selama POST
+ * berjalan; guard `sedangMuatUlang` di dalam kirimKeputusan menolak
+ * keputusan selama refresh pasca-sukses (matriks #8) — pesan sukses tidak
+ * pernah dikosongkan saat dialog DIBUKA, klik yang ditolak guard tidak
+ * boleh menimpa pesan sebelumnya.
+ */
+const calonDiverifikasi = ref<CalonPendaftar | null>(null)
+
+function bukaDialogVerifikasi(baris: CalonPendaftar): void {
+  calonDiverifikasi.value = baris
+}
+
+function tutupDialogVerifikasi(): void {
+  calonDiverifikasi.value = null
+}
+
+async function konfirmasiVerifikasi(): Promise<void> {
+  // Satu penulis: keputusan sedang berjalan → klik ganda diabaikan (dialog
+  // dibiarkan terbuka sampai POST pertama selesai).
+  if (sedangKirim.value) return
+  const target = calonDiverifikasi.value
+  if (!target) return
+  const tersimpan = await kirimKeputusan(target.id, 'terverifikasi')
   if (tersimpan) {
+    tutupDialogVerifikasi()
     pesan.value = { jenis: 'berhasil', teks: 'Pendaftar diverifikasi.' }
     await muatUlang()
+  } else if (pesan.value?.jenis === 'gagal') {
+    // 403/404/400: dialog tetap terbuka — pesan penjelasan sudah tampil.
+  } else {
+    // 409: status sudah berubah — tutup bersama muat ulang daftar.
+    tutupDialogVerifikasi()
   }
 }
+
+/**
+ * Dialog detail pendaftar (penyempurnaan owner 2026-09-23): seluruh isian
+ * Lampiran A dibaca ON-DEMAND via `GET /api/pendaftar/:id` — read-only,
+ * tersedia untuk semua baris (lengkap maupun belum). Gagal memuat tampil
+ * dalam dialog dengan "Coba lagi" (angka basi tidak pernah tampil).
+ */
+const calonDetail = ref<CalonPendaftar | null>(null)
+const detailMemuat = ref(false)
+const detailPendaftar = ref<DetailPendaftar | null>(null)
+
+interface DetailPendaftar {
+  id: string
+  email: string
+  status: OwnerStatus
+  fullName: string
+  alias: string
+  phoneNumber: string
+  emergencyContactName: string
+  emergencyContactPhoneNumber: string
+  emergencyContactRelationship: string
+  bankName: string
+  otherBankName: string
+  accountHolderName: string
+  accountNumber: string
+  profilLengkap: boolean
+  sisaField: string[]
+}
+
+async function bukaDialogDetail(baris: CalonPendaftar): Promise<void> {
+  calonDetail.value = baris
+  detailMemuat.value = true
+  detailPendaftar.value = null
+  const hasil = await api<DetailPendaftar>(`/api/pendaftar/${baris.id}`).catch(() => null)
+  // Dialog ditutup sebelum fetch selesai → buang hasil tua (anti-race).
+  if (calonDetail.value?.id !== baris.id) return
+  detailPendaftar.value = hasil
+  detailMemuat.value = false
+}
+
+function tutupDialogDetail(): void {
+  calonDetail.value = null
+  detailPendaftar.value = null
+}
+
+/** Baris read-only dialog detail — label dari LABEL_FIELD_PROFIL (satu
+ *  sumber); Bank "Lainnya" menampilkan teks bebasnya; kosong → "—". */
+const BARIS_DETAIL = [
+  'fullName',
+  'alias',
+  'phoneNumber',
+  'emergencyContactName',
+  'emergencyContactPhoneNumber',
+  'emergencyContactRelationship',
+  'bankName',
+  'accountHolderName',
+  'accountNumber',
+] as const
+
+const barisDetail = computed(() => {
+  if (!detailPendaftar.value) return []
+  const d = detailPendaftar.value
+  return BARIS_DETAIL.map((kunci) => {
+    let nilai: string = d[kunci] ?? ''
+    if (kunci === 'bankName' && nilai === BANK_LAINNYA && d.otherBankName !== '') {
+      nilai = `${d.otherBankName} (Lainnya)`
+    }
+    return { kunci, label: LABEL_FIELD_PROFIL[kunci as KunciProfil] ?? kunci, nilai: nilai === '' ? '—' : nilai }
+  })
+})
 
 /**
  * Dialog penolakan (UX-DR20): alasan wajib — tombol kirim tidak aktif selama
@@ -345,9 +444,19 @@ onMounted(() => {
                   :disabled="!baris.profilLengkap || sedangKirim"
                   size="sm"
                   class="min-h-11"
-                  @click="verifikasi(baris)"
+                  @click="bukaDialogVerifikasi(baris)"
                 >
                   Verifikasi
+                </Button>
+                <Button
+                  data-testid="pendaftar-aksi-detail"
+                  variant="outline"
+                  :disabled="sedangMuatUlang"
+                  size="sm"
+                  class="min-h-11"
+                  @click="bukaDialogDetail(baris)"
+                >
+                  Detail
                 </Button>
                 <Button
                   data-testid="pendaftar-aksi-tolak"
@@ -397,6 +506,79 @@ onMounted(() => {
               @click="kirimPenolakan"
             >
               Tolak Pendaftar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <!-- Dialog konfirmasi verifikasi (renegotiasi 2026-09-23): klik
+           Verifikasi tidak langsung mengeksekusi — COO menyatakan sudah
+           memeriksa data dengan seksama; kirim hanya dari dialog ini. -->
+      <Dialog :open="calonDiverifikasi !== null" @update:open="nilai => nilai || tutupDialogVerifikasi()">
+        <DialogContent class="max-w-md" data-testid="pendaftar-dialog-verifikasi">
+          <DialogHeader>
+            <DialogTitle>Verifikasi Pendaftar</DialogTitle>
+          </DialogHeader>
+          <p class="text-sm text-muted-foreground">
+            Saya sudah memeriksa data pendaftar ini dengan seksama dan ingin melakukan verifikasi.
+            Status pendaftar akan berubah menjadi <span class="font-medium text-foreground">Terverifikasi</span>.
+          </p>
+          <div v-if="calonDiverifikasi" class="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+            <p class="font-medium">{{ calonDiverifikasi.nama === '' ? '(Nama belum diisi)' : calonDiverifikasi.nama }}</p>
+            <p class="text-xs text-muted-foreground">{{ calonDiverifikasi.email }}</p>
+          </div>
+          <DialogFooter class="gap-2 sm:justify-end">
+            <Button variant="outline" data-testid="pendaftar-batal-verifikasi" @click="tutupDialogVerifikasi">
+              Batal
+            </Button>
+            <Button
+              data-testid="pendaftar-kirim-verifikasi"
+              :disabled="sedangKirim"
+              @click="konfirmasiVerifikasi"
+            >
+              Ya, Verifikasi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <!-- Dialog detail pendaftar (penyempurnaan 2026-09-23): seluruh isian
+           Lampiran A read-only, dimuat on-demand per baris. -->
+      <Dialog :open="calonDetail !== null" @update:open="nilai => nilai || tutupDialogDetail()">
+        <DialogContent class="max-w-md" data-testid="pendaftar-dialog-detail">
+          <DialogHeader>
+            <DialogTitle>Detail Pendaftar</DialogTitle>
+          </DialogHeader>
+          <div v-if="calonDetail" class="text-sm">
+            <p class="font-medium">{{ calonDetail.nama === '' ? '(Nama belum diisi)' : calonDetail.nama }}</p>
+            <p class="text-xs text-muted-foreground">{{ calonDetail.email }}</p>
+          </div>
+          <p v-if="detailMemuat" class="text-sm text-muted-foreground">Memuat data pendaftar…</p>
+          <template v-else-if="detailPendaftar">
+            <dl class="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+              <template v-for="baris in barisDetail" :key="baris.kunci">
+                <dt class="text-muted-foreground">{{ baris.label }}</dt>
+                <dd class="min-h-5 break-words">{{ baris.nilai }}</dd>
+              </template>
+            </dl>
+            <p v-if="!detailPendaftar.profilLengkap" class="text-xs text-muted-foreground">
+              Field belum lengkap: {{ labelSisaField(detailPendaftar.sisaField) }}
+            </p>
+          </template>
+          <div v-else class="flex flex-col items-start gap-2 text-sm">
+            <p class="text-muted-foreground">Tidak dapat memuat data pendaftar.</p>
+            <Button
+              v-if="calonDetail"
+              variant="outline"
+              size="sm"
+              data-testid="pendaftar-coba-lagi-detail"
+              @click="bukaDialogDetail(calonDetail)"
+            >
+              Coba lagi
+            </Button>
+          </div>
+          <DialogFooter class="gap-2 sm:justify-end">
+            <Button variant="outline" data-testid="pendaftar-tutup-detail" @click="tutupDialogDetail">
+              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>
