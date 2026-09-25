@@ -48,6 +48,7 @@ export interface OwnerDetail {
   fullName: string | null
   alias: string | null
   phoneNumber: string | null
+  profileComplete: boolean
   createdAt: string
   updatedAt: string
 }
@@ -190,6 +191,20 @@ export async function getOwnerById(ownerId: string, db: DbClient): Promise<GetOw
     ? { bankName: null, otherBankName: null }
     : namaBankKeWire(r.storedBankName)
 
+  // Compute profileComplete using same logic as listOwners
+  const profilNilai = {
+    fullName: r.fullName,
+    alias: r.alias,
+    phoneNumber: r.phoneNumber,
+    emergencyContactName: r.emergencyContactName,
+    emergencyContactPhoneNumber: r.emergencyContactPhoneNumber,
+    emergencyContactRelationship: r.emergencyContactRelationship,
+    bankName: bank.bankName,
+    otherBankName: bank.otherBankName,
+    accountHolderName: r.accountHolderName,
+    accountNumber: r.accountNumber,
+  }
+
   const hasEmergencyContact = r.emergencyContactName !== null
     || r.emergencyContactPhoneNumber !== null
     || r.emergencyContactRelationship !== null
@@ -208,23 +223,24 @@ export async function getOwnerById(ownerId: string, db: DbClient): Promise<GetOw
       fullName: r.fullName,
       alias: r.alias,
       phoneNumber: r.phoneNumber,
+      profileComplete: profilLengkap(profilNilai),
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     },
     emergencyContact: hasEmergencyContact
       ? {
-          name: r.emergencyContactName,
-          phoneNumber: r.emergencyContactPhoneNumber,
-          relationship: r.emergencyContactRelationship,
-        }
+        name: r.emergencyContactName,
+        phoneNumber: r.emergencyContactPhoneNumber,
+        relationship: r.emergencyContactRelationship,
+      }
       : null,
     bankAccount: hasBankAccount
       ? {
-          bankName: bank.bankName,
-          otherBankName: bank.otherBankName,
-          accountHolderName: r.accountHolderName,
-          accountNumber: r.accountNumber,
-        }
+        bankName: bank.bankName,
+        otherBankName: bank.otherBankName,
+        accountHolderName: r.accountHolderName,
+        accountNumber: r.accountNumber,
+      }
       : null,
   }
 }
@@ -382,13 +398,30 @@ const BATAS_COBA_KODE_REFERRAL = 3
 
 /** true bila error adalah tabrakan UNIQUE (postgres 23505). */
 function tabrakanUnique(error: unknown): boolean {
-  return (error as { code?: unknown } | null)?.code === '23505'
+  // Check both direct code and wrapped error
+  const err = error as { code?: string, cause?: { code?: string } } | null
+  return err?.code === '23505' || err?.cause?.code === '23505'
 }
 
 /** true bila error adalah tabrakan UNIQUE pada email. */
 function tabrakanEmail(error: unknown): boolean {
-  const err = error as { constraint?: string, code?: unknown } | null
-  return err?.code === '23505' && err?.constraint === 'owners_email_unique'
+  // postgres-js error format includes constraint_name
+  // Drizzle might wrap it in cause
+  const err = error as {
+    constraint_name?: string
+    code?: string
+    cause?: {
+      constraint_name?: string
+      code?: string
+    }
+  } | null
+
+  // Check direct properties
+  if (err?.code === '23505' && err?.constraint_name === 'owners_email_unique') return true
+  // Check wrapped cause
+  if (err?.cause?.code === '23505' && err?.cause?.constraint_name === 'owners_email_unique') return true
+
+  return false
 }
 
 /**
