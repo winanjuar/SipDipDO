@@ -23,7 +23,7 @@
  * - `apiRequest` dipakai untuk API calls; tanpa waitForTimeout; tanpa console.log.
  *
  * Kontrak selektor: blok `TEST_IDS.adminOwners` di
- * tests/support/helpers/test-ids.ts (akan ditambahkan saat green-phase).
+ * tests/support/helpers/test-ids.ts.
  */
 import { test, expect, log } from '../support/merged-fixtures'
 import { TEST_IDS } from '../support/helpers/test-ids'
