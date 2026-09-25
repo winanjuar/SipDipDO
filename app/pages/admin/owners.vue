@@ -114,13 +114,9 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
 
     <!-- Search -->
     <div class="flex items-center gap-4">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Cari owner (nama, email, HP)…"
+      <input v-model="searchQuery" type="text" placeholder="Cari owner (nama, email, HP)…"
         data-testid="admin-owners-search"
-        class="flex h-11 w-full max-w-sm rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+        class="flex h-11 w-full max-w-sm rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring">
     </div>
 
     <!-- Table (desktop) -->
@@ -138,11 +134,7 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow
-            v-for="owner in filteredOwners"
-            :key="owner.id"
-            data-testid="admin-owners-baris"
-          >
+          <TableRow v-for="owner in filteredOwners" :key="owner.id" data-testid="admin-owners-baris">
             <TableCell class="font-medium">
               {{ namaTampilan(owner) }}
               <span v-if="owner.alias && owner.fullName" class="text-muted-foreground">({{ owner.alias }})</span>
@@ -161,12 +153,7 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
             </TableCell>
             <TableCell class="text-sm tabular-nums">{{ formatTanggal(owner.createdAt) }}</TableCell>
             <TableCell class="text-right">
-              <Button
-                variant="ghost"
-                size="sm"
-                data-testid="admin-owners-edit"
-                @click="openEdit(owner.id)"
-              >
+              <Button variant="ghost" size="sm" data-testid="admin-owners-edit" @click="openEdit(owner.id)">
                 Edit
               </Button>
             </TableCell>
@@ -183,12 +170,8 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
 
     <!-- Card list (mobile) -->
     <div class="flex flex-col gap-4 md:hidden">
-      <div
-        v-for="owner in filteredOwners"
-        :key="owner.id"
-        class="flex flex-col gap-3 rounded-lg border p-4"
-        data-testid="admin-owners-card"
-      >
+      <div v-for="owner in filteredOwners" :key="owner.id" class="flex flex-col gap-3 rounded-lg border p-4"
+        data-testid="admin-owners-card">
         <div class="flex items-start justify-between">
           <div>
             <p class="font-medium">{{ namaTampilan(owner) }}</p>
@@ -216,21 +199,13 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          class="w-full"
-          data-testid="admin-owners-edit"
-          @click="openEdit(owner.id)"
-        >
+        <Button variant="outline" size="sm" class="w-full" data-testid="admin-owners-edit" @click="openEdit(owner.id)">
           Edit
         </Button>
       </div>
 
-      <div
-        v-if="filteredOwners.length === 0"
-        class="flex items-center justify-center rounded-lg border border-dashed p-10 text-center"
-      >
+      <div v-if="filteredOwners.length === 0"
+        class="flex items-center justify-center rounded-lg border border-dashed p-10 text-center">
         <p class="text-sm text-muted-foreground">
           {{ searchQuery ? 'Tidak ditemukan owner yang cocok.' : 'Belum ada owner.' }}
         </p>
@@ -238,18 +213,15 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
     </div>
 
     <!-- Edit Dialog -->
-    <TooltipProvider>
-      <OwnerEditDialog
-        v-model:open="editDialogOpen"
-        :owner-id="editOwnerId"
-        @saved="onSaved"
-      />
-    </TooltipProvider>
+    <ClientOnly>
+      <TooltipProvider>
+        <AdminOwnerEditDialog v-model:open="editDialogOpen" :owner-id="editOwnerId" @saved="onSaved" />
+      </TooltipProvider>
+    </ClientOnly>
 
     <!-- Add Dialog -->
-    <OwnerAddDialog
-      v-model:open="addDialogOpen"
-      @saved="onSaved"
-    />
+    <ClientOnly>
+      <AdminOwnerAddDialog v-model:open="addDialogOpen" @saved="onSaved" />
+    </ClientOnly>
   </main>
 </template>

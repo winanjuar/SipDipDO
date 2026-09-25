@@ -62,15 +62,8 @@ function selectOwner(value: string | number | bigint | Record<string, unknown> |
 </script>
 
 <template>
-  <Select
-    :model-value="modelValue"
-    :disabled="disabled"
-    @update:model-value="selectOwner"
-  >
-    <SelectTrigger
-      data-testid="owner-picker-trigger"
-      class="h-11 w-full"
-    >
+  <Select :model-value="modelValue" :disabled="disabled" data-testid="owner-picker" @update:model-value="selectOwner">
+    <SelectTrigger data-testid="owner-picker-trigger" class="h-11 w-full">
       <SelectValue :placeholder="placeholder">
         <template v-if="selectedOwner">
           <span class="flex items-center gap-2">
@@ -85,22 +78,13 @@ function selectOwner(value: string | number | bigint | Record<string, unknown> |
     <SelectContent>
       <!-- Search input di atas daftar -->
       <div class="px-2 pb-2">
-        <input
-          v-model="filterText"
-          type="text"
-          placeholder="Cari owner…"
-          data-testid="owner-picker-search"
-          class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <input v-model="filterText" type="text" placeholder="Cari owner…" data-testid="owner-picker-search"
+          class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring">
       </div>
 
       <SelectGroup>
-        <SelectItem
-          v-for="owner in ownersFiltered"
-          :key="owner.id"
-          :value="owner.id"
-          :data-testid="`owner-picker-item-${owner.id}`"
-        >
+        <SelectItem v-for="owner in ownersFiltered" :key="owner.id" :value="owner.id"
+          :data-testid="`owner-picker-item-${owner.id}`">
           <span class="flex w-full items-center justify-between gap-2">
             <span class="flex flex-col">
               <span class="font-medium">{{ namaTampilan(owner) }}</span>
