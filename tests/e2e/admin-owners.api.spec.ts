@@ -188,7 +188,7 @@ function emailUjiUnik(suffix: string): string {
 // ============================================================================
 
 test.describe('[Story 1.8] GET /api/admin/owners Authorization (AD-8)', () => {
-  test.skip('[P0] #1 GET /api/admin/owners tanpa sesi → 401 envelope', async ({ apiRequest }) => {
+  test('[P0] #1 GET /api/admin/owners tanpa sesi → 401 envelope', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint /api/admin/owners belum ada
     await log.step('GIVEN permintaan GET /api/admin/owners tanpa cookie sesi')
 
@@ -204,7 +204,7 @@ test.describe('[Story 1.8] GET /api/admin/owners Authorization (AD-8)', () => {
     expect(body.message.length).toBeGreaterThan(0)
   })
 
-  test.skip('[P0] #2 GET /api/admin/owners sesi non-COO → 403 envelope', async ({ apiRequest }) => {
+  test('[P0] #2 GET /api/admin/owners sesi non-COO → 403 envelope', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint /api/admin/owners belum ada
     await log.step('GIVEN sesi pemegang saham (role ≠ coo) dari endpoint mint dev-only')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham' })
@@ -222,7 +222,7 @@ test.describe('[Story 1.8] GET /api/admin/owners Authorization (AD-8)', () => {
     expect(body.message.length).toBeGreaterThan(0)
   })
 
-  test.skip('[P0] #3 GET /api/admin/owners sesi COO → 200 dengan daftar owner', async ({ apiRequest }) => {
+  test('[P0] #3 GET /api/admin/owners sesi COO → 200 dengan daftar owner', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint /api/admin/owners belum ada
     await log.step('GIVEN sesi COO aktif dari endpoint mint dev-only')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -241,7 +241,7 @@ test.describe('[Story 1.8] GET /api/admin/owners Authorization (AD-8)', () => {
 })
 
 test.describe('[Story 1.8] GET /api/admin/owners/:id Detail', () => {
-  test.skip('[P1] #4 GET /api/admin/owners/:id sesi COO → 200 dengan owner, emergencyContact, bankAccount', async ({ apiRequest }) => {
+  test('[P1] #4 GET /api/admin/owners/:id sesi COO → 200 dengan owner, emergencyContact, bankAccount', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO dan owner ID dari daftar')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -264,7 +264,7 @@ test.describe('[Story 1.8] GET /api/admin/owners/:id Detail', () => {
 })
 
 test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)', () => {
-  test.skip('[P0] #5 PUT /api/admin/owners/:id update identity → 200 + audit tercatat', async ({ apiRequest }) => {
+  test('[P0] #5 PUT /api/admin/owners/:id update identity → 200 + audit tercatat', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO dan owner ID dari daftar')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -274,7 +274,7 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     await log.step('WHEN PUT /api/admin/owners/:id dengan perubahan fullName/alias/phoneNumber')
     const updatePayload = {
       fullName: 'Test Update Nama Lengkap',
-      alias: 'Test Alias',
+      alias: 'TestAlias',
       phoneNumber: '081234567890',
     }
     const { status, body } = await apiRequest<UpdateOwnerResponse>({
@@ -298,12 +298,12 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     }).validateSchema(SkemaDaftarAudit)
     expect(auditResponse.status).toBe(200)
     const auditEntry = auditResponse.body.data.find(
-      entry => entry.action === 'kelola-owner-perubahan' && entry.target === ownerId,
+      entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
     )
     expect(auditEntry, 'audit entry kelola-owner-perubahan harus tercatat').toBeDefined()
   })
 
-  test.skip('[P1] #6 PUT /api/admin/owners/:id update emergencyContact → 200 + audit tercatat', async ({ apiRequest }) => {
+  test('[P1] #6 PUT /api/admin/owners/:id update emergencyContact → 200 + audit tercatat', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO dan owner ID dari daftar')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -311,11 +311,13 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     const headerCookie = headerCookieDariMint(cookieSesi)
 
     await log.step('WHEN PUT /api/admin/owners/:id dengan perubahan emergencyContact')
+    // Use unique name suffix to ensure change detection (audit only written when data changes)
+    const timestamp = Date.now().toString().slice(-4)
     const updatePayload = {
       emergencyContact: {
-        name: 'Kontak Darurat Test',
+        name: `Kontak Test ${timestamp}`,
         phoneNumber: '082345678901',
-        relationship: 'saudara',
+        relationship: 'Saudara',
       },
     }
     const { status, body } = await apiRequest<UpdateOwnerResponse>({
@@ -337,12 +339,12 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     }).validateSchema(SkemaDaftarAudit)
     expect(auditResponse.status).toBe(200)
     const auditEntry = auditResponse.body.data.find(
-      entry => entry.action === 'kelola-owner-perubahan' && entry.target === ownerId,
+      entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
     )
     expect(auditEntry, 'audit entry kelola-owner-perubahan harus tercatat').toBeDefined()
   })
 
-  test.skip('[P1] #7 PUT /api/admin/owners/:id update bankAccount → 200 + audit tercatat', async ({ apiRequest }) => {
+  test('[P1] #7 PUT /api/admin/owners/:id update bankAccount → 200 + audit tercatat', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO dan owner ID dari daftar')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -350,11 +352,13 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     const headerCookie = headerCookieDariMint(cookieSesi)
 
     await log.step('WHEN PUT /api/admin/owners/:id dengan perubahan bankAccount')
+    // Use unique account number suffix to ensure change detection (audit only written when data changes)
+    const timestamp = Date.now().toString().slice(-6)
     const updatePayload = {
       bankAccount: {
         bankName: 'BCA',
-        accountHolderName: 'Nama Pemilik Rekening',
-        accountNumber: '1234567890',
+        accountHolderName: 'Nama Pemilik Rek',
+        accountNumber: timestamp,
       },
     }
     const { status, body } = await apiRequest<UpdateOwnerResponse>({
@@ -376,12 +380,12 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     }).validateSchema(SkemaDaftarAudit)
     expect(auditResponse.status).toBe(200)
     const auditEntry = auditResponse.body.data.find(
-      entry => entry.action === 'kelola-owner-perubahan' && entry.target === ownerId,
+      entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
     )
     expect(auditEntry, 'audit entry kelola-owner-perubahan harus tercatat').toBeDefined()
   })
 
-  test.skip('[P1] #8 PUT /api/admin/owners/:id dengan field email → 400 envelope', async ({ apiRequest }) => {
+  test('[P1] #8 PUT /api/admin/owners/:id dengan field email → 400 envelope', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO dan owner ID dari daftar')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -407,7 +411,7 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
 })
 
 test.describe('[Story 1.8] PUT /api/admin/owners/:id Status Protection (AD-11)', () => {
-  test.skip('[P0] #9 PUT /api/admin/owners/:id dengan field status → 400 STATUS_CHANGE_FORBIDDEN', async ({ apiRequest }) => {
+  test('[P0] #9 PUT /api/admin/owners/:id dengan field status → 400 STATUS_CHANGE_FORBIDDEN', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO dan owner ID dari daftar')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -431,7 +435,7 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Status Protection (AD-11)',
     expect(body.message.length).toBeGreaterThan(0)
   })
 
-  test.skip('[P1] #10 PUT /api/admin/owners/:id tanpa field status diizinkan', async ({ apiRequest }) => {
+  test('[P1] #10 PUT /api/admin/owners/:id tanpa field status diizinkan', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO dan owner ID dari daftar')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -439,7 +443,7 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Status Protection (AD-11)',
 
     await log.step('WHEN PUT /api/admin/owners/:id TANPA field status')
     const updatePayload = {
-      alias: 'Alias Tanpa Status',
+      alias: 'AliasUpd',
     }
     const { status, body } = await apiRequest<UpdateOwnerResponse>({
       method: 'PUT',
@@ -455,7 +459,7 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Status Protection (AD-11)',
 })
 
 test.describe('[Story 1.8] POST /api/admin/owners Create Owner (Property 3, 6)', () => {
-  test.skip('[P0] #11 POST /api/admin/owners email valid → 201 owner dengan status terverifikasi', async ({ apiRequest }) => {
+  test('[P0] #11 POST /api/admin/owners email valid → 201 owner dengan status terverifikasi', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO aktif')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -481,7 +485,7 @@ test.describe('[Story 1.8] POST /api/admin/owners Create Owner (Property 3, 6)',
     expect(body.owner.fullName).toBe(createPayload.fullName)
   })
 
-  test.skip('[P0] #12 POST /api/admin/owners email duplikat → 409 envelope EMAIL_EXISTS', async ({ apiRequest }) => {
+  test('[P0] #12 POST /api/admin/owners email duplikat → 409 envelope EMAIL_EXISTS', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO aktif dan owner yang sudah ada')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -506,7 +510,7 @@ test.describe('[Story 1.8] POST /api/admin/owners Create Owner (Property 3, 6)',
     expect(body.message.length).toBeGreaterThan(0)
   })
 
-  test.skip('[P1] #13 POST /api/admin/owners → audit tercatat dengan action kelola-owner-penambahan', async ({ apiRequest }) => {
+  test('[P1] #13 POST /api/admin/owners → audit tercatat dengan action kelola-owner-penambahan', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     await log.step('GIVEN sesi COO aktif')
     const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
@@ -536,14 +540,14 @@ test.describe('[Story 1.8] POST /api/admin/owners Create Owner (Property 3, 6)',
     }).validateSchema(SkemaDaftarAudit)
     expect(auditResponse.status).toBe(200)
     const auditEntry = auditResponse.body.data.find(
-      entry => entry.action === 'kelola-owner-penambahan' && entry.target === ownerId,
+      entry => entry.action === 'kelola-owner-penambahan' && entry.target === `owners:${ownerId}`,
     )
     expect(auditEntry, 'audit entry kelola-owner-penambahan harus tercatat').toBeDefined()
   })
 })
 
 test.describe('[Story 1.8] GET /api/admin/owners Filter (FR-13)', () => {
-  test.skip('[P1] #14 GET /api/admin/owners memuat owner status keluar', async ({ apiRequest }) => {
+  test('[P1] #14 GET /api/admin/owners memuat owner status keluar', async ({ apiRequest }) => {
     // GAGAL saat red: 404 — endpoint belum ada
     // Note: Test ini memerlukan seed owner dengan status 'keluar'
     await log.step('GIVEN sesi COO aktif dan owner dengan status keluar di sistem')
