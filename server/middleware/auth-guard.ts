@@ -15,10 +15,12 @@ import { useDb } from '../utils/db'
  * Route handler tetap wajib auth sendiri (AD-8: middleware + route handler).
  */
 const PATH_KELENGKAPAN_PROFIL = '/profile-completeness'
+const PATH_ADMIN_OWNERS = '/admin/owners'
 
 const HALAMAN_TERPROTEKSI: ReadonlySet<string> = new Set([
   ...Object.values(LANDING_PATH),
   PATH_KELENGKAPAN_PROFIL,
+  PATH_ADMIN_OWNERS,
 ])
 
 /** Permukaan yang tetap terjangkau calon `diajukan` belum lengkap (UX-DR14). */
