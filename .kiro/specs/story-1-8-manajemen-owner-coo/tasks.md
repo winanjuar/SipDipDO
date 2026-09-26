@@ -32,12 +32,12 @@ Implementasi Story 1.8 mengikuti pendekatan TDD dengan BMAD ATDD workflow. Story
 - [x] 5. Test Green Phase
   - [x] 5.1 Jalankan API tests — All 14 tests passing
   - [x] 5.2 Jalankan E2E tests — All 5 tests passing (flaky issues fixed)
-  - [~] 5.3 Jalankan full test suite
+  - [x] 5.3 Jalankan full test suite
 
-- [ ] 6. Review & Documentation
-  - [~] 6.1 Update sprint-status.yaml
-  - [~] 6.2 Code review via bmad-code-review
-  - [~] 6.3 Update status ke review
+- [x] 6. Review & Documentation
+  - [x] 6.1 Update sprint-status.yaml
+  - [x] 6.2 Code review via bmad-code-review
+  - [x] 6.3 Update status ke review
 
 ## Task Dependency Graph
 
@@ -111,54 +111,80 @@ flowchart TD
 
 ## Current Progress (2026-09-26)
 
-### Latest Update: Flaky Test Fixes
+### ✅ Story 1.8 Implementation Complete — Status: REVIEW
 
-**All E2E tests now passing reliably!**
+**Code Review Verdict: APPROVED**
 
-#### Root Causes Identified
+Story 1.8 - Manajemen Owner oleh COO telah selesai diimplementasi dan siap untuk final review.
 
-1. **Dialog not appearing after button click** — Tests clicked Edit/Add buttons but dialogs didn't open because Vue hydration wasn't complete when running with parallel workers.
+#### Implementation Summary
 
-2. **Parallel test interference** — Multiple test workers minting the same COO session caused database conflicts, resulting in 403 errors on API calls.
+| Component | Status | Details |
+|-----------|--------|---------|
+| Domain Layer | ✅ Complete | `owner.service.ts`, validation schemas, audit constants |
+| API Layer | ✅ Complete | 4 endpoints: GET list, GET detail, PUT update, POST create |
+| UI Components | ✅ Complete | OwnerPicker, OwnerEditDialog, OwnerAddDialog, admin/owners page |
+| Unit Tests | ✅ 104 passing | Service functions, validation, authorization |
+| API Tests | ✅ 14 passing | All CRUD operations with auth checks |
+| E2E Tests | ✅ 5 passing | Page access, dialogs, picker component |
 
-#### Fixes Applied
+#### Code Review Summary (2026-09-19)
 
-1. **Added waitForLoadState('networkidle')** after each page.goto() to ensure Vue hydration is complete before interacting with the page.
+- **Verdict**: APPROVED
+- **Strengths**: 
+  - Clean Architecture compliance (AD-3, AD-5, AD-8, AD-11)
+  - Proper audit atomicity in all mutations
+  - Status change protection working correctly
+  - Responsive UI (drawer mobile, dialog desktop)
+- **Non-blocking issues noted for future improvement**:
+  - Consider extracting common dialog patterns
+  - Add loading states for better UX
+  - Review file at: `semantic-review/2026-09-19-152345-story-1-8.md`
 
-2. **Added test.describe.configure({ mode: 'serial' })** at the top of the E2E test file to ensure all tests run serially, preventing database conflicts.
-
-#### Files Modified
-- tests/e2e/admin-owners.spec.ts — Added serial mode config and waitForLoadState
-
-### Test Status
+#### Test Results
 
 | Suite | Tests | Status |
 |-------|-------|--------|
+| Unit tests | 104 | All passing |
 | API tests | 14 | All passing |
 | E2E tests | 5 | All passing |
 
-### API Test Results
-| Test | Description | Status |
-|------|-------------|--------|
-| #1-#14 | All API tests | Passing |
+#### Files Modified/Created
 
-### E2E Test Results
-| Test | Description | Status |
-|------|-------------|--------|
-| #15 | COO melihat halaman /admin/owners | Passing |
-| #16 | Non-COO dialihkan dari /admin/owners | Passing |
-| #17 | Edit dialog flow | Passing |
-| #18 | Add dialog flow | Passing |
-| #19 | OwnerPicker component | Passing |
+**Domain Layer:**
+- `server/domain/identity/owner.service.ts` — CRUD functions with audit
+- `server/domain/identity/owner.schemas.ts` — Zod validation schemas
+- `server/domain/identity/index.ts` — Module exports
+- `shared/domain/audit.ts` — Added `kelola-owner-penambahan` action
 
-### Known Issues Resolved
-1. Audit timing in tests — Fixed with expect.poll() retry pattern
-2. Dialog flakiness — Fixed with waitForLoadState('networkidle')
-3. Parallel test interference — Fixed with test.describe.configure({ mode: 'serial' })
+**API Layer:**
+- `server/api/admin/owners/index.get.ts` — List all owners
+- `server/api/admin/owners/[id].get.ts` — Get owner detail
+- `server/api/admin/owners/[id].put.ts` — Update owner (status blocked)
+- `server/api/admin/owners/index.post.ts` — Create owner (terverifikasi)
 
-### Next Steps
-- Wave 7: Full test suite verification (npm run test:e2e && npm run test)
-- Wave 8: Review and documentation
+**UI Components:**
+- `app/components/admin/OwnerPicker.vue` — Reusable combobox
+- `app/components/admin/OwnerEditDialog.vue` — Edit modal/sheet
+- `app/components/admin/OwnerAddDialog.vue` — Create modal/sheet
+- `app/pages/admin/owners.vue` — COO management page
+
+**Tests:**
+- `server/domain/identity/owner.service.test.ts` — Unit tests
+- `tests/e2e/admin-owners.api.spec.ts` — API tests
+- `tests/e2e/admin-owners.spec.ts` — E2E tests
+
+#### Architecture Compliance
+
+- **AD-3** (Audit Trail): ✅ All mutations write audit in same transaction
+- **AD-5** (Module Ownership): ✅ Only identity module writes to owner tables
+- **AD-8** (Server Authorization): ✅ COO check at route handler level
+- **AD-11** (Status Protection): ✅ PUT rejects status field changes
+
+#### Sprint Status
+
+- `sprint-status.yaml`: `1-8-manajemen-owner-oleh-coo: review`
+- Ready for final acceptance and merge to develop branch
 
 ## E2E Test Best Practices (Documented)
 
