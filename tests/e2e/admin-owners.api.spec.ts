@@ -31,6 +31,10 @@ import { z } from 'zod'
 import { test, expect, log } from '../support/merged-fixtures'
 import { mintSesiPemilik, EMAIL_OWNER_UJI_TERDAFTAR, emailMintDefault } from '../support/helpers/sesi-minting'
 
+// Configure all tests to run serially to avoid database conflicts when parallel tests
+// mint the same COO session simultaneously
+test.describe.configure({ mode: 'serial' })
+
 /** Tanda tangan minimal fixture apiRequest (playwright-utils) untuk helper lokal. */
 interface ParamsApiRequest {
   method: 'GET' | 'POST' | 'PUT'
@@ -103,6 +107,7 @@ const SkemaEmergencyContact = z.object({
 /** Skema rekening bank. */
 const SkemaBankAccount = z.object({
   bankName: z.string().nullable(),
+  otherBankName: z.string().nullable(),
   accountHolderName: z.string().nullable(),
   accountNumber: z.string().nullable(),
 }).nullable()
@@ -293,16 +298,27 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     expect(body.owner.phoneNumber).toBe(updatePayload.phoneNumber)
 
     await log.step('AND audit tercatat dengan action kelola-owner-perubahan')
-    const auditResponse = await apiRequest<DaftarAudit>({
-      method: 'GET',
-      path: '/api/audit?page=1&limit=20',
-      headers: headerCookie,
-    }).validateSchema(SkemaDaftarAudit)
-    expect(auditResponse.status).toBe(200)
-    const auditEntry = auditResponse.body.data.find(
-      entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
-    )
-    expect(auditEntry, 'audit entry kelola-owner-perubahan harus tercatat').toBeDefined()
+    // Poll for audit entry — eventual consistency fix
+    let auditEntry: z.infer<typeof SkemaEntryAudit> | undefined
+    await expect.poll(async () => {
+      const response = await apiRequest<DaftarAudit>({
+        method: 'GET',
+        path: '/api/audit?page=1&limit=80',
+        headers: headerCookie,
+      })
+      if (response.status !== 200) return false
+      const parseResult = SkemaDaftarAudit.safeParse(response.body)
+      if (!parseResult.success) return false
+      auditEntry = parseResult.data.data.find(
+        entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
+      )
+      return auditEntry !== undefined
+    }, {
+      message: `audit entry kelola-owner-perubahan untuk owners:${ownerId} harus tercatat`,
+      timeout: 10_000,
+      intervals: [200, 500, 1000, 2000, 3000],
+    }).toBe(true)
+    expect(auditEntry).toBeDefined()
   })
 
   test('[P1] #6 PUT /api/admin/owners/:id update emergencyContact → 200 + audit tercatat', async ({ apiRequest }) => {
@@ -334,16 +350,27 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     expect(body.owner.id).toBe(ownerId)
 
     await log.step('AND audit tercatat dengan action kelola-owner-perubahan')
-    const auditResponse = await apiRequest<DaftarAudit>({
-      method: 'GET',
-      path: '/api/audit?page=1&limit=20',
-      headers: headerCookie,
-    }).validateSchema(SkemaDaftarAudit)
-    expect(auditResponse.status).toBe(200)
-    const auditEntry = auditResponse.body.data.find(
-      entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
-    )
-    expect(auditEntry, 'audit entry kelola-owner-perubahan harus tercatat').toBeDefined()
+    // Poll for audit entry — eventual consistency fix
+    let auditEntry: z.infer<typeof SkemaEntryAudit> | undefined
+    await expect.poll(async () => {
+      const response = await apiRequest<DaftarAudit>({
+        method: 'GET',
+        path: '/api/audit?page=1&limit=80',
+        headers: headerCookie,
+      })
+      if (response.status !== 200) return false
+      const parseResult = SkemaDaftarAudit.safeParse(response.body)
+      if (!parseResult.success) return false
+      auditEntry = parseResult.data.data.find(
+        entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
+      )
+      return auditEntry !== undefined
+    }, {
+      message: `audit entry kelola-owner-perubahan untuk owners:${ownerId} harus tercatat`,
+      timeout: 10_000,
+      intervals: [200, 500, 1000, 2000, 3000],
+    }).toBe(true)
+    expect(auditEntry).toBeDefined()
   })
 
   test('[P1] #7 PUT /api/admin/owners/:id update bankAccount → 200 + audit tercatat', async ({ apiRequest }) => {
@@ -375,16 +402,27 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Update dengan Audit (AD-3)'
     expect(body.owner.id).toBe(ownerId)
 
     await log.step('AND audit tercatat dengan action kelola-owner-perubahan')
-    const auditResponse = await apiRequest<DaftarAudit>({
-      method: 'GET',
-      path: '/api/audit?page=1&limit=20',
-      headers: headerCookie,
-    }).validateSchema(SkemaDaftarAudit)
-    expect(auditResponse.status).toBe(200)
-    const auditEntry = auditResponse.body.data.find(
-      entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
-    )
-    expect(auditEntry, 'audit entry kelola-owner-perubahan harus tercatat').toBeDefined()
+    // Poll for audit entry — eventual consistency fix
+    let auditEntry: z.infer<typeof SkemaEntryAudit> | undefined
+    await expect.poll(async () => {
+      const response = await apiRequest<DaftarAudit>({
+        method: 'GET',
+        path: '/api/audit?page=1&limit=80',
+        headers: headerCookie,
+      })
+      if (response.status !== 200) return false
+      const parseResult = SkemaDaftarAudit.safeParse(response.body)
+      if (!parseResult.success) return false
+      auditEntry = parseResult.data.data.find(
+        entry => entry.action === 'kelola-owner-perubahan' && entry.target === `owners:${ownerId}`,
+      )
+      return auditEntry !== undefined
+    }, {
+      message: `audit entry kelola-owner-perubahan untuk owners:${ownerId} harus tercatat`,
+      timeout: 10_000,
+      intervals: [200, 500, 1000, 2000, 3000],
+    }).toBe(true)
+    expect(auditEntry).toBeDefined()
   })
 
   test('[P1] #8 PUT /api/admin/owners/:id dengan field email → 400 envelope', async ({ apiRequest }) => {
@@ -457,6 +495,45 @@ test.describe('[Story 1.8] PUT /api/admin/owners/:id Status Protection (AD-11)',
     await log.step('THEN 200 { owner } — update tanpa status diizinkan')
     expect(status).toBe(200)
     expect(body.owner.alias).toBe(updatePayload.alias)
+  })
+})
+
+test.describe('[Story 1.8] PUT /api/admin/owners/:id Bank Lainnya Validation', () => {
+  test('[P2] #15 PUT /api/admin/owners/:id bankName Lainnya dengan otherBankName → 200', async ({ apiRequest }) => {
+    await log.step('GIVEN sesi COO dan owner ID dari daftar')
+    const cookieSesi = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo' })
+    const ownerId = await getFirstOwnerId(apiRequest, cookieSesi)
+    const headerCookie = headerCookieDariMint(cookieSesi)
+
+    await log.step('WHEN PUT /api/admin/owners/:id dengan bankName Lainnya dan otherBankName')
+    const timestamp = Date.now().toString().slice(-6)
+    const updatePayload = {
+      bankAccount: {
+        bankName: 'Lainnya',
+        otherBankName: 'Bank Lokal Kecil',
+        accountHolderName: 'Pemilik Rek Lainnya',
+        accountNumber: timestamp,
+      },
+    }
+    const { status, body } = await apiRequest<UpdateOwnerResponse>({
+      method: 'PUT',
+      path: `/api/admin/owners/${ownerId}`,
+      body: updatePayload,
+      headers: headerCookie,
+    }).validateSchema(SkemaUpdateOwnerResponse)
+
+    await log.step('THEN 200 { owner } — bankName Lainnya tersimpan')
+    expect(status).toBe(200)
+    expect(body.owner.id).toBe(ownerId)
+
+    await log.step('AND GET detail menampilkan bankName Lainnya dan otherBankName')
+    const { body: detailBody } = await apiRequest<OwnerResponse>({
+      method: 'GET',
+      path: `/api/admin/owners/${ownerId}`,
+      headers: headerCookie,
+    }).validateSchema(SkemaOwnerResponse)
+    expect(detailBody.bankAccount?.bankName).toBe('Lainnya')
+    expect(detailBody.bankAccount?.otherBankName).toBe('Bank Lokal Kecil')
   })
 })
 
