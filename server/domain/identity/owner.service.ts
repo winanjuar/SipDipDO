@@ -513,6 +513,7 @@ export async function createOwnerByCoo(
       }
       // Jika tabrakan referral code (bukan email), retry
       if (tabrakanUnique(error) && percobaan < BATAS_COBA_KODE_REFERRAL) {
+        console.warn(`[createOwnerByCoo] Referral code collision on attempt ${percobaan}, retrying...`)
         continue
       }
       throw error
