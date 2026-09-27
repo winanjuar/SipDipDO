@@ -24,20 +24,38 @@
  * Simpan Profil (Story 1.5, CAP-1): `simpanProfil` membuka SATU transaksi —
  * UPDATE kolom profil + audit `profil-kelengkapan` (bila ada nilai berubah).
  * Email pendaftar ditentukan pemanggil dari sesi Google.
+ *
+ * Keputusan COO (Story 1.6; hardening 2026-09-22): `keputusanCalon`
+ * menjalankan SATU transaksi berurutan CAS-first — alasan wajib → otoritas
+ * COO (`findActiveCooTenure` in-tx) → eksistensi calon → CAS
+ * `UPDATE ... WHERE status='diajukan' RETURNING` (nol baris = kalah race →
+ * 409, dievaluasi SEBELUM gerbang kelengkapan) → gerbang kelengkapan atas
+ * baris PASCA-update yang di-join dalam tx yang sama (anti TOCTOU — PUT
+ * /api/profile boleh mengosongkan field di antara baca dan CAS) → hitung
+ * penolakan (bila menolak) → `writeAuditEntry` in-tx (AD-3). Gerbang gagal
+ * = sentinel di-THROW di dalam tx → ROLLBACK total (status kembali
+ * `diajukan`, TANPA audit), ditangkap di luar transaksi → 400 di lapis
+ * handler. `daftarCalonVerifikasi` menyusun wire daftar kandidat COO.
  */
 import { addCalendarDays, isDayOnOrBefore, jakartaDayKey, type DayKey } from '#shared/domain/calendar'
-import { profilLengkap, type ProfilValues } from '#shared/domain/profil'
-import { writeAuditEntry } from '../audit/index'
+import { profilLengkap, sisaFieldKosong, type KunciFieldProfil, type ProfilValues } from '#shared/domain/profil'
+import type { OwnerStatus } from '#shared/domain/identity'
+import { hitungEntryAksi, writeAuditEntry } from '../audit/index'
 import { adaOutboxEmail, enqueueEmail, OUTBOX_KIND_NOTIFIKASI } from '../proofs/index'
 import type { Db } from '../../utils/db'
 import type { HasilDaftarOwner, OwnerRecord } from './owner.repo'
 import {
   aktifkanKembaliCalon,
   daftarOwnerByEmail,
+  findActiveCooTenure,
   findOwnerByEmail,
+  findOwnerById,
   kedaluwarsakanCalon,
   listCalonDiajukan,
+  listCalonVerifikasi,
   simpanProfilCalon,
+  tolakCalon,
+  verifikasiCalon,
 } from './owner.repo'
 
 /** Batas kalender pendaftaran (FR-22): hari ke-7 sejak submit, zona Asia/Jakarta. */
@@ -209,4 +227,192 @@ export async function simpanProfil(input: { email: string, nilai: ProfilValues }
     }
     return sesudah
   })
+}
+
+/* ------------------------------------------------------------------ *
+ * Keputusan COO (Story 1.6) — verifikasi & penolakan pendaftar.
+ * ------------------------------------------------------------------ */
+
+/** Keputusan yang dapat diambil COO atas calon `diajukan`. */
+export const KEPUTUSAN_COO = ['terverifikasi', 'ditolak'] as const
+export type KeputusanCoo = (typeof KEPUTUSAN_COO)[number]
+
+/** Satu baris kandidat verifikasi untuk COO (wire GET /api/pendaftar). */
+export interface BarisCalonVerifikasi {
+  id: string
+  email: string
+  /** Nama Lengkap (field #1); '' bila belum diisi. */
+  nama: string
+  createdAt: string
+  /** Kelengkapan Profile 10 field (prasyarat verifikasi) — `profilLengkap()`. */
+  profilLengkap: boolean
+  /** Field wajib yang masih kosong (kunci kontrak wire English). */
+  sisaField: KunciFieldProfil[]
+}
+
+/**
+ * Daftar kandidat `diajukan` untuk COO (Story 1.6): urut `created_at`
+ * terlama dulu; kelengkapan dievaluasi `profilLengkap()` dari baris yang
+ * sama (bukan kolom DB — kelengkapan bukan kolom, AD-8).
+ */
+export async function daftarCalonVerifikasi(db: Db): Promise<BarisCalonVerifikasi[]> {
+  const calon = await listCalonVerifikasi(db)
+  return calon.map((baris) => ({
+    id: baris.id,
+    email: baris.email,
+    nama: baris.fullName ?? '',
+    createdAt: baris.createdAt,
+    profilLengkap: profilLengkap(baris),
+    sisaField: sisaFieldKosong(baris),
+  }))
+}
+
+/**
+ * Kode akhir keputusan — peta 1:1 ke status HTTP di lapis handler:
+ * `sukses` 200; `tidak-ditemukan` 404; `kewenangan-berakhir` 403;
+ * `status-berubah` 409 (kalah race CAS — dievaluasi SEBELUM gerbang
+ * kelengkapan, hardening 2026-09-22); `profil-belum-lengkap` /
+ * `alasan-wajib` 400 — kontrak "hanya satu penulis berhasil", BUKAN error
+ * (AD-11); urutan prioritas 409 > 400 tetap.
+ */
+export type AkhirKeputusanCalon =
+  | { akhir: 'sukses', id: string, email: string, status: OwnerStatus }
+  | { akhir: 'tidak-ditemukan' }
+  | { akhir: 'kewenangan-berakhir' }
+  | { akhir: 'profil-belum-lengkap', sisaField: KunciFieldProfil[] }
+  | { akhir: 'alasan-wajib' }
+  | { akhir: 'status-berubah' }
+
+/** Aksi audit penolakan — registry `shared/domain/audit.ts`. */
+const AKSI_AUDIT_PENOLAKAN = 'pendaftaran-penolakan' as const
+
+/** Aksi audit verifikasi — registry `shared/domain/audit.ts`. */
+const AKSI_AUDIT_VERIFIKASI = 'pendaftaran-verifikasi' as const
+
+/**
+ * Sentinel rollback gerbang kelengkapan pasca-CAS (hardening 2026-09-22) —
+ * objek unik khusus (BUKAN Error generik) yang di-THROW DI DALAM callback
+ * `db.transaction` agar SELURUH transaksi di-ROLLBACK (status kembali
+ * `diajukan`, TANPA audit); ditangkap DI LUAR transaksi lalu dipetakan ke
+ * akhir `profil-belum-lengkap` (400). Error asing di-re-throw apa adanya.
+ * Nilai yang di-RETURN dari callback tx = COMMIT — itulah sebabnya gagal
+ * gerbang wajib lewat throw, bukan return.
+ */
+class SentinelProfilBelumLengkap {
+  /** Field wajib yang masih kosong pada baris PASCA-update. */
+  readonly sisaField: KunciFieldProfil[]
+
+  constructor(sisaField: KunciFieldProfil[]) {
+    this.sisaField = sisaField
+  }
+}
+
+/**
+ * Terima keputusan COO atas calon `diajukan` (Story 1.6; hardening
+ * 2026-09-22) — SATU transaksi berurutan CAS-first (pola
+ * `runRegistrationDailyJob`): alasan wajib non-kosong setelah trim
+ * (divalidasi handler DAN di sini) → otoritas COO dievaluasi in-tx
+ * (`findActiveCooTenure` — kewenangan pada saat commit, AD-8) → eksistensi
+ * calon (baris dipakai untuk `details.email` audit) → CAS
+ * `UPDATE ... WHERE status='diajukan' RETURNING` — nol baris = kalah race
+ * (cron kedaluwarsa / COO lain lebih dulu) → `status-berubah` (409),
+ * TANPA audit baru (AD-11) → gerbang kelengkapan ATAS BARIS PASCA-update
+ * (`findOwnerById(tx, id)` kedua — kolom profil ada di tabel anak, sehingga
+ * returning CAS mentah tidak cukup; `.returning()` owners tidak membawa
+ * kolom join): `profilLengkap=false` pada verifikasi = throw sentinel →
+ * rollback total (tanpa mutasi, tanpa audit — AD-8) → hitung penolakan
+ * (bila menolak) → audit in-tx (AD-3), aktor user = COO, target
+ * `owners:<id>`, email dari BACAAN PERTAMA (pra-CAS).
+ *
+ * `status` respons dibaca dari baris PASCA-CAS (bukan echo
+ * `input.keputusan`) — wire mengikuti truth DB. Penolakan:
+ * `rejectionReason` tersimpan apa adanya; `details.hitunganPenolakan` =
+ * jumlah entry `pendaftaran-penolakan` untuk owner saat kejadian TERMASUK
+ * entry yang sedang ditulis (keputusan owner 2026-09-21 — audit saja,
+ * tanpa kolom tambahan).
+ */
+export async function keputusanCalon(
+  input: { emailCoo: string, id: string, keputusan: KeputusanCoo, alasan?: string },
+  db: Db,
+): Promise<AkhirKeputusanCalon> {
+  try {
+    return await db.transaction(async (tx) => {
+      // (1) Alasan penolakan wajib (gate kedua setelah handler) — tanpa mutasi.
+      if (input.keputusan === 'ditolak' && (input.alasan ?? '').trim().length === 0) {
+        return { akhir: 'alasan-wajib' }
+      }
+
+      // (2) Otoritas COO dievaluasi in-tx — kewenangan pada saat commit (AD-8).
+      const now = new Date()
+      const coo = await findOwnerByEmail(tx, input.emailCoo)
+      if (!coo || !(await findActiveCooTenure(tx, coo.id, now))) {
+        return { akhir: 'kewenangan-berakhir' }
+      }
+
+      // (3) Eksistensi calon — bacaan PERTAMA; emailnya dipakai audit.
+      const calon = await findOwnerById(tx, input.id)
+      if (!calon) return { akhir: 'tidak-ditemukan' }
+
+      // (4) CAS — nol baris = kalah race → `status-berubah` (409), TANPA
+      // audit baru (AD-11). Dievaluasi SEBELUM gerbang kelengkapan: race
+      // status harus 409 meski profil calon kosong (hardening 2026-09-22).
+      const cas = input.keputusan === 'terverifikasi'
+        ? await verifikasiCalon(tx, input.id)
+        : await tolakCalon(tx, input.id, input.alasan ?? '')
+      if (!cas) return { akhir: 'status-berubah' }
+
+      // (5) Baca ulang baris PASCA-update (join 3 tabel, dalam tx yang sama):
+      // sumber `status` respons (bukan echo input) DAN basis gerbang
+      // kelengkapan verifikasi — anti TOCTOU, PUT /api/profile boleh
+      // mengosongkan field di antara bacaan pertama dan CAS.
+      const calonSesudah = await findOwnerById(tx, input.id)
+      if (!calonSesudah) {
+        throw new Error('keputusanCalon: baris pasca-CAS tidak terbaca dalam transaksi.')
+      }
+      if (input.keputusan === 'terverifikasi' && !profilLengkap(calonSesudah)) {
+        // Gerbang kelengkapan gagal PASCA-CAS → THROW sentinel di dalam tx =
+        // ROLLBACK total (status kembali `diajukan`, TANPA audit); ditangkap
+        // di luar `db.transaction` (AD-8: UI hanya lapisan pertama).
+        throw new SentinelProfilBelumLengkap(sisaFieldKosong(calonSesudah))
+      }
+
+      if (input.keputusan === 'ditolak') {
+        // (6a) Hitungan penolakan saat kejadian — termasuk entry yang sedang
+        // ditulis (masih belum ter-insert pada saat hitung): +1.
+        const hitunganSebelumnya = await hitungEntryAksi(tx, {
+          action: AKSI_AUDIT_PENOLAKAN,
+          target: `owners:${input.id}`,
+        })
+        await writeAuditEntry(tx, {
+          actor: { kind: 'user', ownerId: coo.id },
+          action: AKSI_AUDIT_PENOLAKAN,
+          target: `owners:${input.id}`,
+          details: {
+            email: calon.email,
+            alasan: input.alasan ?? '',
+            hitunganPenolakan: hitunganSebelumnya + 1,
+          },
+        })
+      } else {
+        // (6b) Audit verifikasi in-tx (AD-3).
+        await writeAuditEntry(tx, {
+          actor: { kind: 'user', ownerId: coo.id },
+          action: AKSI_AUDIT_VERIFIKASI,
+          target: `owners:${input.id}`,
+          details: { email: calon.email },
+        })
+      }
+
+      // (7) Status respons DARI DB (baris pasca-CAS) — bukan echo input.
+      return { akhir: 'sukses', id: cas.id, email: cas.email, status: calonSesudah.status }
+    })
+  } catch (error) {
+    // Sentinel = kelengkapan gagal pasca-CAS; transaksi sudah di-rollback
+    // total oleh throw — petakan ke akhir 400 tanpa mutasi. Error asing
+    // (infrastruktur) di-re-throw apa adanya.
+    if (error instanceof SentinelProfilBelumLengkap) {
+      return { akhir: 'profil-belum-lengkap', sisaField: error.sisaField }
+    }
+    throw error
+  }
 }

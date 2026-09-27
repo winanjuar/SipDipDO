@@ -5,7 +5,7 @@
  * `created_at` desc untuk tampilan COO (FR-12). Seluruh fungsi menerima
  * `DbClient` (db atau tx) — penulisan selalu join transaksi pemanggil (AD-3).
  */
-import { desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
 import { auditLogs, owners } from '../../../drizzle/schema'
 import type { DbClient } from '../../utils/db'
 
@@ -94,4 +94,23 @@ export async function listAuditEntries(db: DbClient, paging: AuditPaging): Promi
 
   const halaman = Math.trunc(paging.offset / paging.limit) + 1
   return { data, nextPage: hasMore ? halaman + 1 : null }
+}
+
+/**
+ * Hitung entry audit untuk satu pasangan (action, target) — Story 1.6:
+ * service identity menghitung `details.hitunganPenolakan` (jumlah entry
+ * `pendaftaran-penolakan` untuk owner) DI DALAM transaksi keputusan yang
+ * sama (AD-5: baca lintas modul lewat API publik modul audit, bukan tabel
+ * tetangga). Menerima `DbClient` (db atau tx) — pemanggil in-tx menyodokkan
+ * tx agar hitungan konsisten dengan entry yang sedang ditulis.
+ */
+export async function hitungEntryAksi(
+  db: DbClient,
+  filter: { action: string, target: string },
+): Promise<number> {
+  const rows = await db
+    .select({ jumlah: count() })
+    .from(auditLogs)
+    .where(and(eq(auditLogs.action, filter.action), eq(auditLogs.target, filter.target)))
+  return rows[0]?.jumlah ?? 0
 }

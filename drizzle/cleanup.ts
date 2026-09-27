@@ -12,13 +12,13 @@
  * via to_address (tanpa FK) bila ada.
  *
  * Jalankan:
- *   npm run db:cleanup            # sisakan 2 email default
+ *   npm run db:cleanup            # sisakan 3 email default
  *   npm run db:cleanup -- --paksa  # izinkan host non-lokal
  */
 
 import postgres from 'postgres'
 
-const EMAIL_DIPERTAHANKAN: readonly string[] = ['winanjuar@gmail.com', 'yuckimoera@gmail.com']
+const EMAIL_DIPERTAHANKAN: readonly string[] = ['winanjuar@gmail.com', 'yuckimoera@gmail.com', 'famrock17@gmail.com']
 
 const URL_DB_DEFAULT = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
 const FLAG_PAKSA = '--paksa'

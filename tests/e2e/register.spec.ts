@@ -10,7 +10,7 @@
  * judul "Jadilah Pemilik" + sub-copy baru + footer disembunyikan).
  *
  * Non-negotiable tetap dari kontrak UX: route halaman = `/register`;
- * TANPA textbox /referral/i; sukses submit → redirect `/status-pendaftaran`
+ * TANPA textbox /referral/i; sukses submit → redirect `/registration-status`
  * + badge by-text "Diajukan".
  *
  * NON-DUPLIKASI (disengaja): idempotensi duplikat nyata (200 baris sama,
@@ -158,13 +158,13 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     // (promise waitForRequest memblokir iterasi) — URL jadi sinyal berhenti.
     await recurse(
       async () => {
-        if (page.url().includes('/status-pendaftaran')) return true
+        if (page.url().includes('/registration-status')) return true
         try {
           await page.getByRole('button', { name: 'Selesaikan Pendaftaran' }).click()
         } catch {
           // Klik kalah race terhadap redirect — dievaluasi ulang iterasi berikutnya.
         }
-        return page.url().includes('/status-pendaftaran')
+        return page.url().includes('/registration-status')
       },
       selesai => selesai === true,
       { timeout: BATAS_RECURSE_SUBMIT_MS, interval: INTERVAL_RECURSE_MS, log: 'Menunggu hidrasi Vue: CTA mengirim POST lalu redirect' },
@@ -176,10 +176,11 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     const { status } = await pendaftaranCall
     expect(status).toBe(STATUS_CREATED)
 
-    await log.step('AND dialihkan (hard navigation + flag toast ?daftar=berhasil) ke /status-pendaftaran dengan badge Diajukan')
+    await log.step('AND dialihkan (hard navigation + alert flag sessionStorage) ke /registration-status polos dengan badge Diajukan')
     // Hard navigation membawa query flag toast — anchor $ diizinkan optional
-    // query; flag dibersihkan onMounted (race) jadi tak di-pin.
-    await expect(page).toHaveURL(/\/status-pendaftaran(\?.*)?$/, { timeout: BATAS_RECURSE_SUBMIT_MS })
+    // (flash via sessionStorage — keputusan owner 2026-09-21, URL polos; flag
+    // dibaca-hapus onMounted sehingga tak di-pin).
+    await expect(page).toHaveURL(/\/registration-status(\?.*)?$/, { timeout: BATAS_RECURSE_SUBMIT_MS })
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toContainText('Diajukan')
 
     await log.step('AND alert sukses tampil di ATAS halaman BERIKUTNYA lalu auto-hilang (3 detik)')
@@ -199,7 +200,7 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await context.addCookies(cookies)
 
     await log.step('WHEN membuka halaman status pendaftaran')
-    await page.goto('/status-pendaftaran')
+    await page.goto('/registration-status')
 
     await log.step('THEN badge berteks Diajukan tampil (by text, bukan warna)')
     const badge = page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)
@@ -261,13 +262,13 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     },
   )
 
-  test('[P1] mesin status halaman: calon → /status-pendaftaran, non-calon → landing role-nya', async ({
+  test('[P1] mesin status halaman: calon → /registration-status, non-calon → landing role-nya', async ({
     page,
     context,
     apiRequest,
   }) => {
     // Cakupan matriks I/O spec (baris redirect): "Sesi calon buka
-    // /register → redirect /status-pendaftaran" dan "Sesi owner/COO →
+    // /register → redirect /registration-status" dan "Sesi owner/COO →
     // redirect LANDING_PATH[role]" — keputusan resolver /api/landing
     // dikonsumsi halaman saat SSR.
     await log.step('GIVEN sesi calon owner (diajukan) sudah diinjeksikan')
@@ -277,8 +278,8 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await log.step('WHEN membuka /register')
     await page.goto(HALAMAN_PENDAFTARAN)
 
-    await log.step('THEN dialihkan ke /status-pendaftaran (LANDING_PATH calon)')
-    await expect(page).toHaveURL(/\/status-pendaftaran$/)
+    await log.step('THEN dialihkan ke /registration-status (LANDING_PATH calon)')
+    await expect(page).toHaveURL(/\/registration-status$/)
     await expect(page.getByTestId(TEST_IDS.statusPendaftaran.badgeStatus)).toBeVisible()
 
     await log.step('GIVEN sesi COO sudah diinjeksikan (menimpa sesi calon)')
@@ -289,7 +290,7 @@ test.describe('E2E Story 1.4 — pendaftaran owner mandiri & status (ATDD GREEN 
     await log.step('WHEN membuka /register')
     await page.goto(HALAMAN_PENDAFTARAN)
 
-    await log.step('THEN dialihkan ke landing role COO (/antrian-beli)')
-    await expect(page).toHaveURL(/\/antrian-beli$/)
+    await log.step('THEN dialihkan ke landing role COO (/order-queue)')
+    await expect(page).toHaveURL(/\/order-queue$/)
   })
 })

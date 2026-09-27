@@ -9,6 +9,31 @@ export {
   resolveRole,
 } from './access.service'
 export type { IdentityRepoPort, OwnerRoleInput } from './access.service'
+
+/**
+ * Story 1.7 — predikat akses kanonik + registry permukaan/navigasi
+ * (FR-15 §4.8, AD-8/AD-11, UX-DR14). Definisi MURNI di `shared/domain`
+ * (AD-6); diekspor ulang di sini agar lintas modul server memakai SATU
+ * pintu impor (AD-5).
+ */
+export {
+  aksesPenuh,
+  itemNavigasi,
+  KATALOG_ITEM_NAVIGASI,
+  KUNCI_COOKIE_INFO_TRANSPARANSI,
+  layakPilihanReferral,
+  MAKS_ITEM_NAV_MOBILE,
+  PANJANG_MAKS_ALASAN_PENOLAKAN,
+  PERMUKAAN_PERAN,
+  permukaanDibolehkan,
+  PESAN_TRANSPARANSI,
+  perluReferral,
+  prasyaratPermukaan,
+  PRASYARAT_AKSES_PENUH,
+  PRASYARAT_COO,
+  PRASYARAT_TANPA_SAHAM,
+} from '#shared/domain/identity'
+export type { ItemNavigasi, PrasyaratPermukaan } from '#shared/domain/identity'
 export {
   bacaReferralOwner,
   closeActiveCooTenures,
@@ -16,22 +41,36 @@ export {
   daftarOwnerByEmail,
   findActiveCooTenure,
   findOwnerByEmail,
+  findOwnerById,
   kedaluwarsakanCalon,
   listCalonDiajukan,
+  listCalonVerifikasi,
   openCooTenure,
   simpanProfilCalon,
+  tolakCalon,
   upsertOwnerByEmail,
+  verifikasiCalon,
 } from './owner.repo'
 export type { BarisCalonJob, HasilDaftarOwner, OwnerRecord, ReferralOwner } from './owner.repo'
 export {
+  KEPUTUSAN_COO,
   REGISTRATION_EXPIRY_DAYS,
   REGISTRATION_REMINDER_DAYS_BEFORE,
   ajukanPendaftaran,
+  daftarCalonVerifikasi,
+  keputusanCalon,
   registrationDeadline,
   runRegistrationDailyJob,
   simpanProfil,
 } from './registration.service'
-export type { HasilJobHarianPendaftaran, RegistrationDeadline } from './registration.service'
+export type {
+  AkhirKeputusanCalon,
+  BarisCalonVerifikasi,
+  HasilJobHarianPendaftaran,
+  KeputusanCoo,
+  RegistrationDeadline,
+} from './registration.service'
+
 // Story 1.8: Manajemen owner oleh COO
 export {
   createOwnerByCoo,

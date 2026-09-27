@@ -151,9 +151,31 @@ test.describe('[P1] API /api/landing dengan sesi COO', () => {
       validateSchema: SkemaLanding,
     })
 
-    await log.step('THEN 200 dengan peta landing coo → /antrian-beli')
+    await log.step('THEN 200 dengan peta landing coo → /order-queue')
     expect(status).toBe(200)
-    expect(body).toEqual({ path: '/antrian-beli', role: 'coo' })
+    expect(body).toEqual({ path: '/order-queue', role: 'coo' })
+  })
+})
+
+test.describe('[P1] API /api/landing owner terverifikasi tanpa saham (pin Story 1.6)', () => {
+  // Story 1.6 — pasca-verifikasi COO, owner `terverifikasi` TANPA saham
+  // mendarat di Halaman Personal (resolveRole cabang final; AC landing 1.6).
+  test.use({ authOptions: { userIdentifier: 'tanpa-saham' } })
+
+  test('[P1] /api/landing mengarahkan owner terverifikasi tanpa saham ke /personal', async ({ apiRequest, authToken }) => {
+    await log.step('GIVEN sesi owner terverifikasi tanpa first_effective_at (persona tanpa-saham)')
+
+    await log.step('WHEN GET /api/landing membawa cookie sesi')
+    const { status, body } = await apiRequest<Landing>({
+      method: 'GET',
+      path: '/api/landing',
+      headers: headerCookieSesi(authToken),
+      validateSchema: SkemaLanding,
+    })
+
+    await log.step('THEN 200 dengan peta landing tanpa_saham → /personal')
+    expect(status).toBe(200)
+    expect(body).toEqual({ path: '/personal', role: 'tanpa_saham' })
   })
 })
 

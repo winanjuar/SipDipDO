@@ -9,8 +9,7 @@
  * ATURAN:
  * - Tidak pernah `Number()`/`parseFloat()` atas nilai uang/ratio (dilarang lintas
  *   lapisan — ditegakkan via ESLint no-restricted-syntax, lihat eslint.config.mjs).
- * - Seluruh aritmetika uang hanya di `shared/domain` (helper aritmetika menyusul
- *   bersama story domain yang membutuhkannya; scaffold hanya meminkan kontrak kawat).
+ * - Seluruh aritmetika uang hanya di `shared/domain` via helper functions di bawah.
  * - Pembulatan half-up (decimal.js ROUND_HALF_UP) — sesuai konvensi penyajian AD-10.
  * - Murni tanpa I/O: tidak ada process.env, fetch, timer, atau Date.
  *
@@ -19,9 +18,16 @@
  */
 import Decimal from 'decimal.js'
 
-// Presisi cukup untuk numeric(18,2) & numeric(9,6) dengan headroom; half-up
-// untuk seluruh koersi skala (penyajian AD-10).
-Decimal.set({ precision: 40, rounding: Decimal.ROUND_HALF_UP, toExpNeg: -30, toExpPos: 40 })
+// Re-export Decimal type for consumers that need to work with intermediate values
+export type { Decimal }
+
+// Presisi 20 dengan headroom untuk intermediate calculations; half-up
+// untuk seluruh koersi skala (penyajian AD-10). Precision 20 covers:
+// - numeric(18,2): 18 total digits with 2 decimal places
+// - numeric(9,6): 9 total digits with 6 decimal places
+// - Plus headroom for intermediate calculations
+const DECIMAL_PRECISION = 20
+Decimal.set({ precision: DECIMAL_PRECISION, rounding: Decimal.ROUND_HALF_UP, toExpNeg: -30, toExpPos: 40 })
 
 /** Nilai rupiah kanonik berskala 2, mis. "52000.50". Hanya dihasilkan parseRupiah. */
 export type Rupiah = string & { readonly __brand: 'Rupiah' }
@@ -192,4 +198,206 @@ function groupIdId(canonical: string, options: { omitZeroFraction?: boolean } = 
   const showFraction = decPart.length > 0 && !(options.omitZeroFraction && zeroFraction)
   const dec = showFraction ? `,${decPart}` : ''
   return `${negative ? '-' : ''}${grouped}${dec}`
+}
+
+// ---------------------------------------------------------------------------
+// Generic Decimal Parsing & Serialization (AD-10)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generic decimal parser — converts string to Decimal instance.
+ * Accepts both id-ID format ("52.000,50") and canonical wire format ("52000.50").
+ *
+ * @param value - String decimal value in id-ID or canonical format
+ * @returns Decimal instance for arithmetic operations
+ * @throws MoneyParseError if value is not a valid decimal string
+ */
+export function parseDecimal(value: string): Decimal {
+  const s = value.trim()
+  let normalized: string
+
+  // Try id-ID format first (with thousands separator as dots, comma as decimal)
+  if (ID_ID.test(s)) {
+    normalized = s.replace(/\./g, '').replace(',', '.')
+  } else if (CANONICAL.test(s)) {
+    normalized = s
+  } else {
+    throw new MoneyParseError(value, RUPIAH_SCALE)
+  }
+
+  try {
+    return new Decimal(normalized)
+  } catch {
+    throw new MoneyParseError(value, RUPIAH_SCALE)
+  }
+}
+
+/**
+ * Serialize a Decimal to string with fixed scale, using half-up rounding.
+ *
+ * @param value - Decimal instance to serialize
+ * @param scale - Number of decimal places (e.g., 2 for rupiah, 6 for ratio)
+ * @returns Canonical wire format string (e.g., "52000.50")
+ */
+export function serializeDecimal(value: Decimal, scale: number): string {
+  return value.toFixed(scale)
+}
+
+// ---------------------------------------------------------------------------
+// Arithmetic Helpers (AD-6, AD-10)
+// All money arithmetic MUST go through these functions — never use JS operators.
+// ---------------------------------------------------------------------------
+
+/**
+ * Add two decimal values.
+ *
+ * @param a - First decimal value (string or Decimal)
+ * @param b - Second decimal value (string or Decimal)
+ * @returns Sum as Decimal
+ */
+export function add(a: string | Decimal, b: string | Decimal): Decimal {
+  const da = typeof a === 'string' ? parseDecimal(a) : a
+  const db = typeof b === 'string' ? parseDecimal(b) : b
+  return da.plus(db)
+}
+
+/**
+ * Subtract b from a (a - b).
+ *
+ * @param a - Minuend (string or Decimal)
+ * @param b - Subtrahend (string or Decimal)
+ * @returns Difference as Decimal
+ */
+export function subtract(a: string | Decimal, b: string | Decimal): Decimal {
+  const da = typeof a === 'string' ? parseDecimal(a) : a
+  const db = typeof b === 'string' ? parseDecimal(b) : b
+  return da.minus(db)
+}
+
+/**
+ * Multiply two decimal values.
+ *
+ * @param a - First factor (string or Decimal)
+ * @param b - Second factor (string or Decimal)
+ * @returns Product as Decimal
+ */
+export function multiply(a: string | Decimal, b: string | Decimal): Decimal {
+  const da = typeof a === 'string' ? parseDecimal(a) : a
+  const db = typeof b === 'string' ? parseDecimal(b) : b
+  return da.times(db)
+}
+
+/**
+ * Divide a by b (a / b).
+ *
+ * @param a - Dividend (string or Decimal)
+ * @param b - Divisor (string or Decimal)
+ * @returns Quotient as Decimal
+ * @throws Error if divisor is zero
+ */
+export function divide(a: string | Decimal, b: string | Decimal): Decimal {
+  const da = typeof a === 'string' ? parseDecimal(a) : a
+  const db = typeof b === 'string' ? parseDecimal(b) : b
+  if (db.isZero()) {
+    throw new Error('Division by zero')
+  }
+  return da.dividedBy(db)
+}
+
+/**
+ * Compare two decimal values.
+ *
+ * @param a - First value (string or Decimal)
+ * @param b - Second value (string or Decimal)
+ * @returns -1 if a < b, 0 if a == b, 1 if a > b
+ */
+export function compare(a: string | Decimal, b: string | Decimal): number {
+  const da = typeof a === 'string' ? parseDecimal(a) : a
+  const db = typeof b === 'string' ? parseDecimal(b) : b
+  return da.comparedTo(db)
+}
+
+/**
+ * Check if a is greater than b.
+ */
+export function isGreaterThan(a: string | Decimal, b: string | Decimal): boolean {
+  return compare(a, b) > 0
+}
+
+/**
+ * Check if a is greater than or equal to b.
+ */
+export function isGreaterThanOrEqual(a: string | Decimal, b: string | Decimal): boolean {
+  return compare(a, b) >= 0
+}
+
+/**
+ * Check if a is less than b.
+ */
+export function isLessThan(a: string | Decimal, b: string | Decimal): boolean {
+  return compare(a, b) < 0
+}
+
+/**
+ * Check if a is less than or equal to b.
+ */
+export function isLessThanOrEqual(a: string | Decimal, b: string | Decimal): boolean {
+  return compare(a, b) <= 0
+}
+
+/**
+ * Check if a equals b.
+ */
+export function isEqual(a: string | Decimal, b: string | Decimal): boolean {
+  return compare(a, b) === 0
+}
+
+/**
+ * Check if value is zero.
+ */
+export function isZero(value: string | Decimal): boolean {
+  const d = typeof value === 'string' ? parseDecimal(value) : value
+  return d.isZero()
+}
+
+/**
+ * Check if value is positive (> 0).
+ */
+export function isPositive(value: string | Decimal): boolean {
+  const d = typeof value === 'string' ? parseDecimal(value) : value
+  return d.isPositive() && !d.isZero()
+}
+
+/**
+ * Check if value is negative (< 0).
+ */
+export function isNegative(value: string | Decimal): boolean {
+  const d = typeof value === 'string' ? parseDecimal(value) : value
+  return d.isNegative()
+}
+
+/**
+ * Return absolute value.
+ */
+export function abs(value: string | Decimal): Decimal {
+  const d = typeof value === 'string' ? parseDecimal(value) : value
+  return d.abs()
+}
+
+/**
+ * Sum an array of decimal values.
+ *
+ * @param values - Array of decimal strings or Decimal instances
+ * @returns Sum as Decimal (returns Decimal(0) for empty array)
+ */
+export function sum(values: (string | Decimal)[]): Decimal {
+  return values.reduce((acc: Decimal, val) => add(acc, val), new Decimal(0))
+}
+
+/**
+ * Create a new Decimal from string — alternative to parseDecimal with same behavior.
+ * Provided for convenience when you need explicit Decimal construction.
+ */
+export function decimal(value: string): Decimal {
+  return parseDecimal(value)
 }
