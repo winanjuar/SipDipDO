@@ -377,6 +377,14 @@ export function isNegative(value: string | Decimal): boolean {
 }
 
 /**
+ * Check if value is non-negative (>= 0).
+ */
+export function isNonNegative(value: string | Decimal): boolean {
+  const d = typeof value === 'string' ? parseDecimal(value) : value
+  return !d.isNegative()
+}
+
+/**
  * Return absolute value.
  */
 export function abs(value: string | Decimal): Decimal {
