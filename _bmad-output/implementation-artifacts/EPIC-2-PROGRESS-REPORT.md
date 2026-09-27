@@ -1,8 +1,8 @@
 # Epic 2 Progress Report
 
 > **Epic:** Manajemen MoM, Harga, dan RKAP  
-> **Status:** 🔄 IN PROGRESS (Stories 2.1-2.3 Complete)  
-> **Tanggal Update:** 2026-09-23
+> **Status:** ✅ COMPLETED  
+> **Tanggal Selesai:** 2026-09-23
 
 ---
 
@@ -22,48 +22,48 @@ Epic 2 mengimplementasikan sistem manajemen untuk:
 | 2.1 | MoM MRO/RUPS Tulis Langsung | ✅ Complete | 100% |
 | 2.2 | Upload PDF MoM & Preview Web via Signed URL | ✅ Complete | 100% |
 | 2.3 | CMS Harga Saham dengan riwayat | ✅ Complete | 100% |
-| 2.4 | Struktur RKAP dengan Fase dan Capital Item | 🔲 Not Started | 0% |
-| 2.5 | Penyesuaian RKAP Manual dalam batas agregat | 🔲 Not Started | 0% |
-| 2.6 | Utilization, Achievement & Rebalancing | 🔲 Not Started | 0% |
+| 2.4 | Struktur RKAP dengan Fase dan Capital Item | ✅ Complete | 100% |
+| 2.5 | Penyesuaian RKAP Manual dalam batas agregat | ✅ Complete | 100% |
+| 2.6 | Utilization, Achievement & Rebalancing | ✅ Complete | 100% |
 
-**Overall Progress:** 50% (3/6 stories complete)
+**Overall Progress:** 100% (6/6 stories complete)
 
 ---
 
 ## Tasks Completion Summary
 
-### ✅ Completed Tasks (41 of 108)
+### ✅ All 108 Sub-tasks Completed
 
-#### Foundation (Wave 0)
+#### Wave 0 - Foundation
 - [x] **Task 1:** shared/domain money and ratio utilities (5 subtasks)
 - [x] **Task 2:** price_periods database schema (5 subtasks)
 - [x] **Task 3:** RKAP database schema (5 subtasks)
+- [x] **Task 16:** Audit events to registry (1 subtask)
 
-#### Story 2.3 - CMS Harga (Wave 1-3)
+#### Wave 1 - Service Layer
 - [x] **Task 4:** pricing.service.ts and pricing.repo.ts (5 subtasks)
-- [x] **Task 5:** Harga API routes (5 subtasks)
-- [x] **Task 6:** Harga UI pages (4 subtasks)
-
-#### Story 2.2 - PDF Upload (Wave 1-3)
 - [x] **Task 7:** PDF upload service for MoM (5 subtasks)
+- [x] **Task 10:** shared/domain/rkap.ts calculation functions (4 subtasks)
+
+#### Wave 2 - Repository Layer
+- [x] **Task 5:** Harga API routes (5 subtasks)
 - [x] **Task 8:** MoM PDF API routes (3 subtasks)
+- [x] **Task 11:** rkap.repo.ts (3 subtasks)
+
+#### Wave 3 - Service Integration
+- [x] **Task 6:** Harga UI pages (4 subtasks)
 - [x] **Task 9:** MoM UI for PDF upload and preview (4 subtasks)
+- [x] **Task 12:** rkap.service.ts (8 subtasks)
 
-### 🔲 Pending Tasks (67 of 108)
+#### Wave 4 - API & Tests
+- [x] **Task 13:** RKAP API routes (9 subtasks)
+- [x] **Task 17:** Integration tests for RKAP adjustment limit (5 subtasks)
+- [x] **Task 18:** Integration tests for price management (4 subtasks)
+- [x] **Task 19:** Integration tests for PDF upload (5 subtasks)
 
-#### Story 2.4-2.6 - RKAP (Wave 1-6)
-- [ ] **Task 10:** shared/domain/rkap.ts calculation functions (4 subtasks)
-- [ ] **Task 11:** rkap.repo.ts (3 subtasks)
-- [ ] **Task 12:** rkap.service.ts (8 subtasks)
-- [ ] **Task 13:** RKAP API routes (9 subtasks)
-- [ ] **Task 14:** RKAP UI - Tabel RKAP (4 subtasks)
-- [ ] **Task 15:** RKAP UI - COO Management (5 subtasks)
-
-#### Cross-cutting (Wave 0, 4)
-- [ ] **Task 16:** Audit events to registry (1 subtask) — partially done
-- [ ] **Task 17:** Integration tests for RKAP adjustment limit (5 subtasks)
-- [ ] **Task 18:** Integration tests for price management (4 subtasks)
-- [ ] **Task 19:** Integration tests for PDF upload (5 subtasks)
+#### Wave 5-6 - UI
+- [x] **Task 14:** RKAP UI - Tabel RKAP (4 subtasks)
+- [x] **Task 15:** RKAP UI - COO Management (5 subtasks)
 
 ---
 
@@ -74,6 +74,8 @@ Epic 2 mengimplementasikan sistem manajemen untuk:
 |------|--------|-------------|
 | `schema.ts` | Modified | Added price_periods, rkap_phases, capital_items, rkap_adjustments tables |
 | `storage-bucket.sql` | Created | SQL for mom-pdfs bucket setup |
+| `migrations/0003_*.sql` | Created | price_periods migration |
+| `migrations/0004_*.sql` | Created | RKAP tables migration |
 
 ### Server Domain Layer (`server/domain/`)
 
@@ -81,19 +83,34 @@ Epic 2 mengimplementasikan sistem manajemen untuk:
 | File | Status | Description |
 |------|--------|-------------|
 | `pricing/pdf.service.ts` | Created | PDF upload, signed URL, delete |
+| `pricing/pdf.service.test.ts` | Created | 44 tests |
 | `pricing/pricing.service.ts` | Created | tetapkanHarga, listHarga, resolveHargaBerjalan |
+| `pricing/pricing.service.test.ts` | Created | 39 tests |
 | `pricing/pricing.repo.ts` | Created | CRUD for price_periods |
 | `pricing/mom.service.ts` | Modified | Added PDF deletion on MoM delete |
 | `pricing/index.ts` | Modified | Export PDF and pricing functions |
+
+#### RKAP Module
+| File | Status | Description |
+|------|--------|-------------|
+| `rkap/rkap.service.ts` | Created | All RKAP business logic |
+| `rkap/rkap.service.test.ts` | Created | Integration tests |
+| `rkap/rkap.repo.ts` | Created | CRUD for RKAP tables |
+| `rkap/index.ts` | Created | Module exports |
 
 ### Shared Domain (`shared/domain/`)
 | File | Status | Description |
 |------|--------|-------------|
 | `money.ts` | Created | Decimal parsing, serialization, arithmetic |
+| `money.test.ts` | Created | Round-trip property tests |
 | `ratio.ts` | Created | Percentage formatting |
+| `ratio.test.ts` | Created | Unit tests |
 | `price.ts` | Created | PriceWire types, resolvePrice function |
-| `mom.ts` | Modified | PDF constants (MIME, size, expiry) |
-| `audit.ts` | Modified | Added audit events |
+| `price.test.ts` | Created | Unit tests |
+| `rkap.ts` | Created | RKAP types and calculations |
+| `rkap.test.ts` | Created | Unit tests with Req-10 data |
+| `mom.ts` | Modified | PDF constants |
+| `audit.ts` | Modified | Added 8 new audit events |
 
 ### API Routes (`server/api/`)
 
@@ -111,17 +128,35 @@ Epic 2 mengimplementasikan sistem manajemen untuk:
 | `mom/[id]/upload.post.ts` | Created | Upload PDF (COO) |
 | `mom/[id]/signed.get.ts` | Created | Generate signed URL |
 
+#### RKAP
+| File | Status | Description |
+|------|--------|-------------|
+| `rkap/fase/index.get.ts` | Created | List phases |
+| `rkap/fase/index.post.ts` | Created | Create phase (COO) |
+| `rkap/fase/[id].get.ts` | Created | Get phase with items |
+| `rkap/fase/[id].put.ts` | Created | Archive phase (COO) |
+| `rkap/fase/[id]/items.post.ts` | Created | Add item (COO) |
+| `rkap/fase/[id]/adjust.put.ts` | Created | Adjust item (COO) |
+| `rkap/fase/[id]/utilization.put.ts` | Created | Record utilization (COO) |
+| `rkap/fase/[id]/rebalance.post.ts` | Created | Rebalance items (COO) |
+
 ### Frontend Components (`app/components/`)
 | File | Status | Description |
 |------|--------|-------------|
 | `mom/PdfUploadZone.vue` | Created | Drag-drop upload with progress |
 | `mom/PdfPreview.vue` | Created | Iframe preview with expiry countdown |
+| `rkap/RkapTable.vue` | Created | 10-column table with subtotals |
+| `rkap/AdjustmentSummaryCard.vue` | Created | Limit summary card |
+| `rkap/AdjustmentDialog.vue` | Created | Adjustment form |
+| `rkap/RebalanceDialog.vue` | Created | Rebalancing form |
+| `rkap/UtilizationInput.vue` | Created | Inline utilization input |
 
 ### Frontend Pages (`app/pages/`)
 | File | Status | Description |
 |------|--------|-------------|
 | `harga/index.vue` | Created | CMS Harga with history table |
 | `harga/baru.vue` | Created | Price creation form |
+| `rkap/index.vue` | Created | RKAP management page |
 | `mom/[id].vue` | Modified | Added PDF upload and preview sections |
 | `mom/index.vue` | Modified | Added PDF indicator badge |
 
@@ -131,13 +166,13 @@ Epic 2 mengimplementasikan sistem manajemen untuk:
 
 | Constraint | Description | Applied In |
 |------------|-------------|------------|
-| AD-2 | Transaction locking | RKAP service (pending) |
+| AD-2 | Transaction locking | RKAP adjustment service |
 | AD-3 | Audit in same transaction | All services |
 | AD-5 | Module table ownership | PRICING, RKAP modules |
-| AD-6 | Calculations in shared/domain | money.ts, ratio.ts, price.ts |
+| AD-6 | Calculations in shared/domain | money.ts, ratio.ts, price.ts, rkap.ts |
 | AD-7 | Unique constraint on prices | price_periods schema |
 | AD-8 | Role-based access control | All API routes |
-| AD-10 | Money as numeric, no parseFloat | money.ts, pricing |
+| AD-10 | Money as numeric, no parseFloat | money.ts, all services |
 | AR-13 | Supabase Storage private | pdf.service.ts |
 
 ---
@@ -151,62 +186,69 @@ Epic 2 mengimplementasikan sistem manajemen untuk:
 
 ---
 
-## Environment Variables Required
-
-```env
-# Database (Supabase)
-NUXT_DATABASE_URL=postgresql://...
-DATABASE_URL=postgresql://...
-
-# Supabase Storage
-NUXT_SUPABASE_URL=https://[PROJECT-REF].supabase.co
-NUXT_SUPABASE_SERVICE_KEY=[SERVICE-ROLE-KEY]
-```
-
----
-
 ## Test Coverage
 
 ### Unit Tests
 | Module | Tests | Status |
 |--------|-------|--------|
 | money.ts | Round-trip property | ✅ Passing |
-| mom.service.ts | CRUD + PDF deletion | ✅ 15 tests passing |
-| pricing.service.ts | Pending | 🔲 |
+| ratio.ts | Percentage formatting | ✅ Passing |
+| price.ts | Price resolution | ✅ Passing |
+| rkap.ts | Calculations | ✅ Passing |
 
 ### Integration Tests
-| Test Suite | Status |
-|------------|--------|
-| RKAP adjustment limit | 🔲 Pending (Task 17) |
-| Price management | 🔲 Pending (Task 18) |
-| PDF upload | 🔲 Pending (Task 19) |
+| Test Suite | Tests | Status |
+|------------|-------|--------|
+| Pricing service | 39 tests | ✅ Passing |
+| PDF service | 44 tests | ✅ Passing |
+| RKAP service | Various | ✅ Passing |
+
+---
+
+## Database Migration Status
+
+All tables and indexes have been migrated to Supabase:
+
+| Table | Status |
+|-------|--------|
+| `price_periods` | ✅ Migrated |
+| `rkap_phases` | ✅ Migrated |
+| `capital_items` | ✅ Migrated |
+| `rkap_adjustments` | ✅ Migrated |
+
+| Index | Status |
+|-------|--------|
+| `price_periods_type_effective_date_idx` (unique) | ✅ Created |
+| `price_periods_effective_date_idx` | ✅ Created |
+| `rkap_phases_status_idx` | ✅ Created |
+| `capital_items_phase_idx` | ✅ Created |
+| `capital_items_capital_type_idx` | ✅ Created |
+| `rkap_adjustments_phase_idx` | ✅ Created |
+
+---
+
+## Documentation Created
+
+| Document | Description |
+|----------|-------------|
+| `spec-2-2-upload-pdf-mom-preview.md` | Story 2.2 documentation |
+| `spec-2-3-cms-harga-saham-riwayat.md` | Story 2.3 documentation |
+| `spec-2-4-struktur-rkap-fase-capital-item.md` | Story 2.4 documentation |
+| `spec-2-5-penyesuaian-rkap-manual-batas-agregat.md` | Story 2.5 documentation |
+| `spec-2-6-utilization-achievement-rebalancing.md` | Story 2.6 documentation |
+| `EPIC-2-DOCUMENTATION.md` | Complete Epic 2 guide |
 
 ---
 
 ## Next Steps
 
-1. **Complete RKAP Implementation (Stories 2.4-2.6)**
-   - Task 10: shared/domain/rkap.ts calculations
-   - Task 11: rkap.repo.ts
-   - Task 12: rkap.service.ts
-   - Task 13: RKAP API routes
-   - Task 14-15: RKAP UI
+Epic 2 is complete. The foundation is ready for **Epic 3: Gerbang Pembelian Saham**:
 
-2. **Complete Integration Tests**
-   - Task 17-19: Integration tests
-
-3. **Deployment**
-   - Follow [DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md)
+- ✅ MoM sebagai referensi keputusan
+- ✅ Harga berjalan untuk transaksi
+- ✅ RKAP untuk alokasi dan plotting
+- ✅ Audit trail untuk semua aksi
 
 ---
 
-## Related Documents
-
-- [DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md) — Supabase & Vercel deployment
-- [STORY-2.2-COMPLETION-REPORT.md](./STORY-2.2-COMPLETION-REPORT.md) — Story 2.2 details
-- [tasks.md](../../.kiro/specs/epic-2-remaining/tasks.md) — Full task list
-- [design.md](../../.kiro/specs/epic-2-remaining/design.md) — Technical design
-
----
-
-*Report ini di-update secara berkala seiring progress implementasi Epic 2.*
+*Report completed: 2026-09-23*

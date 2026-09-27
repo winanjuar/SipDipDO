@@ -91,6 +91,7 @@ export async function buildPrincipal(repo: IdentityRepoPort, email: string): Pro
     unlinked: false,
     role,
     owner: {
+      id: owner.id ?? '',
       email: owner.email,
       status: owner.status,
       rejectionReason: owner.rejectionReason ?? null,

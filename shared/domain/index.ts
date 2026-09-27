@@ -103,3 +103,29 @@ export {
   validateMomCreateInput,
   validateMomUpdateInput,
 } from './mom'
+
+// RKAP utilities (AD-6 / Req-5, Req-9, Req-10, Req-12)
+export type {
+  CapitalType,
+  RkapPhaseStatus,
+  CapitalItemWire,
+  RkapPhaseSummary,
+  RkapPhaseWire,
+  PhaseCreateInput,
+  ItemCreateInput,
+  AdjustInput,
+  RebalanceInput,
+  UtilizationInput,
+} from './rkap'
+
+export {
+  // Calculation functions
+  calculateAdjustmentLimit,
+  calculateFulfillmentRate,
+  calculateAchievement,
+  calculateHeld,
+  calculateShortfall,
+  calculateQuantityLeft,
+  calculateAdjustmentRemaining,
+  calculateAdjustmentUsedRatio,
+} from './rkap'

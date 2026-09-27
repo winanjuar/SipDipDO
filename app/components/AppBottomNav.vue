@@ -47,36 +47,48 @@ const lainnyaTerbuka = ref(false)
       </li>
 
       <li v-if="itemLainnya.length > 0" class="flex-1">
-        <Sheet v-model:open="lainnyaTerbuka">
-          <SheetTrigger as-child>
+        <ClientOnly>
+          <Sheet v-model:open="lainnyaTerbuka">
+            <SheetTrigger as-child>
+              <button
+                type="button"
+                class="flex min-h-14 w-full flex-col items-center justify-center px-2 py-2 text-xs text-muted-foreground"
+              >
+                Lainnya
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" class="gap-4">
+              <SheetHeader>
+                <SheetTitle>Lainnya</SheetTitle>
+                <SheetDescription>Menu lain yang terbuka untuk Anda.</SheetDescription>
+              </SheetHeader>
+              <ul class="flex flex-col gap-1 pb-6">
+                <li v-for="item in itemLainnya" :key="item.path">
+                  <!-- Ditutup saat dipilih — modal bertumpuk maks 1 tingkat;
+                       navigasi tetap jalan lewat href NuxtLink. -->
+                  <NuxtLink
+                    :to="item.path"
+                    class="flex min-h-11 items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+                    :aria-current="aktif(item.path) ? 'page' : undefined"
+                    @click="lainnyaTerbuka = false"
+                  >
+                    {{ item.label }}
+                  </NuxtLink>
+                </li>
+              </ul>
+            </SheetContent>
+          </Sheet>
+
+          <!-- Fallback SSR: tombol "Lainnya" tanpa Sheet (reka-ui tidak support SSR) -->
+          <template #fallback>
             <button
               type="button"
               class="flex min-h-14 w-full flex-col items-center justify-center px-2 py-2 text-xs text-muted-foreground"
             >
               Lainnya
             </button>
-          </SheetTrigger>
-          <SheetContent side="bottom" class="gap-4">
-            <SheetHeader>
-              <SheetTitle>Lainnya</SheetTitle>
-              <SheetDescription>Menu lain yang terbuka untuk Anda.</SheetDescription>
-            </SheetHeader>
-            <ul class="flex flex-col gap-1 pb-6">
-              <li v-for="item in itemLainnya" :key="item.path">
-                <!-- Ditutup saat dipilih — modal bertumpuk maks 1 tingkat;
-                     navigasi tetap jalan lewat href NuxtLink. -->
-                <NuxtLink
-                  :to="item.path"
-                  class="flex min-h-11 items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
-                  :aria-current="aktif(item.path) ? 'page' : undefined"
-                  @click="lainnyaTerbuka = false"
-                >
-                  {{ item.label }}
-                </NuxtLink>
-              </li>
-            </ul>
-          </SheetContent>
-        </Sheet>
+          </template>
+        </ClientOnly>
       </li>
     </ul>
   </nav>
