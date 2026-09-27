@@ -11,6 +11,12 @@
 // Supabase Storage Configuration (AR-13, Req-1, Req-2)
 // =============================================================================
 
+/** Bytes per megabyte — konversi ukuran file. */
+export const BYTES_PER_MB = 1_048_576 // 1024 * 1024
+
+/** Milliseconds per second — konversi waktu. */
+export const MS_PER_SECOND = 1000
+
 /**
  * Nama bucket Supabase Storage untuk PDF MoM — PRIVATE bucket.
  * Akses hanya melalui server-generated Signed URLs (AR-13).
@@ -36,7 +42,6 @@ export const MOM_PDF_ALLOWED_MIME_TYPES = ['application/pdf'] as const
  * Signed URL kedaluwarsa setelah durasi ini.
  */
 export const MOM_PDF_SIGNED_URL_EXPIRY_SECONDS = 900 // 15 * 60
-
 // =============================================================================
 // MoM Status & Wire Types
 // =============================================================================

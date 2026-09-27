@@ -1,6 +1,6 @@
 import { buildPrincipal, createIdentityRepo } from '../../../domain/identity'
 import { PdfDomainError, uploadMomPdf } from '../../../domain/pricing'
-import { MOM_PDF_ALLOWED_MIME_TYPES, MOM_PDF_MAX_SIZE_BYTES } from '#shared/domain/mom'
+import { BYTES_PER_MB, MOM_PDF_ALLOWED_MIME_TYPES, MOM_PDF_MAX_SIZE_BYTES } from '#shared/domain/mom'
 import { HTTP_STATUS, sendApiError } from '../../../utils/api-error'
 import { useDb } from '../../../utils/db'
 import { enforceCOO } from '../../../utils/role-guard'
@@ -77,7 +77,7 @@ export default defineEventHandler(async (event) => {
   // 6. Validasi early: ukuran file (sebelum masuk service — fail fast)
   const fileBuffer = filePart.data
   if (fileBuffer.length > MOM_PDF_MAX_SIZE_BYTES) {
-    const maxMB = MOM_PDF_MAX_SIZE_BYTES / (1024 * 1024)
+    const maxMB = MOM_PDF_MAX_SIZE_BYTES / BYTES_PER_MB
     return sendApiError(event, HTTP_STATUS.badRequest, {
       code: 'VALIDATION',
       message: `Ukuran file melebihi batas maksimal ${maxMB}MB.`,

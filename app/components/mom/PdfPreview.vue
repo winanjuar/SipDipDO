@@ -16,6 +16,7 @@
  * - `error`: ketika terjadi error yang perlu ditangani parent
  */
 import { MOM_PDF_SIGNED_URL_EXPIRY_SECONDS } from '#shared/domain/mom'
+import { HTTP_STATUS } from '~/server/utils/api-error'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
@@ -116,11 +117,11 @@ async function fetchSignedUrl() {
   } catch (error: unknown) {
     const err = error as { statusCode?: number, data?: { message?: string } }
 
-    if (err.statusCode === 404) {
+    if (err.statusCode === HTTP_STATUS.notFound) {
       errorMessage.value = 'PDF tidak ditemukan untuk MoM ini.'
-    } else if (err.statusCode === 503) {
+    } else if (err.statusCode === HTTP_STATUS.serviceUnavailable) {
       errorMessage.value = 'Layanan storage tidak tersedia. Silakan coba lagi.'
-    } else if (err.statusCode === 403) {
+    } else if (err.statusCode === HTTP_STATUS.forbidden) {
       errorMessage.value = 'Anda tidak memiliki akses untuk melihat PDF ini.'
     } else {
       errorMessage.value = err.data?.message ?? 'Gagal memuat preview PDF.'
@@ -332,8 +333,8 @@ defineExpose({ refreshUrl })
 
       <!-- Iframe -->
       <iframe
-        :src="signedUrl"
         :key="signedUrl"
+        :src="signedUrl"
         class="aspect-[8.5/11] w-full rounded-lg border"
         title="Preview PDF MoM"
         @load="handleIframeLoad"

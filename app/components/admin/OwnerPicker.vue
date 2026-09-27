@@ -78,12 +78,14 @@ function selectOwner(value: string | number | bigint | Record<string, unknown> |
     <SelectContent>
       <!-- Search input di atas daftar -->
       <div class="px-2 pb-2">
-        <input v-model="filterText" type="text" placeholder="Cari owner…" data-testid="owner-picker-search"
+        <input
+v-model="filterText" type="text" placeholder="Cari owner…" data-testid="owner-picker-search"
           class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring">
       </div>
 
       <SelectGroup>
-        <SelectItem v-for="owner in ownersFiltered" :key="owner.id" :value="owner.id"
+        <SelectItem
+v-for="owner in ownersFiltered" :key="owner.id" :value="owner.id"
           :data-testid="`owner-picker-item-${owner.id}`">
           <span class="flex w-full items-center justify-between gap-2">
             <span class="flex flex-col">

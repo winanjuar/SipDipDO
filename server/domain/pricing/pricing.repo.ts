@@ -231,5 +231,6 @@ export async function listPrices(db: DbClient, paging: PricePaging): Promise<Pri
  */
 export async function countPrices(db: DbClient): Promise<number> {
   const result = await db.select({ count: sql<number>`count(*)` }).from(pricePeriods)
+  // eslint-disable-next-line no-restricted-syntax -- count is integer, not money
   return Number(result[0]?.count ?? 0)
 }

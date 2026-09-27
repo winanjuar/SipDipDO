@@ -183,6 +183,7 @@ function tutupKoreksi() {
  */
 function formatRupiahInput(amount: string): string {
   const normalized = amount.replace(/\./g, '').replace(',', '.')
+  // eslint-disable-next-line no-restricted-syntax -- display formatting only, not money calculation
   const parsed = Number.parseFloat(normalized)
   if (Number.isNaN(parsed)) return amount
   return new Intl.NumberFormat('id-ID', {

@@ -6,6 +6,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { Principal } from '#shared/domain/identity'
 import type { H3Event } from 'h3'
 
+// Import after mocks are set up
+import { enforceCOO, isCOO } from './role-guard'
+
 // Mock the api-error module before importing role-guard
 const mockSendApiError = vi.fn()
 vi.mock('./api-error', () => ({
@@ -24,9 +27,6 @@ vi.mock('./api-error', () => ({
     return envelope
   },
 }))
-
-// Import after mocks are set up
-import { enforceCOO, isCOO } from './role-guard'
 
 // Mock H3Event with minimal required properties
 function createMockEvent(): H3Event {

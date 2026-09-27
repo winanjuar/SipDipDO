@@ -114,7 +114,8 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
 
     <!-- Search -->
     <div class="flex items-center gap-4">
-      <input v-model="searchQuery" type="text" placeholder="Cari owner (nama, email, HP)…"
+      <input
+v-model="searchQuery" type="text" placeholder="Cari owner (nama, email, HP)…"
         data-testid="admin-owners-search"
         class="flex h-11 w-full max-w-sm rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring">
     </div>
@@ -170,7 +171,8 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
 
     <!-- Card list (mobile) -->
     <div class="flex flex-col gap-4 md:hidden">
-      <div v-for="owner in filteredOwners" :key="owner.id" class="flex flex-col gap-3 rounded-lg border p-4"
+      <div
+v-for="owner in filteredOwners" :key="owner.id" class="flex flex-col gap-3 rounded-lg border p-4"
         data-testid="admin-owners-card">
         <div class="flex items-start justify-between">
           <div>
@@ -204,7 +206,8 @@ useHead({ title: 'Manajemen Owner — Sip & Dip' })
         </Button>
       </div>
 
-      <div v-if="filteredOwners.length === 0"
+      <div
+v-if="filteredOwners.length === 0"
         class="flex items-center justify-center rounded-lg border border-dashed p-10 text-center">
         <p class="text-sm text-muted-foreground">
           {{ searchQuery ? 'Tidak ditemukan owner yang cocok.' : 'Belum ada owner.' }}
