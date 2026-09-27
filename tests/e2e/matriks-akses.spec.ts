@@ -15,8 +15,10 @@
  *   (aksesPenuh — middleware konsultasi predikat atas snapshot owner, BUKAN
  *   role saja: resolveRole memetakan keluar → tanpa_saham SEBELUM melihat
  *   firstEffectiveAt, server/domain/identity/access.service.ts);
- *   pemegang_saham × /order-queue|/audit-trail → redirect /dashboard;
- *   coo × /personal → redirect /order-queue; calon diajukan × /dashboard →
+ *   pemegang_saham × /order-queue|/audit-trail|/pendaftar → redirect
+ *   /dashboard (registrasi /pendaftar keputusan owner 2026-09-22 — review
+ *   adv#2); coo × /personal → 200 Halaman Personal (PRASYARAT_OWNER —
+ *   keputusan owner 2026-09-21); calon diajukan × /dashboard|/pendaftar →
  *   TETAP gerbang calon 1.5 (/profile-completeness — precedence, gerbang role
  *   tidak tersentuh).
  * - Pesan transparansi VERBATIM
@@ -102,6 +104,19 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
   })
 
+  test('[P0] tanpa saham belum-beli membuka /pendaftar → redirect /personal polos (permukaan COO terdaftar — keputusan owner 2026-09-22)', async ({ page, context, apiRequest }) => {
+    await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /pendaftar secara langsung')
+    await page.goto('/pendaftar')
+
+    await log.step('THEN dialihkan di batas server ke /personal polos dengan alert transparansi VERBATIM (jalur sama /order-queue — PRASYARAT_COO)')
+    await expect(page).toHaveURL(URL_PERSONAL)
+    await expect(page.getByTestId(TEST_IDS.personal.alertTransparansi)).toContainText(PESAN_TRANSPARANSI)
+  })
+
   test('[P0] tanpa saham belum-beli membuka /audit-trail → redirect /personal polos', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi owner 'tanpa-saham' (terverifikasi, belum pernah beli) terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'tanpa-saham', email: emailSintetisUji() })
@@ -170,6 +185,20 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 
+  test('[P1] pemegang saham membuka /pendaftar → redirect landing-nya /dashboard (permukaan COO terdaftar — keputusan owner 2026-09-22)', async ({ page, context, apiRequest }) => {
+    // Registrasi /pendaftar = PRASYARAT_COO di PERMUKAAN_PERAN — penegakan
+    // middleware yang selama ini absen untuk permukaan Story 1.6 (adv#2).
+    await log.step("GIVEN sesi 'pemegang-saham' terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'pemegang-saham', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /pendaftar (permukaan role coo) secara langsung')
+    await page.goto('/pendaftar')
+
+    await log.step('THEN dialihkan ke landing role-nya /dashboard')
+    await expect(page).toHaveURL(/\/dashboard$/)
+  })
+
   test('[P1] coo membuka /personal → Halaman Personal tampil (PRASYARAT_OWNER — keputusan owner 2026-09-21)', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
@@ -192,6 +221,21 @@ test.describe('E2E Story 1.7 — matriks keterbukaan di batas server (AD-8, FR-1
     await page.goto('/dashboard')
 
     await log.step('THEN dialihkan ke /profile-completeness — gerbang calon 1.5 dievaluasi SEBELUM gerbang role (perilaku 1.5 TIDAK tersentuh)')
+    await expect(page).toHaveURL(/\/profile-completeness$/)
+  })
+
+  test('[P1] calon diajukan belum-lengkap membuka /pendaftar → gerbang calon 1.5 /profile-completeness (registrasi registry 2026-09-22)', async ({ page, context, apiRequest }) => {
+    // Sejak /pendaftar = PRASYARAT_COO di registry, redirect calon pindah dari
+    // resolver halaman (dulu → /registration-status) ke middleware — calon
+    // diajukan belum-lengkap ditangkap gerbang calon 1.5 lebih dulu.
+    await log.step("GIVEN sesi calon owner 'diajukan' (Profil belum lengkap) terinjeksikan")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'calon-diajukan', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+
+    await log.step('WHEN membuka /pendaftar secara langsung')
+    await page.goto('/pendaftar')
+
+    await log.step('THEN dialihkan ke /profile-completeness — gerbang calon 1.5 dievaluasi SEBELUM gerbang role')
     await expect(page).toHaveURL(/\/profile-completeness$/)
   })
 

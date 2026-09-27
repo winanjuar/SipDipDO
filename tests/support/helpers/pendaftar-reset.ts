@@ -10,14 +10,18 @@
  * FK-safe dengan urutan yang sama dengan `owner-reset.ts` (baris seed dev
  * `uji.snddash.*` dan data non-sintetis tidak pernah tersentuh).
  *
- * `pg_advisory_lock` men-serialisasi reset+aksi test lintas project browser
- * (pola audit-reset.ts). CATATAN paralelisme (diterima, P2): test lain yang
- * sedang menggenggam calon sintetisnya sendiri dapat terdampak bila jendela
- * reset jatuh di tengah test-nya — risiko kelas yang sama sudah diterima
- * suite via `denganAuditKosong` (TRUNCATE audit_logs) + retries Playwright.
+ * `pg_advisory_lock` (KUNCI_ADVISORY_RESET_PENDAFTAR) men-serialisasi reset
+ * DAN uji constraint lintas project browser/worker (pola audit-reset.ts).
+ * CATATAN paralelisme (diterima, P2): test lain yang sedang menggenggam
+ * calon sintetisnya sendiri dapat terdampak bila jendela reset jatuh di
+ * tengah test-nya — risiko kelas yang sama sudah diterima suite via
+ * `denganAuditKosong` (TRUNCATE audit_logs) + retries Playwright.
  *
- * Guard host lokal (pola audit-reset.ts): host non-lokal DITOLAK —
- * kredensial nyata tidak pernah menyentuh file ini (URL dari env).
+ * Guard host lokal (hardening 2026-09-22, adv#10+edge#4): host non-lokal
+ * TIDAK ME-THROW — `siaDbUjiLokal()` mengembalikan alasan skip dan pemanggil
+ * test memakai `test.skip` jujur; env `IZINKAN_DB_UJI_JAUH=1` menimpa
+ * (mesin ter-provision dipercaya pemiliknya). Kredensial nyata tidak pernah
+ * menyentuh file ini (URL dari env).
  */
 import postgres from 'postgres'
 
@@ -40,6 +44,33 @@ const DETIK_TUTUP_MAKS = 5
  *  (identik PREFIX_EMAIL_UJI di server/api/test/login.post.ts). */
 const PREFIX_EMAIL_SINTETIS = 'uji.snddash.e2e.%'
 
+/** Keputusan guard DB uji — jujur: non-lokal TIDAK me-throw. */
+export type SiaDbUji = { ok: true } | { ok: false, alasan: string }
+
+/**
+ * Guard host DB uji (hardening 2026-09-22): host non-lokal TIDAK me-throw —
+ * kembalikan `{ ok: false, alasan }` untuk `test.skip` pemanggil; env
+ * `IZINKAN_DB_UJI_JAUH=1` menimpa pemeriksaan host. DATABASE_URL yang gagal
+ * diurai (bukan scheme valid) = honest-skip, bukan crash.
+ */
+function siaDbUjiLokal(): SiaDbUji {
+  if (process.env.IZINKAN_DB_UJI_JAUH === '1') return { ok: true }
+  let host: string
+  try {
+    host = new URL(process.env.DATABASE_URL ?? URL_DB_ADMIN_DEFAULT).hostname
+  } catch {
+    return {
+      ok: false,
+      alasan: 'pendaftar-reset: DATABASE_URL tidak dapat diurai sebagai URL valid — lewati uji DB (set IZINKAN_DB_UJI_JAUH=1 untuk menimpa).',
+    }
+  }
+  if (HOST_LOKAL.includes(host)) return { ok: true }
+  return {
+    ok: false,
+    alasan: `pendaftar-reset: host DB '${host}' bukan lokal — reset/uji constraint hanya untuk DB dev lokal (set IZINKAN_DB_UJI_JAUH=1 untuk menimpa).`,
+  }
+}
+
 /**
  * Jalankan `tugas` dengan jaminan TIDAK ADA calon `diajukan` sintetis di awal:
  * genggam advisory lock, hapus FK-safe baris `uji.snddash.e2e.%` berstatus
@@ -50,16 +81,13 @@ const PREFIX_EMAIL_SINTETIS = 'uji.snddash.e2e.%'
  * `diajukan` APA PUN di DB — baris non-sintetis (data dev nyata) tidak pernah
  * dihapus (kebijakan data), sehingga penelepon dapat melewatkan test bila
  * prekondisi empty-state mustahil dicapai tanpa menyentuh data nyata.
+ * Host non-lokal → `tugas({ bersih: false })` (honest-skip, bukan throw).
  */
 export async function denganPendaftarKosong<T>(tugas: (keadaan: { bersih: boolean }) => Promise<T>): Promise<T> {
-  const url = process.env.DATABASE_URL ?? URL_DB_ADMIN_DEFAULT
-  const host = new URL(url).hostname
-  if (!HOST_LOKAL.includes(host)) {
-    throw new Error(
-      `pendaftar-reset: host DB '${host}' bukan lokal — reset hanya untuk DB dev lokal.`,
-    )
-  }
+  const sia = siaDbUjiLokal()
+  if (!sia.ok) return tugas({ bersih: false })
 
+  const url = process.env.DATABASE_URL ?? URL_DB_ADMIN_DEFAULT
   const sql = postgres(url, { max: UKURAN_POOL_SATU })
   try {
     await sql`SELECT pg_advisory_lock(${KUNCI_ADVISORY_RESET_PENDAFTAR})`
@@ -119,44 +147,58 @@ export async function denganPendaftarKosong<T>(tugas: (keadaan: { bersih: boolea
 /** Penghitung email uji constraint — unik antar panggilan dalam satu proses. */
 let hitungEmailConstraint = 0
 
+/** Hasil uji constraint CHECK — `ok: false` = host bukan lokal (alasan skip). */
+export type HasilCekConstraint
+  = { ok: true, kodeAlasanNull: string, kodeAlasanBlank: string }
+  | { ok: false, alasan: string }
+
 /**
  * Coba INSERT baris sintetis berstatus `ditolak` dengan `rejection_reason`
  * NULL lalu `''` (blank) — Story 1.6: keduanya WAJIB gagal karena CHECK
  * constraint `owners_ditolak_wajib_rejection_reason` (kode 23514), yang
  * tidak pernah tersentuh jalur handler/service (gerbang validasi lebih dulu).
  *
- * Klien postgres mentah (pola admin-client di atas, guard host lokal sama).
- * Tulisan invalid tidak pernah commit (statement tunggal gagal = rollback —
- * tidak perlu cleanup); bila loophole (insert LOLOS), baris langsung dibuang
- * agar DB tetap bersih dan kode `LOLOS` dilaporkan ke pemanggil untuk
- * di-assert gagal.
+ * Klien postgres mentah (pola admin-client di atas; guard host via
+ * `siaDbUjiLokal` — non-lokal = honest-skip, bukan throw). SELURUH blok uji
+ * digenggam `KUNCI_ADVISORY_RESET_PENDAFTAR` (hardening 2026-09-22) sehingga
+ * dua worker paralel tidak lagi menghasilkan 23505 UNIQUE; email/kode
+ * dirandom `Date.now()-pid-random` di atasnya. Tulisan invalid tidak pernah
+ * commit (statement tunggal gagal = rollback — tidak perlu cleanup); bila
+ * loophole (insert LOLOS), baris langsung dibuang agar DB tetap bersih dan
+ * kode `LOLOS` dilaporkan ke pemanggil untuk di-assert gagal.
  */
-export async function cobaTulisDitolakTanpaAlasan(): Promise<{ kodeAlasanNull: string, kodeAlasanBlank: string }> {
-  const url = process.env.DATABASE_URL ?? URL_DB_ADMIN_DEFAULT
-  const host = new URL(url).hostname
-  if (!HOST_LOKAL.includes(host)) {
-    throw new Error(
-      `pendaftar-reset: host DB '${host}' bukan lokal — uji constraint hanya untuk DB dev lokal.`,
-    )
-  }
+export async function cobaTulisDitolakTanpaAlasan(): Promise<HasilCekConstraint> {
+  const sia = siaDbUjiLokal()
+  if (!sia.ok) return sia
 
+  const url = process.env.DATABASE_URL ?? URL_DB_ADMIN_DEFAULT
   const sql = postgres(url, { max: UKURAN_POOL_SATU })
   try {
-    const cobaInsert = async (alasan: string | null): Promise<string> => {
-      hitungEmailConstraint += 1
-      const email = `uji.snddash.e2e.cek-constraint.${Date.now()}.${hitungEmailConstraint}@gmail.com`
-      try {
-        await sql`
-          INSERT INTO owners (email, referral_code, status, rejection_reason)
-          VALUES (${email}, ${`CEK${Date.now()}${hitungEmailConstraint}`}, 'ditolak', ${alasan})
-        `
-        await sql`DELETE FROM owners WHERE email = ${email}`
-        return 'LOLOS'
-      } catch (error) {
-        return String((error as { code?: unknown }).code ?? 'ERR')
+    await sql`SELECT pg_advisory_lock(${KUNCI_ADVISORY_RESET_PENDAFTAR})`
+    try {
+      const cobaInsert = async (alasan: string | null): Promise<string> => {
+        hitungEmailConstraint += 1
+        const acak = Math.random().toString(36).slice(2, 8)
+        const email = `uji.snddash.e2e.cek-constraint.${Date.now()}.${process.pid}.${acak}.${hitungEmailConstraint}@gmail.com`
+        try {
+          await sql`
+            INSERT INTO owners (email, referral_code, status, rejection_reason)
+            VALUES (${email}, ${`CEK${Date.now()}${process.pid}${acak}${hitungEmailConstraint}`}, 'ditolak', ${alasan})
+          `
+          await sql`DELETE FROM owners WHERE email = ${email}`
+          return 'LOLOS'
+        } catch (error) {
+          return String((error as { code?: unknown }).code ?? 'ERR')
+        }
       }
+      return {
+        ok: true,
+        kodeAlasanNull: await cobaInsert(null),
+        kodeAlasanBlank: await cobaInsert(''),
+      }
+    } finally {
+      await sql`SELECT pg_advisory_unlock(${KUNCI_ADVISORY_RESET_PENDAFTAR})`
     }
-    return { kodeAlasanNull: await cobaInsert(null), kodeAlasanBlank: await cobaInsert('') }
   } finally {
     await sql.end({ timeout: DETIK_TUTUP_MAKS })
   }

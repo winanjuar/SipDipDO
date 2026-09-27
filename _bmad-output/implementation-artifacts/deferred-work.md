@@ -54,6 +54,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-verifikasi-penolakan-pendaftar-oleh-coo.md`
   summary: Dokumen konteks `epic-1-context.md` menulis "Profile: 11 field" tetapi mengenumerasi 10 item (Gmail = email login, tidak masuk form 10 field) — drift label vs enumerasi.
   evidence: Review 1.6 (blind-hunter, verdict low): jumlah 11 berasal dari Lampiran A PRD (termasuk Gmail), form menyimpan 10 (spec-1-5); perbaikannya mengedit artefak agent-context hasil kompilasi (`epic-1-context.md`, header "Edit freely / Regenerate with compile-epic-context") — bukan kode story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-hardening-1-6-temuan-review.md`
+  summary: Setup CI Playwright 3-browser (chromium+firefox+webkit) — burn-in paritas 3-browser belum pernah terjadi karena repo belum punya CI.
+  evidence: Keputusan owner 2026-09-22 (review-hardening vgap#1): webkit KINI tereksekusi di host developer ini (catatan libavif16 spec-1-6 usang untuk host ini), tetapi paritas 3-browser kontrak PWA (SYS-E2E-001/R-006) baru pernah terverifikasi pada satu host dev — tanpa CI, host/CI mana pun tidak dijamin punya lib browser lengkap, sehingga burn-in 3-browser wajib di-otomasi (entri CI-minimal spec-1-1 sudah ada; entri ini menambah kontrak 3-browser untuk suite 1.6).
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-mom-mro-rups-tulis-langsung.md`
   summary: API-level authorization tests untuk MoM routes (401/403 scenarios)
   evidence: Project-wide pattern — tidak ada API auth tests untuk fitur lain juga; perlu konsistensi approach sebelum menambah

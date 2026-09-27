@@ -7,21 +7,23 @@
  * + blok TEST_IDS.navigasi; kegagalan merah diverifikasi sebelum
  * implementasi (asersi ter-pin dari red-phase tidak berubah).
  *
- * ASUMSI KONTRAK (red-phase, dipin — UX-DR14; diperbarui Story 2.1b):
+ * ASUMSI KONTRAK (red-phase, dipin — UX-DR14; diperbarui Story 2.1b dan
+ * registrasi /pendaftar keputusan owner 2026-09-22):
  * - Mobile (<lg): bottom nav data-testid="nav-batang-bawah"; Desktop (≥lg):
  *   sidebar kiri data-testid="nav-sidebar".
  * - Item = link by-role name, label terpin: 'Order'→/order-queue,
  *   'Dashboard'→/dashboard, 'Audit'→/audit-trail, 'Personal'→/personal,
- *   'MoM'→/mom (Story 2.1b).
- * - Registry item per role (Story 2.1b — urutan keputusan owner 2026-09-21/22):
- *   coo=[Dashboard, Personal, MoM, Order, Audit]; pemegang_saham=[Dashboard,
- *   Personal, MoM]; tanpa_saham belum-beli=[Personal]; tanpa_saham
- *   aksesPenuh=[Personal, Dashboard, MoM]; calon_owner=TANPA nav.
+ *   'MoM'→/mom (Story 2.1b), 'Pendaftar'→/pendaftar (keputusan owner
+ *   2026-09-22).
+ * - Registry item per role (urutan keputusan owner 2026-09-21/22):
+ *   coo=[Dashboard, Personal, MoM, Order, Pendaftar, Audit]; pemegang_saham=
+ *   [Dashboard, Personal, MoM]; tanpa_saham belum-beli=[Personal];
+ *   tanpa_saham aksesPenuh=[Personal, Dashboard, MoM]; calon_owner=TANPA nav.
  * - Item terkunci TIDAK TAMPIL sama sekali (toHaveCount(0) — bukan
  *   disembunyikan); item aktif aria-current="page".
  * - "Lainnya" (Sheet shadcn) hanya bila item > MAKS_ITEM_NAV_MOBILE (4) —
- *   sejak Story 2.1b registry coo = 5 item → pemicu "Lainnya" TAMPIL dan
- *   Sheet berisi overflow (Audit); role lain ≤ 3 item → tidak tampil.
+ *   registry coo = 6 item → pemicu "Lainnya" TAMPIL dan Sheet berisi
+ *   overflow (Pendaftar, Audit); role lain ≤ 3 item → tidak tampil.
  * - Logo sidebar: diasumsikan BrandLogo dengan testid yang sama dengan
  *   halaman login (TEST_IDS.login.brandLogo — sumber auth-landing.spec.ts)
  *   dirender ulang di sidebar; ketuk logo → landing role (coo →
@@ -61,6 +63,7 @@ const LABEL_DASHBOARD = 'Dashboard'
 const LABEL_AUDIT = 'Audit'
 const LABEL_PERSONAL = 'Personal'
 const LABEL_MOM = 'MoM'
+const LABEL_PENDAFTAR = 'Pendaftar'
 
 /** Pemicu Sheet "Lainnya" — hanya bila item > MAKS_ITEM_NAV_MOBILE (4). */
 const LABEL_PEMICU_LAINNYA = 'Lainnya'
@@ -68,8 +71,9 @@ const LABEL_PEMICU_LAINNYA = 'Lainnya'
 /** Batas tunggu sinyal hidrasi & interaksi logout (ms). */
 const BATAS_RECURSE_KELUAR_MS = 15_000
 
-/** Registry navigasi coo lengkap (Story 2.1b — 5 item, urutan keputusan owner). */
-const ITEM_NAV_COO = [LABEL_DASHBOARD, LABEL_PERSONAL, LABEL_MOM, LABEL_ORDER, LABEL_AUDIT] as const
+/** Registry navigasi coo lengkap (6 item — Pendaftar disisip setelah Order,
+ *  Audit tetap terakhir; keputusan owner 2026-09-22). */
+const ITEM_NAV_COO = [LABEL_DASHBOARD, LABEL_PERSONAL, LABEL_MOM, LABEL_ORDER, LABEL_PENDAFTAR, LABEL_AUDIT] as const
 
 /** Item coo yang TETAP di bottom nav mobile — 4 pertama registry. */
 const ITEM_NAV_COO_TETAP = ITEM_NAV_COO.slice(0, 4)
@@ -77,14 +81,14 @@ const ITEM_NAV_COO_TETAP = ITEM_NAV_COO.slice(0, 4)
 test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)', () => {
   test.use({ viewport: VIEWPORT_MOBILE })
 
-  test('[P1] coo mobile: bottom nav 4 item tetap + pemicu "Lainnya" TAMPIL (5 item registry — Story 2.1b), Sheet berisi Audit', async ({ page, context, apiRequest }) => {
+  test('[P1] coo mobile: bottom nav 4 item tetap + pemicu "Lainnya" TAMPIL (6 item registry), Sheet berisi Pendaftar & Audit', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan di landing role-nya")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
     await page.goto('/')
     await expect(page).toHaveURL(/\/order-queue$/)
 
-    await log.step('THEN bottom nav tampil berisi TEPAT 4 link tetap registry coo (item ke-5 masuk Sheet — Story 2.1b)')
+    await log.step('THEN bottom nav tampil berisi TEPAT 4 link tetap registry coo (item ke-5 & ke-6 masuk Sheet)')
     const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
     await expect(batangBawah).toBeVisible()
     await expect(batangBawah.getByRole('link')).toHaveCount(ITEM_NAV_COO_TETAP.length)
@@ -92,7 +96,7 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
       await expect(batangBawah.getByRole('link', { name: label })).toBeVisible()
     }
 
-    await log.step('AND pemicu "Lainnya" TAMPIL (registry 5 > MAKS_ITEM_NAV_MOBILE — Sheet aktif pertama kali)')
+    await log.step('AND pemicu "Lainnya" TAMPIL (registry 6 > MAKS_ITEM_NAV_MOBILE)')
     const pemicuLainnya = batangBawah.getByRole('button', { name: LABEL_PEMICU_LAINNYA })
     await expect(pemicuLainnya).toBeVisible()
 
@@ -112,9 +116,10 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await log.step('WHEN membuka Sheet "Lainnya"')
     await pemicuLainnya.click()
 
-    await log.step('THEN Sheet berisi item overflow registry — Audit (link di luar batang bawah)')
+    await log.step('THEN Sheet berisi item overflow registry — Pendaftar, Audit (link di luar batang bawah)')
     const sheet = page.getByRole('dialog', { name: LABEL_PEMICU_LAINNYA })
     await expect(sheet).toBeVisible()
+    await expect(sheet.getByRole('link', { name: LABEL_PENDAFTAR })).toBeVisible()
     await expect(sheet.getByRole('link', { name: LABEL_AUDIT })).toBeVisible()
     await expect(sheet.getByRole('link')).toHaveCount(ITEM_NAV_COO.length - ITEM_NAV_COO_TETAP.length)
   })
@@ -141,6 +146,34 @@ test.describe('E2E Story 1.7 — navigasi registry-driven mobile <lg (UX-DR14)',
     await log.step('THEN item aktif Audit di dalam Sheet bertanda aria-current="page"')
     const sheet = page.getByRole('dialog', { name: LABEL_PEMICU_LAINNYA })
     await expect(sheet.getByRole('link', { name: LABEL_AUDIT })).toHaveAttribute('aria-current', 'page')
+  })
+
+  test('[P1] coo mobile di /pendaftar: item aktif Pendaftar berada di dalam Sheet "Lainnya" (aria-current)', async ({ page, context, apiRequest }) => {
+    // Pin nav chrome pada /pendaftar (review registrasi 2026-09-22) — pola
+    // persis test /audit-trail di atas.
+    await log.step("GIVEN sesi 'coo' terinjeksikan membuka permukaan overflow /pendaftar")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+    await page.goto('/pendaftar')
+    await expect(page).toHaveURL(/\/pendaftar$/)
+
+    await log.step('WHEN menunggu hidrasi Vue selesai lalu membuka Sheet "Lainnya" (klik pra-hidrasi kalah race — pola test Keluar)')
+    await page.waitForFunction(() => {
+      try {
+        const app = (window as unknown as { useNuxtApp?: () => { isHydrating: boolean } }).useNuxtApp
+        return typeof app === 'function' && app().isHydrating === false
+      } catch {
+        return false
+      }
+    }, { timeout: BATAS_RECURSE_KELUAR_MS })
+    const batangBawah = page.getByTestId(TEST_IDS.navigasi.batangBawah)
+    await expect(batangBawah).toBeVisible()
+    await batangBawah.getByRole('button', { name: LABEL_PEMICU_LAINNYA }).click()
+
+    await log.step('THEN item aktif Pendaftar di dalam Sheet bertanda aria-current="page"')
+    const sheet = page.getByRole('dialog', { name: LABEL_PEMICU_LAINNYA })
+    await expect(sheet).toBeVisible()
+    await expect(sheet.getByRole('link', { name: LABEL_PENDAFTAR })).toHaveAttribute('aria-current', 'page')
   })
 
   test('[P0] pemegang saham mobile: hanya Dashboard — Audit Trail & Antrian Beli absen sama sekali (item terkunci TIDAK TAMPIL)', async ({ page, context, apiRequest }) => {
@@ -295,14 +328,14 @@ test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14
     await expect(page).toHaveURL(/\/login/)
   })
 
-  test('[P1] coo desktop: sidebar 4 item + ketuk logo → landing role /order-queue', async ({ page, context, apiRequest }) => {
+  test('[P1] coo desktop: sidebar 6 item + ketuk logo → landing role /order-queue', async ({ page, context, apiRequest }) => {
     await log.step("GIVEN sesi 'coo' terinjeksikan membuka permukaan ber-nav /dashboard")
     const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
     await context.addCookies(cookies)
     await page.goto('/dashboard')
     await expect(page).toHaveURL(/\/dashboard$/)
 
-    await log.step('THEN sidebar kiri tampil berisi TEPAT 4 link registry coo (di-scope ke nav item — logo link di luar <nav>, semantik link utuh)')
+    await log.step('THEN sidebar kiri tampil berisi TEPAT 6 link registry coo (di-scope ke nav item — logo link di luar <nav>, semantik link utuh)')
     const sidebar = page.getByTestId(TEST_IDS.navigasi.sidebar)
     await expect(sidebar).toBeVisible()
     const navItem = sidebar.getByRole('navigation')
@@ -322,5 +355,24 @@ test.describe('E2E Story 1.7 — navigasi registry-driven desktop ≥lg (UX-DR14
 
     await log.step('THEN kembali ke landing role coo /order-queue')
     await expect(page).toHaveURL(/\/order-queue$/)
+  })
+
+  test('[P1] coo desktop di /pendaftar: sidebar 6 item, item aktif Pendaftar aria-current="page"', async ({ page, context, apiRequest }) => {
+    // Pin nav chrome pada /pendaftar (review registrasi 2026-09-22) — sidebar
+    // menampilkan 6 item registry langsung TANPA Sheet.
+    await log.step("GIVEN sesi 'coo' terinjeksikan membuka /pendaftar")
+    const cookies = await mintSesiPemilik(apiRequest, { userIdentifier: 'coo', email: emailSintetisUji() })
+    await context.addCookies(cookies)
+    await page.goto('/pendaftar')
+    await expect(page).toHaveURL(/\/pendaftar$/)
+
+    await log.step('THEN sidebar kiri tampil berisi TEPAT 6 link registry coo (tanpa Sheet di desktop)')
+    const sidebar = page.getByTestId(TEST_IDS.navigasi.sidebar)
+    await expect(sidebar).toBeVisible()
+    const navItem = sidebar.getByRole('navigation')
+    await expect(navItem.getByRole('link')).toHaveCount(ITEM_NAV_COO.length)
+
+    await log.step('AND item halaman aktif Pendaftar di sidebar ditandai aria-current="page"')
+    await expect(navItem.getByRole('link', { name: LABEL_PENDAFTAR })).toHaveAttribute('aria-current', 'page')
   })
 })

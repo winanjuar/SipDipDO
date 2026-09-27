@@ -17,7 +17,10 @@ import { readBody, setResponseStatus } from 'h3'
  * (401 / redirect unlinked / 403); body divalidasi zod
  * `{ id: uuid, keputusan: 'terverifikasi'|'ditolak', alasan? }` — enum
  * keputusan SATU SUMBER dari `KEPUTUSAN_COO` modul identity; alasan dibatasi
- * `PANJANG_MAKS_ALASAN_PENOLAKAN`. Alasan
+ * `PANJANG_MAKS_ALASAN_PENOLAKAN`; superRefine menolak `alasan` pada
+ * `terverifikasi` (hardening 2026-09-22 — input yang akan dibuang diam-diam
+ * tidak boleh lolos ke service, 400 BAD_REQUEST dengan issue pada
+ * `path:['alasan']`). Alasan
  * penolakan wajib non-kosong setelah trim (400 `ALASAN_WAJIB`) — gate
  * pertama sebelum service (gate kedua). Route handler TIPIS: transisi CAS,
  * gerbang kelengkapan, hitungan penolakan, dan audit in-tx semuanya di
@@ -25,11 +28,23 @@ import { readBody, setResponseStatus } from 'h3'
  * HTTP envelope seragam.
  */
 
-const SkemaKeputusan = z.object({
-  id: z.uuid(),
-  keputusan: z.enum(KEPUTUSAN_COO),
-  alasan: z.string().max(PANJANG_MAKS_ALASAN_PENOLAKAN).optional(),
-})
+const SkemaKeputusan = z
+  .object({
+    id: z.uuid(),
+    keputusan: z.enum(KEPUTUSAN_COO),
+    alasan: z.string().max(PANJANG_MAKS_ALASAN_PENOLAKAN).optional(),
+  })
+  .superRefine((nilai, ctx) => {
+    // Alasan HANYA berlaku untuk penolakan — `{ terverifikasi, alasan }`
+    // ditolak di sini, tanpa sampai service (hardening 2026-09-22).
+    if (nilai.keputusan === 'terverifikasi' && nilai.alasan !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['alasan'],
+        message: 'Alasan hanya berlaku untuk keputusan ditolak.',
+      })
+    }
+  })
 
 export default defineEventHandler(async (event) => {
   const email = await getSessionEmail(event)

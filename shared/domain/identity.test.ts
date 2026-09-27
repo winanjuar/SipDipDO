@@ -16,6 +16,10 @@
  * sebelum Order, dan tanpa_saham+aksesPenuh mendapat MoM — asersi terpin
  * Epic 1 yang bersangkutan diperbarui menyertai perubahan kontrak terpin
  * spec 2.1b.
+ *
+ * Registrasi /pendaftar (keputusan owner 2026-09-22): `/pendaftar` =
+ * PRASYARAT_COO di registry + item nav 'Pendaftar' disisip setelah Order
+ * (urutan coo 6 item — Sheet "Lainnya" mobile berisi Pendaftar, Audit).
  */
 import { describe, expect, test } from 'vitest'
 import type { OwnerAccessSnapshot, OwnerStatus, Principal, Role } from './identity'
@@ -170,12 +174,14 @@ const KASUS_PERMUKAAN: readonly { deskripsi: string, principal: Principal, path:
   { deskripsi: 'pemegang_saham × /dashboard', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/dashboard', diizinkan: true },
   { deskripsi: 'pemegang_saham × /order-queue', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/order-queue', diizinkan: false },
   { deskripsi: 'pemegang_saham × /audit-trail', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/audit-trail', diizinkan: false },
+  { deskripsi: 'pemegang_saham × /pendaftar (permukaan COO — keputusan owner 2026-09-22)', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/pendaftar', diizinkan: false },
   { deskripsi: 'pemegang_saham × /personal (PRASYARAT_OWNER)', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/personal', diizinkan: true },
   { deskripsi: 'pemegang_saham × /mom (2.1b — IA #14)', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/mom', diizinkan: true },
   { deskripsi: 'pemegang_saham × /mom/<uuid> (2.1b — prefix)', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: `/mom/${MOM_ID_UJI}`, diizinkan: true },
   { deskripsi: 'pemegang_saham × /mom/baru (2.1b — COO saja)', principal: principalUji('pemegang_saham', snapUji('terverifikasi', true)), path: '/mom/baru', diizinkan: false },
   { deskripsi: 'coo × /order-queue', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/order-queue', diizinkan: true },
   { deskripsi: 'coo × /audit-trail', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/audit-trail', diizinkan: true },
+  { deskripsi: 'coo × /pendaftar (Story 1.6 — keputusan owner 2026-09-22)', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/pendaftar', diizinkan: true },
   { deskripsi: 'coo × /dashboard (aksesPenuh via saham)', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/dashboard', diizinkan: true },
   { deskripsi: 'coo × /personal (PRASYARAT_OWNER — keputusan owner 2026-09-21)', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/personal', diizinkan: true },
   { deskripsi: 'coo × /mom (2.1b)', principal: principalUji('coo', snapUji('terverifikasi', true)), path: '/mom', diizinkan: true },
@@ -187,7 +193,7 @@ const KASUS_PERMUKAAN: readonly { deskripsi: string, principal: Principal, path:
 ]
 
 describe('shared/domain/identity — permukaanDibolehkan registry matriks keterbukaan (Story 1.7 + 2.1b, ATDD)', () => {
-  test('matriks 30 kasus role × path sesuai registry terpin (§4.8 — snapshot, bukan shares live)', () => {
+  test('matriks 32 kasus role × path sesuai registry terpin (§4.8 — snapshot, bukan shares live)', () => {
     for (const kasus of KASUS_PERMUKAAN) {
       expect(permukaanDibolehkan(kasus.principal, kasus.path), kasus.deskripsi).toBe(kasus.diizinkan)
     }
@@ -220,22 +226,23 @@ const ITEM = {
   dashboard: { label: 'Dashboard', path: '/dashboard' },
   personal: { label: 'Personal', path: '/personal' },
   order: { label: 'Order', path: '/order-queue' },
+  pendaftar: { label: 'Pendaftar', path: '/pendaftar' },
   audit: { label: 'Audit', path: '/audit-trail' },
   mom: { label: 'MoM', path: '/mom' },
 } as const
 
 describe('shared/domain/identity — itemNavigasi registry per role (Story 1.7 + 2.1b, ATDD — UX-DR14)', () => {
   test('registry eksak per role — item terkunci tidak pernah masuk daftar', () => {
-    expect(itemNavigasi('coo', true)).toEqual([ITEM.dashboard, ITEM.personal, ITEM.mom, ITEM.order, ITEM.audit])
+    expect(itemNavigasi('coo', true)).toEqual([ITEM.dashboard, ITEM.personal, ITEM.mom, ITEM.order, ITEM.pendaftar, ITEM.audit])
     expect(itemNavigasi('pemegang_saham', true)).toEqual([ITEM.dashboard, ITEM.personal, ITEM.mom])
     expect(itemNavigasi('tanpa_saham', false)).toEqual([ITEM.personal])
     expect(itemNavigasi('tanpa_saham', true)).toEqual([ITEM.personal, ITEM.dashboard, ITEM.mom])
     expect(itemNavigasi('calon_owner', false)).toEqual([])
   })
 
-  test('guard mobile (Story 2.1b): HANYA coo melebihi MAKS_ITEM_NAV_MOBILE — Sheet "Lainnya" aktif pertama kali berisi Audit', () => {
-    expect(itemNavigasi('coo', true)).toHaveLength(5)
-    expect(itemNavigasi('coo', true).slice(MAKS_ITEM_NAV_MOBILE)).toEqual([ITEM.audit])
+  test('guard mobile: HANYA coo melebihi MAKS_ITEM_NAV_MOBILE — Sheet "Lainnya" berisi Pendaftar, Audit', () => {
+    expect(itemNavigasi('coo', true)).toHaveLength(6)
+    expect(itemNavigasi('coo', true).slice(MAKS_ITEM_NAV_MOBILE)).toEqual([ITEM.pendaftar, ITEM.audit])
     for (const role of ['pemegang_saham', 'tanpa_saham', 'calon_owner'] as const) {
       for (const sudahAksesPenuh of [false, true]) {
         expect(itemNavigasi(role, sudahAksesPenuh).length,
