@@ -103,3 +103,7 @@ export {
   validateMomCreateInput,
   validateMomUpdateInput,
 } from './mom'
+
+// HTTP status codes (AD-5, AD-10)
+export { HTTP_STATUS } from './http'
+export type { HttpStatusCode } from './http'

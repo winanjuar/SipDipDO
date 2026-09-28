@@ -16,7 +16,7 @@
  * - `error`: ketika terjadi error yang perlu ditangani parent
  */
 import { MOM_PDF_SIGNED_URL_EXPIRY_SECONDS } from '#shared/domain/mom'
-import { HTTP_STATUS } from '~/server/utils/api-error'
+import { HTTP_STATUS } from '#shared/domain/http'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
@@ -179,39 +179,22 @@ defineExpose({ refreshUrl })
       <h2 class="text-lg font-semibold">Preview PDF</h2>
       <div class="flex items-center gap-3">
         <!-- Expiry countdown badge -->
-        <span
-          v-if="signedUrl && !isLoading"
-          class="text-xs tabular-nums"
-          :class="[
-            isExpired
-              ? 'text-destructive font-medium'
-              : remainingSeconds < 120 ? 'text-amber-600' : 'text-muted-foreground',
-          ]"
-        >
+        <span v-if="signedUrl && !isLoading" class="text-xs tabular-nums" :class="[
+          isExpired
+            ? 'text-destructive font-medium'
+            : remainingSeconds < 120 ? 'text-amber-600' : 'text-muted-foreground',
+        ]">
           {{ formattedExpiry }}
         </span>
 
         <!-- Refresh button -->
-        <button
-          type="button"
+        <button type="button"
           class="flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
-          :disabled="isLoading"
-          @click="refreshUrl"
-        >
-          <svg
-            class="h-4 w-4"
-            :class="{ 'animate-spin': isLoading }"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
+          :disabled="isLoading" @click="refreshUrl">
+          <svg class="h-4 w-4" :class="{ 'animate-spin': isLoading }" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           {{ isLoading ? 'Memuat...' : 'Perbarui URL' }}
         </button>
@@ -219,30 +202,14 @@ defineExpose({ refreshUrl })
     </div>
 
     <!-- Loading State -->
-    <div
-      v-if="isLoading && !signedUrl"
-      class="flex aspect-[8.5/11] w-full items-center justify-center rounded-lg border bg-muted/50"
-    >
+    <div v-if="isLoading && !signedUrl"
+      class="flex aspect-[8.5/11] w-full items-center justify-center rounded-lg border bg-muted/50">
       <div class="flex flex-col items-center gap-3">
-        <svg
-          class="h-8 w-8 animate-spin text-muted-foreground"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          />
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
+        <svg class="h-8 w-8 animate-spin text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
         <p class="text-sm text-muted-foreground">Memuat preview PDF...</p>
       </div>
@@ -250,19 +217,10 @@ defineExpose({ refreshUrl })
 
     <!-- Error State -->
     <Alert v-else-if="errorMessage && !signedUrl" variant="destructive">
-      <svg
-        class="h-4 w-4"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
+      <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <AlertDescription>
         {{ errorMessage }}
@@ -270,24 +228,12 @@ defineExpose({ refreshUrl })
     </Alert>
 
     <!-- Expired State -->
-    <div
-      v-else-if="isExpired && signedUrl"
-      class="flex aspect-[8.5/11] w-full flex-col items-center justify-center gap-4 rounded-lg border border-dashed bg-muted/30"
-    >
+    <div v-else-if="isExpired && signedUrl"
+      class="flex aspect-[8.5/11] w-full flex-col items-center justify-center gap-4 rounded-lg border border-dashed bg-muted/30">
       <div class="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-        <svg
-          class="h-8 w-8 text-muted-foreground"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
+        <svg class="h-8 w-8 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
       <div class="text-center">
@@ -302,44 +248,21 @@ defineExpose({ refreshUrl })
     <!-- PDF Preview Iframe -->
     <div v-else-if="signedUrl" class="relative">
       <!-- Loading overlay for iframe -->
-      <div
-        v-if="!iframeLoaded"
-        class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-muted/50"
-      >
+      <div v-if="!iframeLoaded" class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-muted/50">
         <div class="flex flex-col items-center gap-3">
-          <svg
-            class="h-8 w-8 animate-spin text-muted-foreground"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            />
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
+          <svg class="h-8 w-8 animate-spin text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
           <p class="text-sm text-muted-foreground">Memuat dokumen PDF...</p>
         </div>
       </div>
 
       <!-- Iframe -->
-      <iframe
-        :key="signedUrl"
-        :src="signedUrl"
-        class="aspect-[8.5/11] w-full rounded-lg border"
-        title="Preview PDF MoM"
-        @load="handleIframeLoad"
-        @error="handleIframeError"
-      />
+      <iframe :key="signedUrl" :src="signedUrl" class="aspect-[8.5/11] w-full rounded-lg border" title="Preview PDF MoM"
+        @load="handleIframeLoad" @error="handleIframeError" />
     </div>
   </div>
 </template>
