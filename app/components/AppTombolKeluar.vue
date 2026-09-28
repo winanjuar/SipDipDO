@@ -31,21 +31,67 @@ async function keluarAplikasi(): Promise<void> {
 </script>
 
 <template>
-  <Dialog v-model:open="keluarTerbuka">
-    <DialogTrigger as-child>
-      <!-- Varian 'teks' — footer sidebar desktop; testid kontrak ATDD
-           `nav-tombol-keluar` (eksisting sidebar, terpin e2e desktop). -->
+  <ClientOnly>
+    <Dialog v-model:open="keluarTerbuka">
+      <DialogTrigger as-child>
+        <!-- Varian 'teks' — footer sidebar desktop; testid kontrak ATDD
+             `nav-tombol-keluar` (eksisting sidebar, terpin e2e desktop). -->
+        <button
+          v-if="props.varian === 'teks'"
+          type="button"
+          data-testid="nav-tombol-keluar"
+          class="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <LogOut class="size-4 shrink-0" />
+          Keluar
+        </button>
+        <!-- Varian 'ikon' (default) — header ringkas mobile & wayfinding calon;
+             testid kontrak ATDD `nav-tombol-keluar-mobile`. -->
+        <button
+          v-else
+          type="button"
+          data-testid="nav-tombol-keluar-mobile"
+          aria-label="Keluar"
+          class="flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <LogOut class="pointer-events-none size-5" />
+        </button>
+      </DialogTrigger>
+      <!-- Tanpa tombol X bawaan (keputusan owner 2026-09-21, selaras modal
+           Pendaftaran): penutupan hanya via Batal/Keluar; ESC & klik overlay
+           tetap menutup. -->
+      <DialogContent data-testid="nav-dialog-keluar" class="max-w-sm" :show-close-button="false">
+        <DialogHeader>
+          <DialogTitle>Keluar dari aplikasi?</DialogTitle>
+          <DialogDescription>
+            Sesi Anda akan diakhiri dan kembali ke halaman masuk.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter class="gap-2">
+          <DialogClose as-child>
+            <Button variant="outline">
+              Batal
+            </Button>
+          </DialogClose>
+          <Button @click="keluarAplikasi">
+            Keluar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Fallback SSR: tombol tanpa ikon (Lucide tidak support SSR) -->
+    <template #fallback>
       <button
         v-if="props.varian === 'teks'"
         type="button"
         data-testid="nav-tombol-keluar"
         class="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
       >
-        <LogOut class="size-4 shrink-0" />
+        <!-- SVG placeholder untuk SSR (Lucide tidak support SSR) -->
+        <svg class="size-4 shrink-0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
         Keluar
       </button>
-      <!-- Varian 'ikon' (default) — header ringkas mobile & wayfinding calon;
-           testid kontrak ATDD `nav-tombol-keluar-mobile`. -->
       <button
         v-else
         type="button"
@@ -53,29 +99,8 @@ async function keluarAplikasi(): Promise<void> {
         aria-label="Keluar"
         class="flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
       >
-        <LogOut class="pointer-events-none size-5" />
+        <svg class="pointer-events-none size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
       </button>
-    </DialogTrigger>
-    <!-- Tanpa tombol X bawaan (keputusan owner 2026-09-21, selaras modal
-         Pendaftaran): penutupan hanya via Batal/Keluar; ESC & klik overlay
-         tetap menutup. -->
-    <DialogContent data-testid="nav-dialog-keluar" class="max-w-sm" :show-close-button="false">
-      <DialogHeader>
-        <DialogTitle>Keluar dari aplikasi?</DialogTitle>
-        <DialogDescription>
-          Sesi Anda akan diakhiri dan kembali ke halaman masuk.
-        </DialogDescription>
-      </DialogHeader>
-      <DialogFooter class="gap-2">
-        <DialogClose as-child>
-          <Button variant="outline">
-            Batal
-          </Button>
-        </DialogClose>
-        <Button @click="keluarAplikasi">
-          Keluar
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+    </template>
+  </ClientOnly>
 </template>

@@ -74,6 +74,8 @@ export interface OwnerAccessSnapshot {
 
 /** Referensi owner pada principal — data yang aman diekspos ke lapis halaman. */
 export interface PrincipalOwner {
+  /** ID owner — UUID dari tabel owners. */
+  id: string
   email: string
   status: OwnerStatus
   /** Alasan penolakan pendaftaran — tampil apa adanya (UX-DR15); null bila bukan ditolak. */
@@ -208,6 +210,8 @@ export const PERMUKAAN_PERAN: Readonly<Record<string, PrasyaratPermukaan>> = {
   '/mom': PRASYARAT_AKSES_PENUH,
   '/mom/baru': PRASYARAT_COO,
   '/mom/': PRASYARAT_AKSES_PENUH,
+  '/harga': PRASYARAT_COO,
+  '/rkap': PRASYARAT_COO,
 }
 
 /**
@@ -272,6 +276,8 @@ export const KATALOG_ITEM_NAVIGASI = {
   auditTrail: { label: 'Audit', path: '/audit-trail' },
   personal: { label: 'Personal', path: '/personal' },
   mom: { label: 'MoM', path: '/mom' },
+  harga: { label: 'Harga', path: '/harga' },
+  rkap: { label: 'RKAP', path: '/rkap' },
   pendaftar: { label: 'Pendaftar', path: '/pendaftar' },
 } as const satisfies Readonly<Record<string, ItemNavigasi>>
 
@@ -298,6 +304,8 @@ export function itemNavigasi(role: Role, sudahAksesPenuh: boolean): readonly Ite
         KATALOG_ITEM_NAVIGASI.dashboard,
         KATALOG_ITEM_NAVIGASI.personal,
         KATALOG_ITEM_NAVIGASI.mom,
+        KATALOG_ITEM_NAVIGASI.harga,
+        KATALOG_ITEM_NAVIGASI.rkap,
         KATALOG_ITEM_NAVIGASI.orderQueue,
         KATALOG_ITEM_NAVIGASI.pendaftar,
         KATALOG_ITEM_NAVIGASI.auditTrail,

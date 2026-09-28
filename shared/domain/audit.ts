@@ -36,6 +36,13 @@ export const AUDIT_ACTIONS = [
   // Harga (FR-6, Story 2.3) — penetapan baru, koreksi.
   'price-created',
   'price-corrected',
+  // RKAP (FR-23, Stories 2.4–2.6) — fase, item, penyesuaian, utilization, rebalancing.
+  'rkap-phase-created',
+  'rkap-phase-archived',
+  'rkap-item-added',
+  'rkap-item-adjusted',
+  'rkap-utilization-recorded',
+  'rkap-rebalanced',
 ] as const
 
 /** Nama aksi audit yang sah, diturunkan dari registry. */
@@ -61,6 +68,117 @@ export interface AuditEntryInput {
   target: string | null
   details: Record<string, unknown>
 }
+
+// ---------------------------------------------------------------------------
+// Epic 2 Stories 2.2-2.6 — Detail Interfaces untuk Type Safety
+// ---------------------------------------------------------------------------
+
+/**
+ * Detail payload untuk event `mom-pdf-uploaded` (Req-1 AC3).
+ * Dicatat saat COO mengunggah file PDF ke MoM.
+ */
+export interface MomPdfUploadedDetails {
+  mom_id: string
+  file_size: number
+  original_filename: string
+  storage_path?: string
+}
+
+/**
+ * Detail payload untuk event `price-created` (Req-3 AC2).
+ * Dicatat saat COO menetapkan harga baru.
+ */
+export interface PriceCreatedDetails {
+  type: 'beli' | 'jual'
+  effectiveDate: string
+  amount: string
+  momId: string
+  momTitle: string
+}
+
+/**
+ * Detail payload untuk event `price-corrected` (Req-3 AC4).
+ * Dicatat saat COO mengkoreksi harga existing.
+ */
+export interface PriceCorrectedDetails {
+  type: 'beli' | 'jual'
+  effectiveDate: string
+  oldAmount: string
+  newAmount: string
+  momId: string
+  momTitle: string
+  oldMomId?: string
+  newMomId?: string
+}
+
+/**
+ * Detail payload untuk event `rkap-phase-created` (Req-5 AC9).
+ * Dicatat saat COO membuat fase RKAP baru.
+ */
+export interface RkapPhaseCreatedDetails {
+  phaseId: string
+  phaseName: string
+  momId: string
+}
+
+/**
+ * Detail payload untuk event `rkap-item-added` (Req-8 AC3).
+ * Dicatat saat COO menambah Capital Item ke fase.
+ */
+export interface RkapItemAddedDetails {
+  phaseId: string
+  itemId: string
+  itemName: string
+  capitalType: 'tetap' | 'bergerak'
+  initialRequirement: string
+  finalRequirement: string
+}
+
+/**
+ * Detail payload untuk event `rkap-item-adjusted` (Req-7 AC2).
+ * Dicatat saat COO menyesuaikan Final Requirement item.
+ */
+export interface RkapItemAdjustedDetails {
+  itemId: string
+  oldValue: string
+  newValue: string
+  adjustmentAmount: string
+}
+
+/**
+ * Detail payload untuk event `rkap-utilization-recorded` (Req-11 AC2).
+ * Dicatat saat COO menginput Utilization per Capital Item.
+ */
+export interface RkapUtilizationRecordedDetails {
+  itemId: string
+  oldValue: string
+  newValue: string
+}
+
+/**
+ * Detail payload untuk event `rkap-rebalanced` (Req-13 AC4).
+ * Dicatat saat COO merebalancing kebutuhan antar Capital Item.
+ */
+export interface RkapRebalancedDetails {
+  fromItemId: string
+  toItemId: string
+  amount: string
+  momId: string
+}
+
+/**
+ * Union type untuk semua detail payload Epic 2.
+ * Membantu type narrowing berdasarkan action type.
+ */
+export type AuditDetailsEpic2 =
+  | MomPdfUploadedDetails
+  | PriceCreatedDetails
+  | PriceCorrectedDetails
+  | RkapPhaseCreatedDetails
+  | RkapItemAddedDetails
+  | RkapItemAdjustedDetails
+  | RkapUtilizationRecordedDetails
+  | RkapRebalancedDetails
 
 /** Set pencarian cepat untuk validasi keanggotaan aksi saat runtime. */
 const AUDIT_ACTION_SET: ReadonlySet<string> = new Set(AUDIT_ACTIONS)

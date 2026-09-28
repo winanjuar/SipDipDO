@@ -5,6 +5,10 @@
  * Jangan import langsung dari file implementasi (mis. money.ts).
  */
 
+// HTTP status codes (AD-5, AD-10)
+export { HTTP_STATUS } from './http'
+export type { HttpStatusCode } from './http'
+
 // Money utilities (AD-10 / Req-15, Req-16)
 export type { Decimal } from './money'
 export type {
@@ -104,6 +108,28 @@ export {
   validateMomUpdateInput,
 } from './mom'
 
-// HTTP status codes (AD-5, AD-10)
-export { HTTP_STATUS } from './http'
-export type { HttpStatusCode } from './http'
+// RKAP utilities (AD-6 / Req-5, Req-9, Req-10, Req-12)
+export type {
+  CapitalType,
+  RkapPhaseStatus,
+  CapitalItemWire,
+  RkapPhaseSummary,
+  RkapPhaseWire,
+  PhaseCreateInput,
+  ItemCreateInput,
+  AdjustInput,
+  RebalanceInput,
+  UtilizationInput,
+} from './rkap'
+
+export {
+  // Calculation functions
+  calculateAdjustmentLimit,
+  calculateFulfillmentRate,
+  calculateAchievement,
+  calculateHeld,
+  calculateShortfall,
+  calculateQuantityLeft,
+  calculateAdjustmentRemaining,
+  calculateAdjustmentUsedRatio,
+} from './rkap'
