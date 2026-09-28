@@ -20,6 +20,8 @@ import { useSupabaseStorage } from '../../utils/storage'
 import { writeAuditEntry } from '../audit'
 import { findMomById, updateMomPdfPath } from './mom.repo'
 import {
+  BYTES_PER_MB,
+  MS_PER_SECOND,
   MOM_PDF_ALLOWED_MIME_TYPES,
   MOM_PDF_BUCKET,
   MOM_PDF_MAX_SIZE_BYTES,
@@ -55,7 +57,7 @@ function validateMimeType(mimeType: string): void {
  */
 function validateFileSize(file: Buffer): void {
   if (file.length > MOM_PDF_MAX_SIZE_BYTES) {
-    const maxMB = MOM_PDF_MAX_SIZE_BYTES / (1024 * 1024)
+    const maxMB = MOM_PDF_MAX_SIZE_BYTES / BYTES_PER_MB
     throw new PdfDomainError(
       `Ukuran file melebihi batas maksimal ${maxMB}MB.`,
       'VALIDATION',
@@ -211,7 +213,7 @@ export async function generateSignedUrl(
   }
 
   // Hitung waktu kedaluwarsa
-  const expiresAt = new Date(Date.now() + MOM_PDF_SIGNED_URL_EXPIRY_SECONDS * 1000).toISOString()
+  const expiresAt = new Date(Date.now() + MOM_PDF_SIGNED_URL_EXPIRY_SECONDS * MS_PER_SECOND).toISOString()
 
   return {
     url: data.signedUrl,

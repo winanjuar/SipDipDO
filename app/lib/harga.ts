@@ -55,6 +55,7 @@ export function formatTanggalSingkat(iso: string): string {
 export function formatRupiah(amount: string): string {
   // Parse string decimal — handle both canonical ("52000.00") and id-ID ("52.000,00")
   const normalized = amount.replace(/\./g, '').replace(',', '.')
+  // eslint-disable-next-line no-restricted-syntax -- display formatting only, not money calculation
   const parsed = Number.parseFloat(normalized)
   
   if (Number.isNaN(parsed)) {

@@ -1,0 +1,267 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Generate ATDD checklist untuk Story 1.8": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508450
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972517675
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972711012
+      }
+    ],
+    "1.2 Buat red-phase API tests": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508485
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972719827
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972971299
+      }
+    ],
+    "1.3 Buat red-phase E2E tests": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508584
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972980926
+      }
+    ],
+    "2.1 Tambah audit action constant": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508610
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789973349277
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789973445286
+      }
+    ],
+    "2.2 Buat Zod validation schemas": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508631
+      },
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789973456141
+      }
+    ],
+    "2.3 Implementasi owner service functions": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508652
+      }
+    ],
+    "2.4 Export dari identity module index": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508675
+      }
+    ],
+    "3.1 Implementasi GET /api/admin/owners": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508697
+      },
+      {
+        "executionId": "ecbdaf0f-5dd9-4859-811f-26104278b5c9",
+        "chatSessionId": "sess_f175e55d-d2ef-4dce-8f94-45bc6811fb20",
+        "timestamp": 1789977173893
+      },
+      {
+        "executionId": "ecbdaf0f-5dd9-4859-811f-26104278b5c9",
+        "chatSessionId": "sess_f175e55d-d2ef-4dce-8f94-45bc6811fb20",
+        "timestamp": 1789977908273
+      }
+    ],
+    "3.2 Implementasi GET /api/admin/owners/:id": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508723
+      },
+      {
+        "executionId": "ecbdaf0f-5dd9-4859-811f-26104278b5c9",
+        "chatSessionId": "sess_f175e55d-d2ef-4dce-8f94-45bc6811fb20",
+        "timestamp": 1789977928080
+      },
+      {
+        "executionId": "ecbdaf0f-5dd9-4859-811f-26104278b5c9",
+        "chatSessionId": "sess_f175e55d-d2ef-4dce-8f94-45bc6811fb20",
+        "timestamp": 1789978068383
+      }
+    ],
+    "3.3 Implementasi PUT /api/admin/owners/:id": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508742
+      },
+      {
+        "executionId": "ecbdaf0f-5dd9-4859-811f-26104278b5c9",
+        "chatSessionId": "sess_f175e55d-d2ef-4dce-8f94-45bc6811fb20",
+        "timestamp": 1789978088204
+      }
+    ],
+    "3.4 Implementasi POST /api/admin/owners": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508763
+      }
+    ],
+    "4.1 Buat OwnerPicker component": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508783
+      }
+    ],
+    "4.2 Buat OwnerEditDialog component": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508808
+      }
+    ],
+    "4.3 Buat OwnerAddDialog component": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508846
+      }
+    ],
+    "4.4 Buat admin/owners page": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508867
+      }
+    ],
+    "5.1 Jalankan API tests": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508897
+      },
+      {
+        "executionId": "4128170b-6084-429d-9084-f668245229f9",
+        "chatSessionId": "sess_5002912b-ceef-4ecf-afe7-156bbc334715",
+        "timestamp": 1790318597151
+      },
+      {
+        "executionId": "4128170b-6084-429d-9084-f668245229f9",
+        "chatSessionId": "sess_5002912b-ceef-4ecf-afe7-156bbc334715",
+        "timestamp": 1790320731343
+      }
+    ],
+    "5.2 Jalankan E2E tests": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508950
+      },
+      {
+        "executionId": "f7b2dfff-e723-4677-a054-567288ea05d0",
+        "chatSessionId": "sess_5002912b-ceef-4ecf-afe7-156bbc334715",
+        "timestamp": 1790321191654
+      },
+      {
+        "executionId": "f7b2dfff-e723-4677-a054-567288ea05d0",
+        "chatSessionId": "sess_5002912b-ceef-4ecf-afe7-156bbc334715",
+        "timestamp": 1790322927866
+      }
+    ],
+    "5.3 Jalankan full test suite": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508970
+      },
+      {
+        "executionId": "d0c46272-ef97-44b9-8c09-abdd31e4d40c",
+        "chatSessionId": "sess_445b54a1-2867-4dae-a523-3e997ff9db04",
+        "timestamp": 1790432727319
+      },
+      {
+        "executionId": "d0c46272-ef97-44b9-8c09-abdd31e4d40c",
+        "chatSessionId": "sess_445b54a1-2867-4dae-a523-3e997ff9db04",
+        "timestamp": 1790433158734
+      }
+    ],
+    "6.1 Update sprint-status.yaml": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972508991
+      },
+      {
+        "executionId": "d0c46272-ef97-44b9-8c09-abdd31e4d40c",
+        "chatSessionId": "sess_445b54a1-2867-4dae-a523-3e997ff9db04",
+        "timestamp": 1790433168471
+      }
+    ],
+    "6.2 Code review via bmad-code-review": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972509006
+      },
+      {
+        "executionId": "d0c46272-ef97-44b9-8c09-abdd31e4d40c",
+        "chatSessionId": "sess_445b54a1-2867-4dae-a523-3e997ff9db04",
+        "timestamp": 1790433329011
+      },
+      {
+        "executionId": "d0c46272-ef97-44b9-8c09-abdd31e4d40c",
+        "chatSessionId": "sess_445b54a1-2867-4dae-a523-3e997ff9db04",
+        "timestamp": 1790433855426
+      }
+    ],
+    "6.3 Update status ke review": [
+      {
+        "executionId": "2cd3a249-856d-4603-88d0-ee176b15ba08",
+        "chatSessionId": "sess_0b9ec7ba-79a2-4f30-bf05-1abaaa7f57e9",
+        "timestamp": 1789972509023
+      },
+      {
+        "executionId": "d0c46272-ef97-44b9-8c09-abdd31e4d40c",
+        "chatSessionId": "sess_445b54a1-2867-4dae-a523-3e997ff9db04",
+        "timestamp": 1790433864200
+      }
+    ]
+  }
+}

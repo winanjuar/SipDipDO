@@ -8,7 +8,7 @@
  * **Validates: Requirements 4, 15**
  */
 
-import { compare } from './money'
+
 
 /** Tipe harga: beli atau jual. */
 export type PriceType = 'beli' | 'jual'
@@ -192,15 +192,15 @@ export function resolvePrice(
   // Cari harga dengan effectiveDate terbaru
   // Menggunakan compare dari money.ts tidak cocok di sini karena ini string tanggal.
   // Untuk tanggal ISO string, perbandingan leksikografis sudah benar.
-  let latest = candidates[0]
+  let latest = candidates[0]!
   for (let i = 1; i < candidates.length; i++) {
-    const current = candidates[i]
+    const current = candidates[i]!
     if (current.effectiveDate > latest.effectiveDate) {
       latest = current
     }
   }
 
-  return latest
+  return latest ?? null
 }
 
 /**

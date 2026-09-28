@@ -1,5 +1,8 @@
 import type { H3Event } from 'h3'
 
+// Re-export HTTP_STATUS from shared for backward compatibility (AD-5, AD-10)
+export { HTTP_STATUS } from '#shared/domain/http'
+
 /**
  * Envelope error API seragam (konvensi spine): `{ code, message, details }`.
  * Route handler mengembalikan envelope ini dengan status HTTP yang sesuai —
@@ -10,19 +13,6 @@ export interface ApiErrorEnvelope {
   message: string
   details: Record<string, unknown>
 }
-
-/** Status HTTP yang dipakai envelope error — satu sumber untuk seluruh route. */
-export const HTTP_STATUS = {
-  ok: 200,
-  created: 201,
-  noContent: 204,
-  badRequest: 400,
-  unauthorized: 401,
-  forbidden: 403,
-  notFound: 404,
-  conflict: 409,
-  serviceUnavailable: 503,
-} as const
 
 export function sendApiError(
   event: H3Event,

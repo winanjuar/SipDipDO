@@ -1,0 +1,19 @@
+{
+  // IDE TypeScript Support for Server Directory
+  // ============================================
+  // This file exists so VS Code/Kiro can resolve path aliases (e.g. #shared/*)
+  // in server files. Without it, the IDE uses the root tsconfig.json which
+  // extends .nuxt/tsconfig.json — that config doesn't include server/**/* and
+  // lacks Nitro-specific type contexts.
+  //
+  // Nuxt generates separate tsconfigs for different code areas:
+  // - .nuxt/tsconfig.json        → app (frontend)
+  // - .nuxt/tsconfig.server.json → server (Nitro)
+  // - .nuxt/tsconfig.shared.json → shared
+  //
+  // CLI typecheck (npm run typecheck) handles this automatically, but the IDE
+  // language server needs an explicit config file here to find the correct one.
+  //
+  // See: https://nuxt.com/docs/guide/directory-structure/server#server-types
+  "extends": "../.nuxt/tsconfig.server.json"
+}

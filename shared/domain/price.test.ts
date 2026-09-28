@@ -115,7 +115,7 @@ describe('validatePriceCreateInput', () => {
 
   it('mengembalikan error untuk type tidak valid', () => {
     const input = {
-      type: 'buy' as any,
+      type: 'buy' as unknown as typeof import('./price').PRICE_TYPES[number],
       effectiveDate: '2026-09-15',
       amount: '52000.00',
       momId: 'mom-1',

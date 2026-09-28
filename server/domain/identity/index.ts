@@ -70,3 +70,25 @@ export type {
   KeputusanCoo,
   RegistrationDeadline,
 } from './registration.service'
+
+// Story 1.8: Manajemen owner oleh COO
+export {
+  createOwnerByCoo,
+  getOwnerById,
+  listOwners,
+  updateOwner,
+} from './owner.service'
+export type {
+  BankAccountDetail,
+  CreateOwnerEmailExistsError,
+  CreateOwnerResponse,
+  CreateOwnerResult,
+  EmergencyContactDetail,
+  GetOwnerResponse,
+  OwnerDetail,
+  OwnerListItem,
+  UpdateOwnerServiceInput,
+} from './owner.service'
+// Story 1.8: Validation schemas
+export { createOwnerSchema, OWNER_VALIDATION_ERRORS, updateOwnerSchema } from './owner.schemas'
+export type { CreateOwnerInput, OwnerValidationError, UpdateOwnerInput } from './owner.schemas'

@@ -39,6 +39,7 @@ import { useDb } from '../utils/db'
  * auth sendiri (AD-8: middleware + route handler).
  */
 const PATH_KELENGKAPAN_PROFIL = '/profile-completeness'
+const PATH_ADMIN_OWNERS = '/admin/owners'
 
 /** Umur flash-cookie pesan transparensi (detik) — dihapus halaman saat
  *  mount; batas umur hanya jaga-jaga bila halaman tak pernah dibuka. */
@@ -48,6 +49,7 @@ const UMUR_COOKIE_TRANSPARANSI_DETIK = 600
 const HALAMAN_GERBANG_SESI: ReadonlySet<string> = new Set([
   ...Object.values(LANDING_PATH),
   PATH_KELENGKAPAN_PROFIL,
+  PATH_ADMIN_OWNERS,
 ])
 
 /** Permukaan yang tetap terjangkau calon `diajukan` belum lengkap (UX-DR14). */

@@ -40,7 +40,7 @@
 #       deferred-work.md, entri spec-1-2). Race vs cron kedaluwarsa memakai
 #       pola CAS yang sama dengan `kedaluwarsakanCalon` (spec 1.5).
 generated: 09-16-2026 07:26
-last_updated: 2026-09-22
+last_updated: 2026-09-27
 project: snd-dash
 project_key: NOKEY
 tracking_system: file-system
@@ -54,7 +54,7 @@ development_status:
   1-5-kelengkapan-profile-11-field: review
   1-6-verifikasi-penolakan-pendaftar-oleh-coo: review
   1-7-role-matriks-keterbukaan-navigasi: review
-  1-8-manajemen-owner-oleh-coo: backlog
+  1-8-manajemen-owner-oleh-coo: review
   1-9-pergantian-coo: backlog
   epic-1-retrospective: optional
 

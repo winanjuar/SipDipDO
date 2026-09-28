@@ -5,6 +5,10 @@
  * Jangan import langsung dari file implementasi (mis. money.ts).
  */
 
+// HTTP status codes (AD-5, AD-10)
+export { HTTP_STATUS } from './http'
+export type { HttpStatusCode } from './http'
+
 // Money utilities (AD-10 / Req-15, Req-16)
 export type { Decimal } from './money'
 export type {

@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = [
   'profil-kelengkapan',
   // Kelola data owner (FR-13).
   'kelola-owner-perubahan',
+  'kelola-owner-penambahan',
   // Pergantian mandat COO (FR-17).
   'pergantian-coo',
   // MoM MRO/RUPS (FR-7, Story 2.1) — buat, ubah, finalkan, hapus.
